@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Download, Lock } from "lucide-react";
 import { handoverItemSchema } from "@/lib/validation/shift-report";
 import { generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/shift/handover")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -336,146 +337,206 @@ function HandoverPage() {
         </div>
       )}
 
-      {mode === "incoming" && (
+      {/* Pending handover (od poprzedniej zmiany) — pokazujemy odrębną sekcję */}
+      {pendingForMe && (
         <div className="border border-blue-500/50 bg-blue-500/10 rounded-md p-4 text-sm print:hidden">
-          <div className="font-semibold mb-1">Przejmujesz zmianę</div>
+          <div className="font-semibold mb-1">Oczekujący protokół do przyjęcia</div>
           <div>
-            Przeczytaj uwagi przekazującego (kolumna po lewej) i obowiązkowo wpisz swoje uwagi
-            dla każdego obiektu (kolumna po prawej). Bez tego nie można potwierdzić przyjęcia zmiany.
-          </div>
-        </div>
-      )}
-      {mode === "outgoing" && (
-        <div className="border border-emerald-500/40 bg-emerald-500/10 rounded-md p-4 text-sm print:hidden">
-          <div className="font-semibold mb-1">Przekazujesz zmianę</div>
-          <div>
-            Uzupełnij uwagi dla każdego obiektu. Kolumna „Uwagi przejmującego” wypełni się,
-            kiedy następny operator przyjmie zmianę.
+            Poprzedni operator przekazał Ci zmianę. Przejdź do zakładki <strong>„Przyjęcie zmiany"</strong>{" "}
+            i wpisz swoje uwagi dla każdego obiektu — bez tego nie można potwierdzić przejęcia.
           </div>
         </div>
       )}
 
-      {/* === Papierowy formularz === */}
-      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
-        <table className="w-full border-collapse mb-1">
-          <tbody>
-            <tr>
-              <td className="align-top pb-1 w-1/2">
-                <span className="italic font-bold underline">PRZEKAZANIE  ZMIANY :</span>
-              </td>
-              <td className="align-top pb-1 border border-black p-2">
-                Data : <strong>{activeHandover?.submitted_at?.slice(0, 10) ?? today}</strong>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <table className="w-full border-collapse border border-black mb-2">
-          <tbody>
-            <tr>
-              <td className="border border-black p-2">
-                <div>Zmianę przekazuje: <strong>{fromName}</strong></div>
-                <div className="mt-1">Zmianę przejmuje: <strong>{activeHandover?.accepted_at ? toName : "—"}</strong></div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <Tabs defaultValue={pendingForMe ? "incoming" : "outgoing"} className="w-full">
+        <TabsList className="grid grid-cols-2 w-full max-w-md">
+          <TabsTrigger value="incoming">
+            Przyjęcie zmiany{pendingForMe ? " •" : ""}
+          </TabsTrigger>
+          <TabsTrigger value="outgoing">Przekazanie zmiany</TabsTrigger>
+        </TabsList>
 
-        <div className="italic mb-1">
-          {mode === "incoming"
-            ? "Twoje uwagi po przejęciu zmiany (wypełnij każdy obiekt):"
-            : mode === "outgoing"
-              ? "Twoje uwagi przekazujące zmianę:"
-              : "Uwagi dotyczące przekazania zmiany:"}
-        </div>
+        {/* ====== ZAKŁADKA: PRZYJĘCIE ZMIANY ====== */}
+        <TabsContent value="incoming" className="space-y-3">
+          {!pendingForMe ? (
+            <div className="bg-white text-black border border-black p-6 font-serif text-sm">
+              Brak oczekującego protokołu do przyjęcia. Gdy poprzedni operator zakończy
+              i wyśle swój protokół przekazania, zobaczysz go tutaj.
+            </div>
+          ) : (
+            <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
+              <table className="w-full border-collapse mb-2">
+                <tbody>
+                  <tr>
+                    <td className="align-top pb-1 w-1/2">
+                      <span className="italic font-bold underline">PRZYJĘCIE  ZMIANY :</span>
+                    </td>
+                    <td className="align-top pb-1 border border-black p-2">
+                      Data : <strong>{pendingForMe.submitted_at.slice(0, 10)}</strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <table className="w-full border-collapse border border-black mb-2">
+                <tbody>
+                  <tr>
+                    <td className="border border-black p-2">
+                      <div>Zmianę przejmuje (Ty): <strong>{fromName}</strong></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
 
-        <table className="w-full border-collapse border border-black">
-          <thead className="bg-[#d9d9d9]">
-            <tr>
-              <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
-              <th className={`border border-black p-1 font-bold ${mode === "incoming" ? "bg-[#eeeeee]" : ""}`}>
-                Uwagi przekazującego zmianę{mode === "incoming" ? " (do przeczytania)" : ""}
-              </th>
-              <th className={`border border-black p-1 font-bold ${mode === "incoming" ? "bg-yellow-100" : ""}`}>
-                Uwagi przejmującego zmianę{mode === "incoming" ? " (wymagane)" : ""}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {(objects ?? []).map((obj) => {
-              const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
-              const setField = (k: "uwagi_przekazujacego" | "uwagi_przyjmujacego", val: string) =>
-                setItemMap((m) => ({ ...m, [obj.id]: { ...v, [k]: val } }));
-              const errKey = `${obj.id}:uwagi_przekazujacego`;
-              const errKeyTo = `${obj.id}:uwagi_przyjmujacego`;
-              return (
-                <tr key={obj.id} className="align-top">
-                  <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
-                  <td className="border border-black p-1">
-                    {mode === "incoming" ? (
-                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
-                        {v.uwagi_przekazujacego || <span className="italic text-gray-500">— brak uwag —</span>}
+              <div className="italic mb-1">
+                Przeczytaj uwagi przekazującego i wpisz swoje (wymagane dla każdego obiektu):
+              </div>
+
+              <table className="w-full border-collapse border border-black">
+                <thead className="bg-[#d9d9d9]">
+                  <tr>
+                    <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
+                    <th className="border border-black p-1 font-bold bg-[#eeeeee]">
+                      Uwagi przekazującego (do przeczytania)
+                    </th>
+                    <th className="border border-black p-1 font-bold bg-yellow-100">
+                      Twoje uwagi (wymagane)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(objects ?? []).map((obj) => {
+                    const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+                    const setField = (val: string) =>
+                      setItemMap((m) => ({
+                        ...m,
+                        [obj.id]: { ...v, uwagi_przyjmujacego: val },
+                      }));
+                    const errKey = `${obj.id}:uwagi_przyjmujacego`;
+                    return (
+                      <tr key={obj.id} className="align-top">
+                        <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
+                        <td className="border border-black p-1">
+                          <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
+                            {v.uwagi_przekazujacego || (
+                              <span className="italic text-gray-500">— brak uwag —</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="border border-black p-1 bg-yellow-50">
+                          <Textarea
+                            value={v.uwagi_przyjmujacego}
+                            onChange={(e) => setField(e.target.value)}
+                            placeholder={'Wpisz uwagi (np. „brak uwag")'}
+                            rows={3}
+                            className={`text-xs ${errors[errKey] ? "border-destructive ring-1 ring-destructive" : ""}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td className="border border-black bg-[#d9d9d9] p-2 font-bold">Podpis:</td>
+                    <td className="border border-black p-2"></td>
+                    <td className="border border-black p-2 underline">Przejmujący : {fromName}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="flex justify-end gap-2 mt-3 print:hidden">
+                <Button onClick={() => accept.mutate()} disabled={accept.isPending} size="lg">
+                  {accept.isPending ? "Zapisywanie…" : "Potwierdź przyjęcie zmiany"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ====== ZAKŁADKA: PRZEKAZANIE ZMIANY ====== */}
+        <TabsContent value="outgoing" className="space-y-3">
+          {!isMine ? (
+            <div className="bg-white text-black border border-black p-6 font-serif text-sm">
+              Nie masz otwartej własnej zmiany — nie możesz utworzyć protokołu przekazania.
+            </div>
+          ) : (
+            <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
+              <table className="w-full border-collapse mb-2">
+                <tbody>
+                  <tr>
+                    <td className="align-top pb-1 w-1/2">
+                      <span className="italic font-bold underline">PRZEKAZANIE  ZMIANY :</span>
+                    </td>
+                    <td className="align-top pb-1 border border-black p-2">
+                      Data : <strong>{mineAsFrom?.submitted_at?.slice(0, 10) ?? today}</strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <table className="w-full border-collapse border border-black mb-2">
+                <tbody>
+                  <tr>
+                    <td className="border border-black p-2">
+                      <div>Zmianę przekazuje (Ty): <strong>{fromName}</strong></div>
+                      <div className="mt-1 text-gray-600 italic">
+                        Zmianę przejmie: <strong>—</strong> (wypełni się po przyjęciu przez następnego operatora)
                       </div>
-                    ) : (
-                      <Textarea
-                        value={v.uwagi_przekazujacego}
-                        onChange={(e) => setField("uwagi_przekazujacego", e.target.value)}
-                        disabled={!canEditFrom}
-                        placeholder={canEditFrom ? "Wpisz uwagi lub „brak uwag”" : ""}
-                        rows={3}
-                        className={`text-xs ${errors[errKey] ? "border-destructive" : ""}`}
-                      />
-                    )}
-                  </td>
-                  <td className={`border border-black p-1 ${mode === "incoming" ? "bg-yellow-50" : ""}`}>
-                    {mode === "outgoing" ? (
-                      <div className="text-xs italic text-gray-500 min-h-[3em] p-1">
-                        — wypełni przejmujący zmianę —
-                      </div>
-                    ) : (
-                      <Textarea
-                        value={v.uwagi_przyjmujacego}
-                        onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
-                        disabled={!canEditTo}
-                        placeholder={canEditTo ? "Wpisz swoje uwagi (wymagane, np. „brak uwag”)" : ""}
-                        rows={3}
-                        className={`text-xs ${errors[errKeyTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
-                        autoFocus={mode === "incoming"}
-                      />
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            <tr>
-              <td className="border border-black bg-[#d9d9d9] p-2 font-bold">Podpisy:</td>
-              <td className="border border-black p-2 underline">Przekazujący : {fromName}</td>
-              <td className="border border-black p-2 underline">Przejmujący : {activeHandover?.accepted_at ? toName : ""}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
 
-      <div className="flex justify-end gap-2 print:hidden">
-        {mode === "outgoing" && canEditFrom && (
-          <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
-            {saveFrom.isPending
-              ? "Zapisywanie…"
-              : activeHandover
-                ? "Aktualizuj protokół"
-                : "Zapisz protokół"}
-          </Button>
-        )}
-        {mode === "history" && locked && isManager && (
-          <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
-            {saveFrom.isPending ? "Zapisywanie…" : "Zapisz zmiany (z historią)"}
-          </Button>
-        )}
-        {mode === "incoming" && (
-          <Button onClick={() => accept.mutate()} disabled={accept.isPending} size="lg">
-            {accept.isPending ? "Zapisywanie…" : "Potwierdź przyjęcie zmiany"}
-          </Button>
-        )}
-      </div>
+              <div className="italic mb-1">Twoje uwagi przekazujące zmianę (wpisz dla każdego obiektu):</div>
+
+              <table className="w-full border-collapse border border-black">
+                <thead className="bg-[#d9d9d9]">
+                  <tr>
+                    <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
+                    <th className="border border-black p-1 font-bold">Uwagi przekazującego zmianę</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(objects ?? []).map((obj) => {
+                    const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+                    const setField = (val: string) =>
+                      setItemMap((m) => ({
+                        ...m,
+                        [obj.id]: { ...v, uwagi_przekazujacego: val },
+                      }));
+                    const errKey = `${obj.id}:uwagi_przekazujacego`;
+                    return (
+                      <tr key={obj.id} className="align-top">
+                        <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
+                        <td className="border border-black p-1">
+                          <Textarea
+                            value={v.uwagi_przekazujacego}
+                            onChange={(e) => setField(e.target.value)}
+                            placeholder={'Wpisz uwagi lub „brak uwag"'}
+                            rows={3}
+                            className={`text-xs ${errors[errKey] ? "border-destructive" : ""}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td className="border border-black bg-[#d9d9d9] p-2 font-bold">Podpis:</td>
+                    <td className="border border-black p-2 underline">Przekazujący : {fromName}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div className="flex justify-end gap-2 mt-3 print:hidden">
+                <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
+                  {saveFrom.isPending
+                    ? "Zapisywanie…"
+                    : mineAsFrom
+                      ? "Aktualizuj protokół"
+                      : "Zapisz protokół"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
