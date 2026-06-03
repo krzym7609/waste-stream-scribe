@@ -166,16 +166,16 @@ function ShiftReportPage() {
 
   const validate = (): { ok: boolean; payload?: Record<string, number | boolean | string | null> } => {
     const errs: Record<string, string> = {};
-    // numeric
+    // numeric (accept comma or dot as decimal separator)
     const parsed: Record<string, number> = {};
     for (const f of NUM_FIELDS) {
-      const raw = nums[f.key];
-      if (raw === "" || raw == null) {
+      const raw = (nums[f.key] ?? "").trim().replace(",", ".");
+      if (raw === "") {
         errs[f.key] = `${f.label}: wymagane`;
+      } else if (!/^-?\d+(\.\d+)?$/.test(raw)) {
+        errs[f.key] = `${f.label}: nieprawidłowa liczba (użyj , lub .)`;
       } else {
-        const n = Number(raw);
-        if (Number.isNaN(n)) errs[f.key] = `${f.label}: nieprawidłowa liczba`;
-        else parsed[f.key] = n;
+        parsed[f.key] = Number(raw);
       }
     }
     if (Object.keys(errs).length === 0) {
