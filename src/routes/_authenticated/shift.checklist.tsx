@@ -182,7 +182,7 @@ function ChecklistPage() {
           kind: "deferred_tasks",
           title: `Niewykonane zadania (${undone.length})`,
           body: `Zmiana ${currentShift} ${today}: ${undone.map((u) => u.task?.name).join(", ")}`,
-          related_session_id: duty.session!.id,
+          related_session_id: duty!.session!.id,
         });
       }
     },
