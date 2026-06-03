@@ -18,6 +18,7 @@ import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
 import { Route as AuthenticatedShiftReportRouteImport } from './routes/_authenticated/shift.report'
+import { Route as AuthenticatedShiftHandoverRouteImport } from './routes/_authenticated/shift.handover'
 import { Route as AuthenticatedShiftChecklistRouteImport } from './routes/_authenticated/shift.checklist'
 import { Route as AuthenticatedScheduleTasksRouteImport } from './routes/_authenticated/schedule.tasks'
 
@@ -67,6 +68,12 @@ const AuthenticatedShiftReportRoute =
     path: '/shift/report',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedShiftHandoverRoute =
+  AuthenticatedShiftHandoverRouteImport.update({
+    id: '/shift/handover',
+    path: '/shift/handover',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedShiftChecklistRoute =
   AuthenticatedShiftChecklistRouteImport.update({
     id: '/shift/checklist',
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AuthenticatedTeamRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/shift/checklist': typeof AuthenticatedShiftChecklistRoute
+  '/shift/handover': typeof AuthenticatedShiftHandoverRoute
   '/shift/report': typeof AuthenticatedShiftReportRoute
 }
 export interface FileRoutesByTo {
@@ -102,6 +110,7 @@ export interface FileRoutesByTo {
   '/team': typeof AuthenticatedTeamRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/shift/checklist': typeof AuthenticatedShiftChecklistRoute
+  '/shift/handover': typeof AuthenticatedShiftHandoverRoute
   '/shift/report': typeof AuthenticatedShiftReportRoute
 }
 export interface FileRoutesById {
@@ -116,6 +125,7 @@ export interface FileRoutesById {
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/_authenticated/shift/checklist': typeof AuthenticatedShiftChecklistRoute
+  '/_authenticated/shift/handover': typeof AuthenticatedShiftHandoverRoute
   '/_authenticated/shift/report': typeof AuthenticatedShiftReportRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/schedule/tasks'
     | '/shift/checklist'
+    | '/shift/handover'
     | '/shift/report'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/schedule/tasks'
     | '/shift/checklist'
+    | '/shift/handover'
     | '/shift/report'
   id:
     | '__root__'
@@ -155,6 +167,7 @@ export interface FileRouteTypes {
     | '/_authenticated/team'
     | '/_authenticated/schedule/tasks'
     | '/_authenticated/shift/checklist'
+    | '/_authenticated/shift/handover'
     | '/_authenticated/shift/report'
   fileRoutesById: FileRoutesById
 }
@@ -229,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShiftReportRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/shift/handover': {
+      id: '/_authenticated/shift/handover'
+      path: '/shift/handover'
+      fullPath: '/shift/handover'
+      preLoaderRoute: typeof AuthenticatedShiftHandoverRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/shift/checklist': {
       id: '/_authenticated/shift/checklist'
       path: '/shift/checklist'
@@ -266,6 +286,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedShiftChecklistRoute: typeof AuthenticatedShiftChecklistRoute
+  AuthenticatedShiftHandoverRoute: typeof AuthenticatedShiftHandoverRoute
   AuthenticatedShiftReportRoute: typeof AuthenticatedShiftReportRoute
 }
 
@@ -276,6 +297,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedShiftChecklistRoute: AuthenticatedShiftChecklistRoute,
+  AuthenticatedShiftHandoverRoute: AuthenticatedShiftHandoverRoute,
   AuthenticatedShiftReportRoute: AuthenticatedShiftReportRoute,
 }
 
@@ -291,3 +313,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
