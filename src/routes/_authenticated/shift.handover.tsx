@@ -113,6 +113,23 @@ function HandoverPage() {
     },
   });
 
+  const { data: incomingFromProfile } = useQuery({
+    queryKey: ["profile", incomingHandover?.from_user_id],
+    enabled: !!incomingHandover?.from_user_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,username")
+        .eq("id", incomingHandover!.from_user_id)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const incomingFromName =
+    `${incomingFromProfile?.first_name ?? ""} ${incomingFromProfile?.last_name ?? ""}`.trim() ||
+    incomingFromProfile?.username ||
+    "—";
+
   const [incomingItemMap, setIncomingItemMap] = useState<
     Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
   >({});
@@ -435,7 +452,7 @@ function HandoverPage() {
               <td className="border border-black p-2">
                 <div>
                   Zmianę przekazuje:{" "}
-                  <strong>{tab === "outgoing" ? fromName : "—"}</strong>
+                  <strong>{tab === "outgoing" ? fromName : incomingFromName}</strong>
                 </div>
                 <div className="mt-1">
                   Zmianę przejmuje:{" "}
@@ -518,7 +535,7 @@ function HandoverPage() {
             <tr>
               <td className="border border-black bg-[#d9d9d9] p-2 font-bold">Podpisy:</td>
               <td className="border border-black p-2 underline">
-                Przekazujący : {tab === "outgoing" ? fromName : ""}
+                Przekazujący : {tab === "outgoing" ? fromName : incomingFromName}
               </td>
               <td className="border border-black p-2 underline">
                 Przejmujący : {tab === "incoming" ? fromName : (ctxHandover?.accepted_at ? toName : "")}
