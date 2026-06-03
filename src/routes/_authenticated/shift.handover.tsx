@@ -388,7 +388,7 @@ function HandoverPage() {
     }
 
     return (
-      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
+      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight max-w-full overflow-x-auto">
         <table className="w-full border-collapse mb-1">
           <tbody>
             <tr>
