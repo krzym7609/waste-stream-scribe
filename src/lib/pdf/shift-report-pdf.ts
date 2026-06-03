@@ -38,6 +38,25 @@ const SHIFT_SHORT: Record<string, string> = {
 const v = (x: number | null | undefined) => (x == null ? "" : String(x));
 
 const GRAY = "#d9d9d9";
+const SOFT_BREAK = "\u200B";
+
+const wrapPdfText = (value: string | null | undefined, maxChunk = 18) =>
+  String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part) || part.length <= maxChunk) return part;
+      return part
+        .replace(/([/\\_-])/g, `$1${SOFT_BREAK}`)
+        .replace(new RegExp(`([^${SOFT_BREAK}]{${maxChunk}})`, "g"), `$1${SOFT_BREAK}`);
+    })
+    .join("");
+
+const textCell = (text: string | null | undefined, margin: [number, number, number, number]): TableCell => ({
+  text: wrapPdfText(text),
+  margin,
+  noWrap: false,
+});
 
 export async function generateShiftReportPdf(d: ShiftReportPdfData) {
   const pobor =
@@ -189,9 +208,9 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
           }`;
     itemsBody.push([
       { text: it.object_name, fillColor: GRAY, margin: [3, 3, 3, 3] },
-      { text: ocena, margin: [3, 3, 3, 3] },
-      { text: harm, margin: [3, 3, 3, 3] },
-      { text: it.inne_czynnosci ?? "", margin: [3, 3, 3, 3] },
+      textCell(ocena, [3, 3, 3, 3]),
+      textCell(harm, [3, 3, 3, 3]),
+      textCell(it.inne_czynnosci, [3, 3, 3, 3]),
     ]);
   }
 
@@ -310,8 +329,8 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
   for (const it of d.items) {
     itemsBody.push([
       { text: it.object_name, fillColor: "#d9d9d9", margin: [3, 4, 3, 4] },
-      { text: it.uwagi_przekazujacego ?? "", margin: [3, 4, 3, 4] },
-      { text: it.uwagi_przyjmujacego ?? "", margin: [3, 4, 3, 4] },
+      textCell(it.uwagi_przekazujacego, [3, 4, 3, 4]),
+      textCell(it.uwagi_przyjmujacego, [3, 4, 3, 4]),
     ]);
   }
   itemsBody.push([
