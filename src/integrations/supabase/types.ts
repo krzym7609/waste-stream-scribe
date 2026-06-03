@@ -83,6 +83,105 @@ export type Database = {
         }
         Relationships: []
       }
+      handover_report_items: {
+        Row: {
+          created_at: string
+          handover_id: string
+          id: string
+          object_id: string
+          updated_at: string
+          uwagi_przekazujacego: string | null
+          uwagi_przyjmujacego: string | null
+        }
+        Insert: {
+          created_at?: string
+          handover_id: string
+          id?: string
+          object_id: string
+          updated_at?: string
+          uwagi_przekazujacego?: string | null
+          uwagi_przyjmujacego?: string | null
+        }
+        Update: {
+          created_at?: string
+          handover_id?: string
+          id?: string
+          object_id?: string
+          updated_at?: string
+          uwagi_przekazujacego?: string | null
+          uwagi_przyjmujacego?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "handover_report_items_handover_id_fkey"
+            columns: ["handover_id"]
+            isOneToOne: false
+            referencedRelation: "handover_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_report_items_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "handover_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      handover_reports: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          duty_session_from_id: string
+          duty_session_to_id: string | null
+          from_user_id: string
+          id: string
+          submitted_at: string
+          to_user_id: string | null
+          updated_at: string
+          uwagi_ogolne: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          duty_session_from_id: string
+          duty_session_to_id?: string | null
+          from_user_id: string
+          id?: string
+          submitted_at?: string
+          to_user_id?: string | null
+          updated_at?: string
+          uwagi_ogolne?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          duty_session_from_id?: string
+          duty_session_to_id?: string | null
+          from_user_id?: string
+          id?: string
+          submitted_at?: string
+          to_user_id?: string | null
+          updated_at?: string
+          uwagi_ogolne?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "handover_reports_duty_session_from_id_fkey"
+            columns: ["duty_session_from_id"]
+            isOneToOne: false
+            referencedRelation: "duty_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "handover_reports_duty_session_to_id_fkey"
+            columns: ["duty_session_to_id"]
+            isOneToOne: false
+            referencedRelation: "duty_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -148,6 +247,73 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      schedule_executions: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          deferred_from_session_id: string | null
+          duty_session_id: string | null
+          id: string
+          note: string | null
+          scheduled_date: string
+          scheduled_shift: Database["public"]["Enums"]["shift_type"]
+          status: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deferred_from_session_id?: string | null
+          duty_session_id?: string | null
+          id?: string
+          note?: string | null
+          scheduled_date: string
+          scheduled_shift: Database["public"]["Enums"]["shift_type"]
+          status?: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deferred_from_session_id?: string | null
+          duty_session_id?: string | null
+          id?: string
+          note?: string | null
+          scheduled_date?: string
+          scheduled_shift?: Database["public"]["Enums"]["shift_type"]
+          status?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_executions_deferred_from_session_id_fkey"
+            columns: ["deferred_from_session_id"]
+            isOneToOne: false
+            referencedRelation: "duty_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_executions_duty_session_id_fkey"
+            columns: ["duty_session_id"]
+            isOneToOne: false
+            referencedRelation: "duty_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_executions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedule_overrides: {
         Row: {
@@ -251,6 +417,172 @@ export type Database = {
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "schedule_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          recipient_role: Database["public"]["Enums"]["app_role"] | null
+          recipient_user_id: string | null
+          related_session_id: string | null
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          read_at?: string | null
+          recipient_role?: Database["public"]["Enums"]["app_role"] | null
+          recipient_user_id?: string | null
+          related_session_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          recipient_role?: Database["public"]["Enums"]["app_role"] | null
+          recipient_user_id?: string | null
+          related_session_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_notifications_related_session_id_fkey"
+            columns: ["related_session_id"]
+            isOneToOne: false
+            referencedRelation: "duty_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_report_items: {
+        Row: {
+          created_at: string
+          harmonogram_opis: string | null
+          harmonogram_status: string
+          id: string
+          inne_czynnosci: string | null
+          object_id: string
+          ocena_opis: string | null
+          ocena_status: string
+          proponowany_termin: string | null
+          report_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          harmonogram_opis?: string | null
+          harmonogram_status?: string
+          id?: string
+          inne_czynnosci?: string | null
+          object_id: string
+          ocena_opis?: string | null
+          ocena_status?: string
+          proponowany_termin?: string | null
+          report_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          harmonogram_opis?: string | null
+          harmonogram_status?: string
+          id?: string
+          inne_czynnosci?: string | null
+          object_id?: string
+          ocena_opis?: string | null
+          ocena_status?: string
+          proponowany_termin?: string | null
+          report_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_report_items_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "report_objects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_report_items_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "shift_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_reports: {
+        Row: {
+          chlorek_zelaza_l: number | null
+          created_at: string
+          duty_session_id: string
+          energia_end: number | null
+          energia_start: number | null
+          flokulant_emulsyjny_l: number | null
+          flokulant_proszkowy_kg: number | null
+          id: string
+          opady: boolean
+          sm_osadu_odwwapn: number | null
+          sm_osadu_zageszcz: number | null
+          submitted_at: string
+          submitted_by: string
+          updated_at: string
+          uwagi: string | null
+          wapno_kg: number | null
+        }
+        Insert: {
+          chlorek_zelaza_l?: number | null
+          created_at?: string
+          duty_session_id: string
+          energia_end?: number | null
+          energia_start?: number | null
+          flokulant_emulsyjny_l?: number | null
+          flokulant_proszkowy_kg?: number | null
+          id?: string
+          opady?: boolean
+          sm_osadu_odwwapn?: number | null
+          sm_osadu_zageszcz?: number | null
+          submitted_at?: string
+          submitted_by: string
+          updated_at?: string
+          uwagi?: string | null
+          wapno_kg?: number | null
+        }
+        Update: {
+          chlorek_zelaza_l?: number | null
+          created_at?: string
+          duty_session_id?: string
+          energia_end?: number | null
+          energia_start?: number | null
+          flokulant_emulsyjny_l?: number | null
+          flokulant_proszkowy_kg?: number | null
+          id?: string
+          opady?: boolean
+          sm_osadu_odwwapn?: number | null
+          sm_osadu_zageszcz?: number | null
+          submitted_at?: string
+          submitted_by?: string
+          updated_at?: string
+          uwagi?: string | null
+          wapno_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_reports_duty_session_id_fkey"
+            columns: ["duty_session_id"]
+            isOneToOne: true
+            referencedRelation: "duty_sessions"
             referencedColumns: ["id"]
           },
         ]
