@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileText, ArrowRightLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shift/checklist")({
   component: ChecklistPage,
