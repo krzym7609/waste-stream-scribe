@@ -338,19 +338,19 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
   for (const it of d.items) {
     itemsBody.push([
       { text: it.object_name, fillColor: "#d9d9d9", margin: [3, 4, 3, 4] },
-      textCell(it.uwagi_przekazujacego, [3, 4, 3, 4]),
-      textCell(it.uwagi_przyjmujacego, [3, 4, 3, 4]),
+      textCell(orBrak(it.uwagi_przekazujacego), [3, 4, 3, 4]),
+      textCell(orBrak(it.uwagi_przyjmujacego), [3, 4, 3, 4]),
     ]);
   }
   itemsBody.push([
     { text: "Podpisy:", fillColor: "#d9d9d9", margin: [3, 6, 3, 6], bold: true },
     {
-      text: `Przekazujący : ${d.operatorFrom}`,
+      text: `Przekazujący : ${orBrak(d.operatorFrom)}`,
       decoration: "underline",
       margin: [3, 6, 3, 6],
     },
     {
-      text: `Przejmujący : ${d.operatorTo ?? ""}`,
+      text: `Przejmujący : ${orBrak(d.operatorTo)}`,
       decoration: "underline",
       margin: [3, 6, 3, 6],
     },
