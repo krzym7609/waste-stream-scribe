@@ -246,7 +246,7 @@ function HandoverPage() {
       // Walidacja: każdy obiekt musi mieć uwagi przejmującego (min 3 znaki)
       const errs: Record<string, string> = {};
       for (const obj of objects ?? []) {
-        const v = itemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
+        const v = incomingItemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
         if (v.length < 3) {
           errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag”)";
         }
@@ -256,7 +256,7 @@ function HandoverPage() {
         throw new Error("Uzupełnij uwagi przejmującego dla każdego obiektu (min. 3 znaki).");
       }
       for (const obj of objects ?? []) {
-        const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+        const v = incomingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         await supabase.from("handover_report_items").upsert(
           {
             handover_id: pendingForMe.id,
@@ -296,6 +296,7 @@ function HandoverPage() {
   const downloadPdf = async () => {
     if (!activeHandover || !objects) return;
     const objMap = new Map(objects.map((o) => [o.id, o.name]));
+    const activeItems = outgoingHandover ? outgoingItems : incomingItems;
     const fromName =
       `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
       profile?.username ||
@@ -308,7 +309,7 @@ function HandoverPage() {
       submittedAt: activeHandover.submitted_at,
       acceptedAt: activeHandover.accepted_at,
       uwagiOgolne: activeHandover.uwagi_ogolne,
-      items: (items ?? []).map((it) => ({
+      items: (activeItems ?? []).map((it) => ({
         object_name: objMap.get(it.object_id) ?? "—",
         uwagi_przekazujacego: it.uwagi_przekazujacego,
         uwagi_przyjmujacego: it.uwagi_przyjmujacego,
