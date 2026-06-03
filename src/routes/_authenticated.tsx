@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Navigate, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound, CalendarRange, FileText } from "lucide-react";
+import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound, CalendarRange, FileText, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DutyBar } from "@/components/duty-bar";
 
