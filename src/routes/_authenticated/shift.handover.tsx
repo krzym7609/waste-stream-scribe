@@ -84,23 +84,39 @@ function HandoverPage() {
     (h) => !h.accepted_at && h.from_user_id !== user?.id,
   );
   const lastAccepted = handovers?.find((h) => h.to_user_id === user?.id && h.accepted_at);
-  const activeHandover = overrideHandover ?? mineAsFrom ?? pendingForMe ?? lastAccepted;
-  const activeId = activeHandover?.id;
+  const incomingHandover = overrideHandover ?? pendingForMe ?? lastAccepted;
+  const outgoingHandover = overrideHandover ?? mineAsFrom;
+  const activeHandover = outgoingHandover ?? incomingHandover;
 
 
-  const { data: items } = useQuery({
-    queryKey: ["handover_items", activeId],
-    enabled: !!activeId,
+  const { data: incomingItems } = useQuery({
+    queryKey: ["handover_items", "incoming", incomingHandover?.id],
+    enabled: !!incomingHandover?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("handover_report_items")
         .select("*")
-        .eq("handover_id", activeId!);
+        .eq("handover_id", incomingHandover!.id);
       return data ?? [];
     },
   });
 
-  const [itemMap, setItemMap] = useState<
+  const { data: outgoingItems } = useQuery({
+    queryKey: ["handover_items", "outgoing", outgoingHandover?.id],
+    enabled: !!outgoingHandover?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("handover_report_items")
+        .select("*")
+        .eq("handover_id", outgoingHandover!.id);
+      return data ?? [];
+    },
+  });
+
+  const [incomingItemMap, setIncomingItemMap] = useState<
+    Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
+  >({});
+  const [outgoingItemMap, setOutgoingItemMap] = useState<
     Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
   >({});
   const [uwagiOgolne, setUwagiOgolne] = useState("");
@@ -108,31 +124,41 @@ function HandoverPage() {
   const [reason, setReason] = useState("");
 
   useEffect(() => {
-    const m: typeof itemMap = {};
-    for (const it of items ?? []) {
+    const m: typeof incomingItemMap = {};
+    for (const it of incomingItems ?? []) {
       m[it.object_id] = {
         uwagi_przekazujacego: it.uwagi_przekazujacego ?? "",
         uwagi_przyjmujacego: it.uwagi_przyjmujacego ?? "",
       };
     }
-    setItemMap(m);
-    setUwagiOgolne(activeHandover?.uwagi_ogolne ?? "");
-  }, [items?.length, activeHandover?.id]);
+    setIncomingItemMap(m);
+  }, [incomingItems, incomingHandover?.id]);
 
-  const locked = !!activeHandover?.locked_at;
+  useEffect(() => {
+    const m: typeof outgoingItemMap = {};
+    for (const it of outgoingItems ?? []) {
+      m[it.object_id] = {
+        uwagi_przekazujacego: it.uwagi_przekazujacego ?? "",
+        uwagi_przyjmujacego: it.uwagi_przyjmujacego ?? "",
+      };
+    }
+    setOutgoingItemMap(m);
+    setUwagiOgolne(outgoingHandover?.uwagi_ogolne ?? "");
+  }, [outgoingItems, outgoingHandover?.id]);
+
+  const incomingLocked = !!incomingHandover?.locked_at;
+  const outgoingLocked = !!outgoingHandover?.locked_at;
+  const activeLocked = !!activeHandover?.locked_at;
   const mode: "incoming" | "outgoing" | "history" = pendingForMe
     ? "incoming"
-    : isMine && !locked
+    : isMine && !outgoingLocked
       ? "outgoing"
       : "history";
-
-  const canEditFrom = (mode === "outgoing" && !locked) || (locked && isManager);
-  const canEditTo = mode === "incoming" || (locked && isManager);
 
   const validateFrom = (): boolean => {
     const errs: Record<string, string> = {};
     for (const obj of objects ?? []) {
-      const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+      const v = outgoingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
       const r = handoverItemSchema.safeParse({
         object_id: obj.id,
         uwagi_przekazujacego: v.uwagi_przekazujacego,
@@ -155,23 +181,23 @@ function HandoverPage() {
     mutationFn: async () => {
       if (!sessionId || !user) throw new Error("Brak otwartej zmiany");
       if (!validateFrom()) throw new Error("Formularz zawiera błędy");
-      if (locked && isManager && reason.trim().length < 5) {
+      if (outgoingLocked && isManager && reason.trim().length < 5) {
         throw new Error("Edycja zamkniętego protokołu wymaga powodu (min. 5 znaków)");
       }
 
       // Snapshot przed edycją kierownika
-      if (locked && isManager && activeHandover) {
+      if (outgoingLocked && isManager && outgoingHandover) {
         const { error: snapErr } = await supabase.from("handover_report_snapshots").insert({
-          handover_id: activeHandover.id,
-          snapshot: JSON.parse(JSON.stringify(activeHandover)),
-          items_snapshot: JSON.parse(JSON.stringify(items ?? [])),
+          handover_id: outgoingHandover.id,
+          snapshot: JSON.parse(JSON.stringify(outgoingHandover)),
+          items_snapshot: JSON.parse(JSON.stringify(outgoingItems ?? [])),
           edited_by: user.id,
           reason: reason.trim(),
         });
         if (snapErr) throw snapErr;
       }
 
-      let id = activeHandover?.id;
+      let id = outgoingHandover?.id;
       if (!id) {
         const { data, error } = await supabase
           .from("handover_reports")
@@ -191,13 +217,12 @@ function HandoverPage() {
           .eq("id", id);
       }
       for (const obj of objects ?? []) {
-        const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+        const v = outgoingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         const { error } = await supabase.from("handover_report_items").upsert(
           {
             handover_id: id!,
             object_id: obj.id,
             uwagi_przekazujacego: v.uwagi_przekazujacego || null,
-            ...(canEditTo ? { uwagi_przyjmujacego: v.uwagi_przyjmujacego || null } : {}),
           },
           { onConflict: "handover_id,object_id" },
         );
@@ -220,7 +245,7 @@ function HandoverPage() {
       // Walidacja: każdy obiekt musi mieć uwagi przejmującego (min 3 znaki)
       const errs: Record<string, string> = {};
       for (const obj of objects ?? []) {
-        const v = itemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
+        const v = incomingItemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
         if (v.length < 3) {
           errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag”)";
         }
@@ -230,7 +255,7 @@ function HandoverPage() {
         throw new Error("Uzupełnij uwagi przejmującego dla każdego obiektu (min. 3 znaki).");
       }
       for (const obj of objects ?? []) {
-        const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+        const v = incomingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         await supabase.from("handover_report_items").upsert(
           {
             handover_id: pendingForMe.id,
@@ -270,6 +295,7 @@ function HandoverPage() {
   const downloadPdf = async () => {
     if (!activeHandover || !objects) return;
     const objMap = new Map(objects.map((o) => [o.id, o.name]));
+    const activeItems = outgoingHandover ? outgoingItems : incomingItems;
     const fromName =
       `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
       profile?.username ||
@@ -282,7 +308,7 @@ function HandoverPage() {
       submittedAt: activeHandover.submitted_at,
       acceptedAt: activeHandover.accepted_at,
       uwagiOgolne: activeHandover.uwagi_ogolne,
-      items: (items ?? []).map((it) => ({
+      items: (activeItems ?? []).map((it) => ({
         object_name: objMap.get(it.object_id) ?? "—",
         uwagi_przekazujacego: it.uwagi_przekazujacego,
         uwagi_przyjmujacego: it.uwagi_przyjmujacego,
@@ -313,7 +339,7 @@ function HandoverPage() {
             {mode === "outgoing" && "Przekazujesz zmianę"}
             {mode === "history" && "Historia"}
           </Badge>
-          {locked && (
+          {activeLocked && (
             <Badge variant="outline" className="gap-1">
               <Lock className="w-3 h-3" /> Zamknięty
             </Badge>
@@ -329,7 +355,7 @@ function HandoverPage() {
         </div>
       </div>
 
-      {locked && isManager && (
+      {activeLocked && isManager && (
         <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
           <div className="font-medium mb-1">Edycja zamkniętego protokołu przez kierownika</div>
           <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
@@ -365,11 +391,11 @@ function HandoverPage() {
   );
 
   function renderReport(tab: "incoming" | "outgoing") {
-    const editFrom = tab === "outgoing" && isMine && !locked;
-    const editTo = tab === "incoming" && !!pendingForMe;
-
-    const ctxHandover =
-      tab === "incoming" ? pendingForMe ?? lastAccepted : mineAsFrom ?? activeHandover;
+    const editFrom = tab === "outgoing" && isMine && !outgoingLocked;
+    const editTo = tab === "incoming" && !!pendingForMe && !incomingLocked;
+    const currentItemMap = tab === "incoming" ? incomingItemMap : outgoingItemMap;
+    const setCurrentItemMap = tab === "incoming" ? setIncomingItemMap : setOutgoingItemMap;
+    const ctxHandover = tab === "incoming" ? incomingHandover : outgoingHandover;
 
     if (tab === "incoming" && !pendingForMe && !lastAccepted) {
       return (
@@ -436,9 +462,15 @@ function HandoverPage() {
           </thead>
           <tbody>
             {(objects ?? []).map((obj) => {
-              const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+              const v = currentItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
               const setField = (k: "uwagi_przekazujacego" | "uwagi_przyjmujacego", val: string) =>
-                setItemMap((m) => ({ ...m, [obj.id]: { ...v, [k]: val } }));
+                setCurrentItemMap((m) => ({
+                  ...m,
+                  [obj.id]: {
+                    ...(m[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" }),
+                    [k]: val,
+                  },
+                }));
               const errFrom = `${obj.id}:uwagi_przekazujacego`;
               const errTo = `${obj.id}:uwagi_przyjmujacego`;
               return (
