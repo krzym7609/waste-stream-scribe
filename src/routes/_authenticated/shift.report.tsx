@@ -513,14 +513,19 @@ function ShiftReportPage() {
                 <tr>
                   <td className="border border-black bg-[#d9d9d9] p-1 italic">Występ. opadów (T/N):</td>
                   <td className="border border-black p-1 w-[90px] text-center">
-                    <button
-                      type="button"
+                    <Select
+                      value={opady ? "T" : "N"}
                       disabled={!canEdit}
-                      onClick={() => setOpady((o) => !o)}
-                      className="font-bold underline-offset-2"
+                      onValueChange={(v) => setOpady(v === "T")}
                     >
-                      {opady ? "T" : "N"}
-                    </button>
+                      <SelectTrigger className="h-7 text-xs font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="T">T — tak</SelectItem>
+                        <SelectItem value="N">N — nie</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                 </tr>
               </tbody>
