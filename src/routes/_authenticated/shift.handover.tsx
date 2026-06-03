@@ -452,7 +452,7 @@ function HandoverPage() {
               <td className="border border-black p-2">
                 <div>
                   Zmianę przekazuje:{" "}
-                  <strong>{tab === "outgoing" ? fromName : "—"}</strong>
+                  <strong>{tab === "outgoing" ? fromName : incomingFromName}</strong>
                 </div>
                 <div className="mt-1">
                   Zmianę przejmuje:{" "}
