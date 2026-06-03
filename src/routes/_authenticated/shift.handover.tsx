@@ -15,6 +15,9 @@ import { handoverItemSchema } from "@/lib/validation/shift-report";
 import { generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
 
 export const Route = createFileRoute("/_authenticated/shift/handover")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    handover: typeof s.handover === "string" ? s.handover : undefined,
+  }),
   component: HandoverPage,
 });
 
