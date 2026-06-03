@@ -52,18 +52,18 @@ const NUM_FIELDS: { key: NumField; label: string; unit: string }[] = [
 ];
 
 type ItemState = {
-  ocena_status: "ok" | "problem";
+  ocena_status: "ok" | "problem" | "";
   ocena_opis: string;
-  harmonogram_status: "ok" | "nie_wykonano";
+  harmonogram_status: "ok" | "nie_wykonano" | "";
   harmonogram_opis: string;
   proponowany_termin: string;
   inne_czynnosci: string;
 };
 
 const emptyItem = (): ItemState => ({
-  ocena_status: "ok",
+  ocena_status: "",
   ocena_opis: "",
-  harmonogram_status: "ok",
+  harmonogram_status: "",
   harmonogram_opis: "",
   proponowany_termin: "",
   inne_czynnosci: "",
