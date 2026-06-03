@@ -270,6 +270,7 @@ function HandoverPage() {
   }
 
 
+  const signature = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const today = new Date().toISOString().slice(0, 10);
   const fromName = signature || profile?.username || "—";
   const toName = activeHandover?.to_user_id ? "—" : "—";
