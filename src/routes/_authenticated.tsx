@@ -29,7 +29,8 @@ function AuthenticatedLayout() {
     { to: "/shift/report", label: "Raport zmiany", icon: FileText },
     ...(isManager
       ? [
-          { to: "/schedule", label: "Harmonogram", icon: CalendarRange },
+          { to: "/schedule", label: "Harmonogram roczny", icon: CalendarRange },
+          { to: "/manager/reports", label: "Raporty", icon: BarChart3 },
           { to: "/shifts", label: "Zmiany", icon: ClipboardList },
           { to: "/team", label: "Zespół", icon: Users },
         ]
