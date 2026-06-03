@@ -337,8 +337,21 @@ function HandoverPage() {
       )}
 
       {mode === "incoming" && (
-        <div className="border border-blue-500/40 bg-blue-500/10 rounded-md p-3 text-sm print:hidden">
-          Masz protokół do przyjęcia. Przeczytaj uwagi przekazującego i dopisz swoje.
+        <div className="border border-blue-500/50 bg-blue-500/10 rounded-md p-4 text-sm print:hidden">
+          <div className="font-semibold mb-1">Przejmujesz zmianę</div>
+          <div>
+            Przeczytaj uwagi przekazującego (kolumna po lewej) i obowiązkowo wpisz swoje uwagi
+            dla każdego obiektu (kolumna po prawej). Bez tego nie można potwierdzić przyjęcia zmiany.
+          </div>
+        </div>
+      )}
+      {mode === "outgoing" && (
+        <div className="border border-emerald-500/40 bg-emerald-500/10 rounded-md p-4 text-sm print:hidden">
+          <div className="font-semibold mb-1">Przekazujesz zmianę</div>
+          <div>
+            Uzupełnij uwagi dla każdego obiektu. Kolumna „Uwagi przejmującego” wypełni się,
+            kiedy następny operator przyjmie zmianę.
+          </div>
         </div>
       )}
 
@@ -367,14 +380,24 @@ function HandoverPage() {
           </tbody>
         </table>
 
-        <div className="italic mb-1">Uwagi dotyczące przekazania zmiany:</div>
+        <div className="italic mb-1">
+          {mode === "incoming"
+            ? "Twoje uwagi po przejęciu zmiany (wypełnij każdy obiekt):"
+            : mode === "outgoing"
+              ? "Twoje uwagi przekazujące zmianę:"
+              : "Uwagi dotyczące przekazania zmiany:"}
+        </div>
 
         <table className="w-full border-collapse border border-black">
           <thead className="bg-[#d9d9d9]">
             <tr>
               <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
-              <th className="border border-black p-1 font-bold">Uwagi przekazującego zmianę</th>
-              <th className="border border-black p-1 font-bold">Uwagi przejmującego zmianę</th>
+              <th className={`border border-black p-1 font-bold ${mode === "incoming" ? "bg-[#eeeeee]" : ""}`}>
+                Uwagi przekazującego zmianę{mode === "incoming" ? " (do przeczytania)" : ""}
+              </th>
+              <th className={`border border-black p-1 font-bold ${mode === "incoming" ? "bg-yellow-100" : ""}`}>
+                Uwagi przejmującego zmianę{mode === "incoming" ? " (wymagane)" : ""}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -383,28 +406,42 @@ function HandoverPage() {
               const setField = (k: "uwagi_przekazujacego" | "uwagi_przyjmujacego", val: string) =>
                 setItemMap((m) => ({ ...m, [obj.id]: { ...v, [k]: val } }));
               const errKey = `${obj.id}:uwagi_przekazujacego`;
+              const errKeyTo = `${obj.id}:uwagi_przyjmujacego`;
               return (
                 <tr key={obj.id} className="align-top">
                   <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
                   <td className="border border-black p-1">
-                    <Textarea
-                      value={v.uwagi_przekazujacego}
-                      onChange={(e) => setField("uwagi_przekazujacego", e.target.value)}
-                      disabled={!canEditFrom}
-                      placeholder={canEditFrom ? "Wpisz uwagi lub „brak uwag”" : ""}
-                      rows={3}
-                      className={`text-xs ${errors[errKey] ? "border-destructive" : ""}`}
-                    />
+                    {mode === "incoming" ? (
+                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
+                        {v.uwagi_przekazujacego || <span className="italic text-gray-500">— brak uwag —</span>}
+                      </div>
+                    ) : (
+                      <Textarea
+                        value={v.uwagi_przekazujacego}
+                        onChange={(e) => setField("uwagi_przekazujacego", e.target.value)}
+                        disabled={!canEditFrom}
+                        placeholder={canEditFrom ? "Wpisz uwagi lub „brak uwag”" : ""}
+                        rows={3}
+                        className={`text-xs ${errors[errKey] ? "border-destructive" : ""}`}
+                      />
+                    )}
                   </td>
-                  <td className="border border-black p-1">
-                    <Textarea
-                      value={v.uwagi_przyjmujacego}
-                      onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
-                      disabled={!canEditTo}
-                      placeholder={canEditTo ? "Dopisz uwagi (wymagane przed przyjęciem zmiany)" : ""}
-                      rows={3}
-                      className={`text-xs ${errors[`${obj.id}:uwagi_przyjmujacego`] ? "border-destructive ring-1 ring-destructive" : ""}`}
-                    />
+                  <td className={`border border-black p-1 ${mode === "incoming" ? "bg-yellow-50" : ""}`}>
+                    {mode === "outgoing" ? (
+                      <div className="text-xs italic text-gray-500 min-h-[3em] p-1">
+                        — wypełni przejmujący zmianę —
+                      </div>
+                    ) : (
+                      <Textarea
+                        value={v.uwagi_przyjmujacego}
+                        onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
+                        disabled={!canEditTo}
+                        placeholder={canEditTo ? "Wpisz swoje uwagi (wymagane, np. „brak uwag”)" : ""}
+                        rows={3}
+                        className={`text-xs ${errors[errKeyTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
+                        autoFocus={mode === "incoming"}
+                      />
+                    )}
                   </td>
                 </tr>
               );
@@ -419,20 +456,23 @@ function HandoverPage() {
       </div>
 
       <div className="flex justify-end gap-2 print:hidden">
-        {(canEditFrom || canEditTo) && mode !== "incoming" && (
+        {mode === "outgoing" && canEditFrom && (
           <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
             {saveFrom.isPending
               ? "Zapisywanie…"
-              : locked
-                ? "Zapisz zmiany (z historią)"
-                : activeHandover
-                  ? "Aktualizuj protokół"
-                  : "Zapisz protokół"}
+              : activeHandover
+                ? "Aktualizuj protokół"
+                : "Zapisz protokół"}
+          </Button>
+        )}
+        {mode === "history" && locked && isManager && (
+          <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
+            {saveFrom.isPending ? "Zapisywanie…" : "Zapisz zmiany (z historią)"}
           </Button>
         )}
         {mode === "incoming" && (
-          <Button onClick={() => accept.mutate()} disabled={accept.isPending}>
-            {accept.isPending ? "Zapisywanie…" : "Przyjmij zmianę"}
+          <Button onClick={() => accept.mutate()} disabled={accept.isPending} size="lg">
+            {accept.isPending ? "Zapisywanie…" : "Potwierdź przyjęcie zmiany"}
           </Button>
         )}
       </div>
