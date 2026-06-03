@@ -36,6 +36,17 @@ const SHIFT_SHORT: Record<string, string> = {
   noc: "III",
 };
 
+const SHIFT_NUM: Record<string, string> = {
+  rano: "1",
+  popoludnie: "2",
+  noc: "3",
+};
+
+const orBrak = (v: string | null | undefined) => {
+  const s = String(v ?? "").trim();
+  return s === "" ? "Brak" : s;
+};
+
 const v = (x: number | null | undefined) => (x == null ? "" : String(x));
 
 const GRAY = "#d9d9d9";
