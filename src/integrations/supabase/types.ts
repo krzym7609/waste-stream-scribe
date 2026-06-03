@@ -128,6 +128,44 @@ export type Database = {
           },
         ]
       }
+      handover_report_snapshots: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          handover_id: string
+          id: string
+          items_snapshot: Json
+          reason: string | null
+          snapshot: Json
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          handover_id: string
+          id?: string
+          items_snapshot: Json
+          reason?: string | null
+          snapshot: Json
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          handover_id?: string
+          id?: string
+          items_snapshot?: Json
+          reason?: string | null
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "handover_report_snapshots_handover_id_fkey"
+            columns: ["handover_id"]
+            isOneToOne: false
+            referencedRelation: "handover_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       handover_reports: {
         Row: {
           accepted_at: string | null
@@ -136,6 +174,7 @@ export type Database = {
           duty_session_to_id: string | null
           from_user_id: string
           id: string
+          locked_at: string | null
           submitted_at: string
           to_user_id: string | null
           updated_at: string
@@ -148,6 +187,7 @@ export type Database = {
           duty_session_to_id?: string | null
           from_user_id: string
           id?: string
+          locked_at?: string | null
           submitted_at?: string
           to_user_id?: string | null
           updated_at?: string
@@ -160,6 +200,7 @@ export type Database = {
           duty_session_to_id?: string | null
           from_user_id?: string
           id?: string
+          locked_at?: string | null
           submitted_at?: string
           to_user_id?: string | null
           updated_at?: string
@@ -522,6 +563,44 @@ export type Database = {
           },
         ]
       }
+      shift_report_snapshots: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          id: string
+          items_snapshot: Json
+          reason: string | null
+          report_id: string
+          snapshot: Json
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          id?: string
+          items_snapshot: Json
+          reason?: string | null
+          report_id: string
+          snapshot: Json
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          items_snapshot?: Json
+          reason?: string | null
+          report_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_report_snapshots_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "shift_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_reports: {
         Row: {
           chlorek_zelaza_l: number | null
@@ -532,6 +611,7 @@ export type Database = {
           flokulant_emulsyjny_l: number | null
           flokulant_proszkowy_kg: number | null
           id: string
+          locked_at: string | null
           opady: boolean
           sm_osadu_odwwapn: number | null
           sm_osadu_zageszcz: number | null
@@ -550,6 +630,7 @@ export type Database = {
           flokulant_emulsyjny_l?: number | null
           flokulant_proszkowy_kg?: number | null
           id?: string
+          locked_at?: string | null
           opady?: boolean
           sm_osadu_odwwapn?: number | null
           sm_osadu_zageszcz?: number | null
@@ -568,6 +649,7 @@ export type Database = {
           flokulant_emulsyjny_l?: number | null
           flokulant_proszkowy_kg?: number | null
           id?: string
+          locked_at?: string | null
           opady?: boolean
           sm_osadu_odwwapn?: number | null
           sm_osadu_zageszcz?: number | null
