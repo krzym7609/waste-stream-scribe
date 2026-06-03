@@ -113,6 +113,23 @@ function HandoverPage() {
     },
   });
 
+  const { data: incomingFromProfile } = useQuery({
+    queryKey: ["profile", incomingHandover?.from_user_id],
+    enabled: !!incomingHandover?.from_user_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,username")
+        .eq("id", incomingHandover!.from_user_id)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const incomingFromName =
+    `${incomingFromProfile?.first_name ?? ""} ${incomingFromProfile?.last_name ?? ""}`.trim() ||
+    incomingFromProfile?.username ||
+    "—";
+
   const [incomingItemMap, setIncomingItemMap] = useState<
     Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
   >({});
