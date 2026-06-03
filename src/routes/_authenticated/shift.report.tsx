@@ -462,7 +462,15 @@ function ShiftReportPage() {
                   inputMode="decimal"
                   value={pobor === "" ? "" : String(pobor)}
                   disabled={!canEdit}
-                  onChange={(e) => setPoborManual(e.target.value.replace(/[^0-9.,-]/g, ""))}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9.,-]/g, "");
+                    setPoborManual(v);
+                    const s = Number((nums.energia_start ?? "").replace(",", "."));
+                    const p = Number(v.replace(",", "."));
+                    if (!Number.isNaN(s) && !Number.isNaN(p) && v !== "") {
+                      setNums((m) => ({ ...m, energia_end: String(+(s + p).toFixed(2)) }));
+                    }
+                  }}
                   title={poborErr || "Auto: stan końcowy − stan początkowy (możesz nadpisać)"}
                   className={`w-full bg-transparent outline-none text-center px-1 py-0.5 text-sm ${
                     poborErr ? "text-destructive ring-2 ring-destructive rounded-sm" : ""
