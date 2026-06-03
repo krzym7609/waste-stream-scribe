@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -25,6 +33,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { Download, Pencil, History, Lock } from "lucide-react";
+import { generateShiftReportPdf, generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
 
 export const Route = createFileRoute("/_authenticated/manager/reports")({
   head: () => ({ meta: [{ title: "Raporty — Oczyszczalnia" }] }),
