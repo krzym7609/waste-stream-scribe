@@ -153,19 +153,6 @@ function ChecklistPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!duty?.session) {
-    return (
-      <div className="p-6 text-muted-foreground">Brak otwartej zmiany. Rozpocznij zmianę, aby zobaczyć checklistę.</div>
-    );
-  }
-  if (!isMine) {
-    return (
-      <div className="p-6 text-muted-foreground">
-        Zmianę pełni inny operator. Możesz zobaczyć checklistę dopiero po przejęciu zmiany.
-      </div>
-    );
-  }
-
   const current = (executions ?? []).filter(
     (e) => e.scheduled_date === today && e.scheduled_shift === currentShift,
   );
@@ -185,7 +172,7 @@ function ChecklistPage() {
           task_id: e.task_id,
           scheduled_date: nextDate,
           scheduled_shift: ns.type,
-          deferred_from_session_id: duty.session!.id,
+          deferred_from_session_id: duty!.session!.id,
           status: "pending",
         });
       }
@@ -195,7 +182,7 @@ function ChecklistPage() {
           kind: "deferred_tasks",
           title: `Niewykonane zadania (${undone.length})`,
           body: `Zmiana ${currentShift} ${today}: ${undone.map((u) => u.task?.name).join(", ")}`,
-          related_session_id: duty.session!.id,
+          related_session_id: duty!.session!.id,
         });
       }
     },
@@ -207,8 +194,22 @@ function ChecklistPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  if (!duty?.session) {
+    return (
+      <div className="p-6 text-muted-foreground">Brak otwartej zmiany. Rozpocznij zmianę, aby zobaczyć checklistę.</div>
+    );
+  }
+  if (!isMine) {
+    return (
+      <div className="p-6 text-muted-foreground">
+        Zmianę pełni inny operator. Możesz zobaczyć checklistę dopiero po przejęciu zmiany.
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Checklista zmiany</h1>
