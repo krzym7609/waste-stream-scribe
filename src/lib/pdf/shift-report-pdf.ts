@@ -192,11 +192,11 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
   for (const it of d.items) {
     const ocenaCell: TableCell =
       it.ocena_status === "ok"
-        ? { text: "✓ prawidłowo", color: "#059669", bold: true, margin: [3, 3, 3, 3] }
+        ? { text: "[OK]  prawidłowo", color: "#059669", bold: true, alignment: "center", margin: [3, 6, 3, 6] }
         : textCell(`Problem / awaria:\n${it.ocena_opis ?? ""}`, [3, 3, 3, 3]);
     const harmCell: TableCell =
       it.harmonogram_status === "ok"
-        ? { text: "✓ wykonane", color: "#059669", bold: true, margin: [3, 3, 3, 3] }
+        ? { text: "[OK]  wykonane", color: "#059669", bold: true, alignment: "center", margin: [3, 6, 3, 6] }
         : textCell(
             `Nie wykonano: ${it.harmonogram_opis ?? ""}${
               it.proponowany_termin ? `\nProponowany termin: ${it.proponowany_termin}` : ""

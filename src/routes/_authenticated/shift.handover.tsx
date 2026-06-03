@@ -61,14 +61,13 @@ function HandoverPage() {
     queryKey: ["handovers", sessionId, user?.id],
     enabled: !!user && !overrideHandoverId,
     queryFn: async () => {
+      // Pobieramy: (a) moje przekazania (jako from/to) (b) wszystkie nieprzyjęte
+      // przekazania (żeby nowy operator zobaczył oczekujące od poprzedniej zmiany).
       const { data } = await supabase
         .from("handover_reports")
         .select("*")
         .or(
-          `from_user_id.eq.${user!.id},to_user_id.eq.${user!.id}` +
-            (sessionId
-              ? `,duty_session_from_id.eq.${sessionId},duty_session_to_id.eq.${sessionId}`
-              : ""),
+          `from_user_id.eq.${user!.id},to_user_id.eq.${user!.id},accepted_at.is.null`,
         )
         .order("submitted_at", { ascending: false })
         .limit(20);
@@ -79,7 +78,10 @@ function HandoverPage() {
   const mineAsFrom = handovers?.find(
     (h) => h.duty_session_from_id === sessionId && !h.accepted_at,
   );
-  const pendingForMe = handovers?.find((h) => h.to_user_id === user?.id && !h.accepted_at);
+  // Nieprzyjęte przekazanie od poprzedniej zmiany (nie moje własne)
+  const pendingForMe = handovers?.find(
+    (h) => !h.accepted_at && h.from_user_id !== user?.id,
+  );
   const lastAccepted = handovers?.find((h) => h.to_user_id === user?.id && h.accepted_at);
   const activeHandover = overrideHandover ?? mineAsFrom ?? pendingForMe ?? lastAccepted;
   const activeId = activeHandover?.id;
@@ -214,6 +216,18 @@ function HandoverPage() {
   const accept = useMutation({
     mutationFn: async () => {
       if (!pendingForMe || !user || !sessionId) throw new Error("Brak protokołu do przyjęcia");
+      // Walidacja: każdy obiekt musi mieć uwagi przejmującego (min 3 znaki)
+      const errs: Record<string, string> = {};
+      for (const obj of objects ?? []) {
+        const v = itemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
+        if (v.length < 3) {
+          errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag”)";
+        }
+      }
+      setErrors(errs);
+      if (Object.keys(errs).length > 0) {
+        throw new Error("Uzupełnij uwagi przejmującego dla każdego obiektu (min. 3 znaki).");
+      }
       for (const obj of objects ?? []) {
         const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         await supabase.from("handover_report_items").upsert(
@@ -234,9 +248,19 @@ function HandoverPage() {
         })
         .eq("id", pendingForMe.id);
       if (error) throw error;
+      // Powiadom kierownika o przyjęciu zmiany
+      await supabase.from("shift_notifications").insert({
+        recipient_role: "kierownik",
+        kind: "handover_accepted",
+        title: "Przekazanie zmiany przyjęte",
+        body: `Operator przyjął przekazanie zmiany (protokół ${pendingForMe.id.slice(0, 8)}).`,
+        related_session_id: sessionId,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["handovers"] });
+      qc.invalidateQueries({ queryKey: ["handover_items"] });
+      qc.invalidateQueries({ queryKey: ["mgr-daily"] });
       toast.success("Protokół przyjęty");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -377,9 +401,9 @@ function HandoverPage() {
                       value={v.uwagi_przyjmujacego}
                       onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
                       disabled={!canEditTo}
-                      placeholder={canEditTo ? "Dopisz uwagi…" : ""}
+                      placeholder={canEditTo ? "Dopisz uwagi (wymagane przed przyjęciem zmiany)" : ""}
                       rows={3}
-                      className="text-xs"
+                      className={`text-xs ${errors[`${obj.id}:uwagi_przyjmujacego`] ? "border-destructive ring-1 ring-destructive" : ""}`}
                     />
                   </td>
                 </tr>
