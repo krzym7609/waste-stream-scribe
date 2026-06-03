@@ -136,7 +136,7 @@ function ShiftReportPage() {
       } as TablesInsert<"shift_reports">;
       for (const f of NUM_FIELDS) {
         const raw = nums[f.key];
-        payload[f.key] = raw === "" || raw == null ? null : Number(raw);
+        (payload as Record<string, unknown>)[f.key] = raw === "" || raw == null ? null : Number(raw);
       }
       let reportId = existing?.report?.id;
       if (reportId) {
