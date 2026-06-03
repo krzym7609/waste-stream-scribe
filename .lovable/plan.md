@@ -1,47 +1,100 @@
-# Plan zmian
+## 1. Terminologia — „dyżur" → „zmiana"
 
-## 1. Checklista pracownika (`/shift/checklist`) — jedno miejsce na wszystko
+Globalna zamiana etykiet UI (kod/tabele zostają — `duty_sessions`):
+- „Przyjmij/Przejmij/Zakończ dyżur" → „Rozpocznij/Przejmij/Zakończ zmianę"
+- „Brak otwartego dyżuru" → „Brak otwartej zmiany" itd.
+- Pliki: `duty-bar.tsx`, `shift.checklist.tsx`, `shift.report.tsx`, `shift.handover.tsx`, `manager.reports.tsx`.
 
-Pracownik widzi listę zaplanowanych pozycji na bieżącą zmianę:
+## 2. Jeden przycisk zamykający zmianę
 
-- **Zadania harmonogramu** (jak dziś) — pobierane z `schedule_template_entries` + `schedule_overrides`, filtrowane po dacie/zmianie.
-- **Raport zmianowy** — jedna pozycja "Raport zmiany" prowadząca do formularza (`/shift/report`), z podpozycjami:
-  - Dane eksploatacyjne (energia, flokulanty, wapno, FeCl₃, SM osadu)
-  - Ocena obiektów (10 pozycji ze `shift_report_items`)
-  - Uwagi / opady
-  Pozycja oznacza się jako "zrobione" gdy `shift_reports` dla bieżącej `duty_session` istnieje i wszystkie wymagane pola są wypełnione.
-- **Przekazanie zmiany** — pozycja "Przekazanie zmiany" → `/shift/handover`, zaznacza się jako wykonana po `submitted_at`.
+Usuwam „Rozlicz zmianę" z checklisty. Zostaje **jeden** przycisk w pasku górnym: **„Zakończ zmianę"**. Dialog krok po kroku:
 
-Pozycje renderowane w jednolitej liście z ikoną statusu (pending / done) i przyciskiem "Wypełnij" / "Otwórz".
+1. Sprawdź czy raport zmianowy jest **wypełniony i prawidłowy** (walidacja jak niżej). Jeśli nie → CTA „Otwórz raport".
+2. Sprawdź czy przekazanie zmiany jest **wypełnione** (wszystkie 10 obiektów z uwagami przekazującego). Jeśli nie → CTA „Otwórz przekazanie".
+3. Pokaż listę niewykonanych zadań z checklisty + checkbox „przenoszę na kolejną zmianę". Wymagana notatka jeśli pomijasz.
+4. Dopiero potem `ended_at = now()` na `duty_sessions`.
 
-## 2. Roczny harmonogram (kierownik)
+Tj. nie da się zamknąć zmiany bez kompletu dokumentów.
 
-Już istnieje `schedule_template_entries` (day_of_month + shifts) — to jest właśnie **szablon roczny** (powtarzalny co miesiąc). Dodam stronę `/schedule/yearly` dla kierownika:
+## 3. Walidacja raportu zmianowego (`shift_reports`)
 
-- Widok kalendarza rocznego (12 miesięcy × dni) z nałożonymi zadaniami z szablonu i wyjątkami.
-- Filtr: rok, zadanie, zmiana.
-- Eksport CSV (opcjonalnie później).
+Schema Zod, blokuje zapis + wyświetla błędy inline:
+- Wszystkie 8 pól liczbowych **wymagane** (`> 0` dla energii i chemii, `0–100` dla S.M.).
+- `energia_end ≥ energia_start` i `energia_end − energia_start ≤ 100000` (sanity).
+- Każdy z 10 obiektów ma `ocena_status`. Jeśli `problem` → `ocena_opis` wymagany (min. 10 znaków).
+- Każdy obiekt ma `harmonogram_status`. Jeśli `nie_wykonano` → `harmonogram_opis` + `proponowany_termin` (data ≥ dziś).
+- Podpis = imię+nazwisko z profilu (automat).
 
-## 3. Podgląd raportów dla kierownika
+Analogicznie przekazanie: wszystkie 10 obiektów musi mieć `uwagi_przekazujacego` (min. 3 znaki, „brak uwag" akceptowane).
 
-Nowa sekcja `/manager/reports` z trzema zakładkami:
+## 4. Edycja kierownika + snapshoty (wersjonowanie)
 
-- **Dziennie** — wybór daty → lista wszystkich `shift_reports` + `handover_reports` + `schedule_executions` dla tego dnia (3 zmiany).
-- **Miesięcznie** — agregaty: suma energii, zużycie chemii (flokulanty, wapno, FeCl₃), średnie SM osadu, liczba wykonanych/niewykonanych zadań, liczba przekazań.
-- **Rocznie** — to samo co miesięcznie ale w rozbiciu na miesiące + wykres trendu (recharts).
+Po `ended_at` na sesji raport jest „zamknięty" dla operatora. Kierownik widzi przycisk **„Edytuj"** w `/manager/reports`.
 
-Dostęp tylko dla `kierownik` / `admin`.
+Nowa migracja — dwie tabele snapshotów:
 
-## 4. Nawigacja
+```
+shift_report_snapshots(id, report_id, snapshot jsonb, items_snapshot jsonb,
+                       edited_by uuid, edited_at timestamptz, reason text)
+handover_report_snapshots(id, handover_id, snapshot jsonb, items_snapshot jsonb,
+                          edited_by uuid, edited_at timestamptz, reason text)
+```
 
-- Operator: Pulpit (checklista) — bez zmian, ale checklista zawiera teraz wszystkie pozycje.
-- Kierownik: dodaje pozycje **Harmonogram roczny** i **Raporty** (zamiast obecnego `Harmonogram` rozbudowujemy o widok roczny i podsumowania).
+Przed każdą edycją kierownika → trigger BEFORE UPDATE robi snapshot poprzedniej wersji. Operator nie może już edytować po zakończeniu zmiany. Kierownik wpisuje powód edycji.
 
-## Szczegóły techniczne
+W UI: zakładka „Historia zmian" z listą wersji + diff (proste: stara wartość → nowa wartość per pole).
 
-- Brak nowych tabel — wykorzystujemy istniejące (`shift_reports`, `handover_reports`, `schedule_template_entries`, `schedule_executions`).
-- Komponent `ChecklistItem` jednolity dla zadań harmonogramu, raportu i przekazania (warianty po `type`).
-- Agregacje miesięczne/roczne robione po stronie klienta przez `useQuery` (datasetów jest mało: ~90 raportów/miesiąc max).
-- Wykresy: `recharts` (już w projekcie? — sprawdzę, jeśli nie, dodam).
+## 5. Tabelkowe UI raportu (jak na papierze)
 
-Czy zatwierdzasz? Czy są elementy do poprawki (np. inny zakres podsumowań, dodatkowe metryki, eksport PDF)?
+Refaktor `shift.report.tsx` na układ tabelowy zgodny ze zdjęciami:
+
+**Sekcja 1 — Dane wejściowe** (tabela 2 kolumny: parametr | wartość, z jednostkami w nagłówku).
+
+**Sekcja 2 — Ocena obiektów** (tabela 5 kolumn):
+| Lp | Nazwa obiektu | Ocena prawidłowości pracy | Wykonanie harmonogramu | Inne czynności |
+
+Każdy wiersz rozwija się przy „problem"/„nie_wykonano" na pole tekstowe.
+
+**Sekcja 3 — Podpis** (operator, data, godzina automatycznie).
+
+Analogicznie `shift.handover.tsx` — tabela 4 kolumn:
+| Lp | Obiekt | Uwagi przekazującego | Uwagi przyjmującego |
+
+Używam `<table>` + Tailwind (borders, padding) — wygląda jak druk.
+
+## 6. PDF 1:1 z papierowym
+
+Biblioteka: **`jspdf` + `jspdf-autotable`** (działa w przeglądarce, mały bundle, dobrze radzi sobie z tabelami).
+
+Nowy plik `src/lib/pdf/shift-report-pdf.ts` (i analogicznie handover). Layout odzwierciedla skany:
+- Nagłówek: „RAPORT ZMIANOWY OCZYSZCZALNI ŚCIEKÓW", data, zmiana, operator.
+- Tabela danych wejściowych.
+- Tabela oceny obiektów z dynamiczną wysokością wierszy.
+- Stopka: podpis operatora.
+- Font: standardowy Helvetica (jspdf domyślny) — polskie znaki: dodaję font Roboto via base64 (skill PDF), żeby ł/ą/ę działały.
+
+Przycisk **„Pobierz PDF"** na stronie raportu (operator po wypełnieniu) i w panelu kierownika przy każdym raporcie.
+
+W panelu kierownika dodatkowo: **„Pobierz wszystkie PDF z dnia"** (zip — `jszip`) opcjonalnie.
+
+## 7. Etapowanie (jeden commit, dużo zmian)
+
+```text
+1. Migracja: shift_report_snapshots + handover_report_snapshots + triggery BEFORE UPDATE
+2. src/lib/validation/shift-report.ts — Zod schemas
+3. src/lib/pdf/ — generator PDF dla obu raportów
+4. shift.report.tsx — refaktor na tabelki + walidacja + przycisk PDF
+5. shift.handover.tsx — refaktor na tabelki + walidacja + PDF
+6. duty-bar.tsx — rename + dialog 3-stopniowy zamykania
+7. shift.checklist.tsx — usuń przycisk „Rozlicz zmianę", przeniesienie niewykonanych do dialogu zakończenia
+8. manager.reports.tsx — przycisk Edytuj + Historia wersji + Pobierz PDF
+9. bun add jspdf jspdf-autotable
+```
+
+## Pytania otwarte (mogę założyć domyślnie)
+
+- **Powód edycji kierownika** — obowiązkowy czy opcjonalny? *(zakładam obowiązkowy, min. 5 znaków)*
+- **Operator po zakończeniu zmiany** — czy widzi swój raport (tylko podgląd + PDF) czy w ogóle nie ma dostępu? *(zakładam: podgląd + PDF, bez edycji)*
+- **Niewykonane zadania w dialogu zakończenia** — przenosimy automatycznie na **następną najbliższą zmianę** czy operator wybiera datę? *(zakładam: automatycznie na następną, plus powiadomienie kierownika — już zaimplementowane)*
+
+Jeśli powyższe założenia OK — wbijam. Jeśli coś zmienić, daj znać które.

@@ -155,13 +155,13 @@ function ChecklistPage() {
 
   if (!duty?.session) {
     return (
-      <div className="p-6 text-muted-foreground">Brak otwartego dyżuru. Przyjmij dyżur, aby zobaczyć checklistę.</div>
+      <div className="p-6 text-muted-foreground">Brak otwartej zmiany. Rozpocznij zmianę, aby zobaczyć checklistę.</div>
     );
   }
   if (!isMine) {
     return (
       <div className="p-6 text-muted-foreground">
-        Dyżur pełni inny operator. Możesz zobaczyć checklistę dopiero po przejęciu dyżuru.
+        Zmianę pełni inny operator. Możesz zobaczyć checklistę dopiero po przejęciu zmiany.
       </div>
     );
   }
@@ -174,7 +174,6 @@ function ChecklistPage() {
 
   const confirmEnd = useMutation({
     mutationFn: async () => {
-      // Niewykonane → deferred + nowy pending na kolejną zmianę
       const ns = nextShift(currentShift);
       const nextDate = toIsoDate(addDays(now, ns.dayOffset));
       for (const e of undone) {
@@ -217,10 +216,13 @@ function ChecklistPage() {
             {today} · Zmiana: <strong>{currentShift}</strong>
           </p>
         </div>
-        <Button onClick={() => setConfirmEndOpen(true)}>
-          Rozlicz zmianę
-        </Button>
+        {undone.length > 0 && (
+          <Button variant="outline" onClick={() => setConfirmEndOpen(true)}>
+            Przenieś niewykonane ({undone.length})
+          </Button>
+        )}
       </div>
+
 
       {/* Stałe pozycje zmiany: raport + przekazanie */}
       <div className="border rounded-md">

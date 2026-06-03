@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useCurrentDuty } from "@/lib/use-current-duty";
@@ -9,6 +9,7 @@ import {
   SHIFT_LABEL,
   formatHM,
 } from "@/lib/shifts";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Clock, UserCheck, UserX, AlertTriangle } from "lucide-react";
+import { Clock, UserCheck, UserX, AlertTriangle, FileText, ArrowRightLeft, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -47,11 +48,35 @@ export function DutyBar() {
     ? Math.floor((now.getTime() - start.getTime()) / 60_000)
     : 0;
   const alertNoDuty = !data?.session && minutesWithoutDuty >= 15 && now >= start;
+  const sessionId = data?.session?.id;
+
+  // Gate: status raportu + przekazania dla bieżącej zmiany
+  const { data: gate } = useQuery({
+    queryKey: ["shift-end-gate", sessionId],
+    enabled: !!sessionId && endOpen,
+    queryFn: async () => {
+      const [{ data: r }, { data: h }] = await Promise.all([
+        supabase
+          .from("shift_reports")
+          .select("id, energia_end")
+          .eq("duty_session_id", sessionId!)
+          .maybeSingle(),
+        supabase
+          .from("handover_reports")
+          .select("id, submitted_at")
+          .eq("duty_session_from_id", sessionId!)
+          .maybeSingle(),
+      ]);
+      return {
+        reportDone: !!r && r.energia_end != null,
+        handoverDone: !!h?.submitted_at,
+      };
+    },
+  });
 
   const takeDuty = useMutation({
     mutationFn: async (input: { note: string }) => {
       if (!user) throw new Error("Brak sesji");
-      // Zamknij ewentualny otwarty dyżur (może być tylko jeden – z bazy)
       if (data?.session) {
         const { error: eEnd } = await supabase
           .from("duty_sessions")
@@ -71,17 +96,33 @@ export function DutyBar() {
       qc.invalidateQueries({ queryKey: ["current-duty"] });
       setTakeOpen(false);
       setNote("");
-      toast.success("Dyżur przejęty");
+      toast.success("Zmiana przejęta");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const endDuty = useMutation({
     mutationFn: async (input: { note: string }) => {
-      if (!data?.session) throw new Error("Brak otwartego dyżuru");
+      if (!data?.session) throw new Error("Brak otwartej zmiany");
+      if (!gate?.reportDone) throw new Error("Wypełnij raport zmianowy przed zakończeniem zmiany.");
+      if (!gate?.handoverDone) throw new Error("Wypełnij protokół przekazania przed zakończeniem zmiany.");
+
+      // Zablokuj raport i protokół (locked_at)
+      const nowIso = new Date().toISOString();
+      await supabase
+        .from("shift_reports")
+        .update({ locked_at: nowIso })
+        .eq("duty_session_id", data.session.id)
+        .is("locked_at", null);
+      await supabase
+        .from("handover_reports")
+        .update({ locked_at: nowIso })
+        .eq("duty_session_from_id", data.session.id)
+        .is("locked_at", null);
+
       const { error } = await supabase
         .from("duty_sessions")
-        .update({ ended_at: new Date().toISOString(), end_note: input.note || null })
+        .update({ ended_at: nowIso, end_note: input.note || null })
         .eq("id", data.session.id);
       if (error) throw error;
     },
@@ -89,7 +130,7 @@ export function DutyBar() {
       qc.invalidateQueries({ queryKey: ["current-duty"] });
       setEndOpen(false);
       setNote("");
-      toast.success("Dyżur zakończony");
+      toast.success("Zmiana zakończona. Raport i protokół zamknięte.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -104,6 +145,8 @@ export function DutyBar() {
       data.operator.username ||
       "—"
     : null;
+
+  const canEnd = gate?.reportDone && gate?.handoverDone;
 
   return (
     <div
@@ -133,7 +176,7 @@ export function DutyBar() {
           <div className="flex items-center gap-2">
             <UserCheck className="w-4 h-4" />
             <span>
-              Dyżur pełni: <strong>{operatorName}</strong> od {formatHM(startedAt!)}
+              Zmianę pełni: <strong>{operatorName}</strong> od {formatHM(startedAt!)}
               {data.session.outside_window && (
                 <span className="ml-2 text-xs text-amber-700 dark:text-amber-400">
                   (poza oknem)
@@ -144,32 +187,64 @@ export function DutyBar() {
           {isMine ? (
             <Dialog open={endOpen} onOpenChange={setEndOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline">Przekaż / zakończ dyżur</Button>
+                <Button size="sm">Zakończ zmianę</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Zakończenie dyżuru</DialogTitle>
+                  <DialogTitle>Zakończenie zmiany</DialogTitle>
                   <DialogDescription>
-                    Opcjonalna notatka dla kolejnego operatora (stan urządzeń, otwarte sprawy).
+                    Aby zakończyć zmianę, raport zmianowy i protokół przekazania muszą być wypełnione.
                   </DialogDescription>
                 </DialogHeader>
+
                 <div className="space-y-2">
-                  <Label htmlFor="end-note">Notatka (opcjonalnie)</Label>
+                  <div className="flex items-center gap-2 p-2 border rounded">
+                    {gate?.reportDone ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-destructive" />
+                    )}
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span className="flex-1 text-sm">Raport zmianowy</span>
+                    {!gate?.reportDone && (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to="/shift/report" onClick={() => setEndOpen(false)}>Wypełnij</Link>
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 p-2 border rounded">
+                    {gate?.handoverDone ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-destructive" />
+                    )}
+                    <ArrowRightLeft className="w-4 h-4 text-muted-foreground" />
+                    <span className="flex-1 text-sm">Protokół przekazania</span>
+                    {!gate?.handoverDone && (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to="/shift/handover" onClick={() => setEndOpen(false)}>Wypełnij</Link>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="end-note">Notatka końcowa (opcjonalnie)</Label>
                   <Textarea
                     id="end-note"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="np. Pompa P2 nadal w obserwacji, dmuchawa OK…"
-                    rows={4}
+                    rows={3}
                   />
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setEndOpen(false)}>Anuluj</Button>
                   <Button
                     onClick={() => endDuty.mutate({ note })}
-                    disabled={endDuty.isPending}
+                    disabled={endDuty.isPending || !canEnd}
                   >
-                    {endDuty.isPending ? "Zapisywanie…" : "Zakończ dyżur"}
+                    {endDuty.isPending ? "Zapisywanie…" : "Zakończ zmianę"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -177,13 +252,13 @@ export function DutyBar() {
           ) : (
             <Dialog open={takeOpen} onOpenChange={setTakeOpen}>
               <DialogTrigger asChild>
-                <Button size="sm">Przejmij dyżur</Button>
+                <Button size="sm">Przejmij zmianę</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Przejęcie dyżuru od {operatorName}</DialogTitle>
+                  <DialogTitle>Przejęcie zmiany od {operatorName}</DialogTitle>
                   <DialogDescription>
-                    Bieżący dyżur zostanie automatycznie zamknięty. Możesz dodać notatkę startową.
+                    Bieżąca zmiana zostanie automatycznie zamknięta. Możesz dodać notatkę startową.
                     {!withinWindow && (
                       <span className="block mt-2 text-amber-700 dark:text-amber-400">
                         ⚠ Przejęcie poza standardowym oknem zmiany (±1h). Fakt zostanie odnotowany.
@@ -203,7 +278,7 @@ export function DutyBar() {
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setTakeOpen(false)}>Anuluj</Button>
                   <Button onClick={() => takeDuty.mutate({ note })} disabled={takeDuty.isPending}>
-                    {takeDuty.isPending ? "Zapisywanie…" : "Przejmij dyżur"}
+                    {takeDuty.isPending ? "Zapisywanie…" : "Przejmij zmianę"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -223,22 +298,22 @@ export function DutyBar() {
             ) : (
               <>
                 <UserX className="w-4 h-4" />
-                <span>Brak operatora na dyżurze</span>
+                <span>Brak operatora na zmianie</span>
               </>
             )}
           </div>
           <Dialog open={takeOpen} onOpenChange={setTakeOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">Przyjmij dyżur</Button>
+              <Button size="sm">Rozpocznij zmianę</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Przyjęcie dyżuru</DialogTitle>
+                <DialogTitle>Rozpoczęcie zmiany</DialogTitle>
                 <DialogDescription>
-                  Otwierasz nowy dyżur na zmianie {SHIFT_LABEL[type]}.
+                  Otwierasz nową zmianę: {SHIFT_LABEL[type]}.
                   {!withinWindow && (
                     <span className="block mt-2 text-amber-700 dark:text-amber-400">
-                      ⚠ Przyjęcie poza standardowym oknem zmiany (±1h). Fakt zostanie odnotowany.
+                      ⚠ Rozpoczęcie poza standardowym oknem zmiany (±1h). Fakt zostanie odnotowany.
                     </span>
                   )}
                 </DialogDescription>
@@ -255,7 +330,7 @@ export function DutyBar() {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setTakeOpen(false)}>Anuluj</Button>
                 <Button onClick={() => takeDuty.mutate({ note })} disabled={takeDuty.isPending}>
-                  {takeDuty.isPending ? "Zapisywanie…" : "Przyjmij dyżur"}
+                  {takeDuty.isPending ? "Zapisywanie…" : "Rozpocznij zmianę"}
                 </Button>
               </DialogFooter>
             </DialogContent>
