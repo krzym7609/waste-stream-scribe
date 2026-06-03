@@ -336,22 +336,51 @@ function ShiftReportPage() {
   const signature = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const shiftShort = sessionShiftType === "rano" ? "I" : sessionShiftType === "popoludnie" ? "II" : sessionShiftType === "noc" ? "III" : "—";
   const err = (k: string) => errors[k];
-  const numInput = (key: NumField, extraCls = "") => (
-    <input
-      type="number"
-      step="0.01"
-      value={nums[key] ?? ""}
-      disabled={!canEdit}
-      onChange={(e) => setNums((m) => ({ ...m, [key]: e.target.value }))}
-      className={`w-full bg-transparent border-0 outline-none text-center px-1 py-0.5 text-sm ${err(key) ? "text-destructive" : ""} ${extraCls}`}
-      title={err(key) ?? ""}
-    />
-  );
 
-  const pobor =
-    nums.energia_start && nums.energia_end
-      ? Math.max(0, Number(nums.energia_end) - Number(nums.energia_start))
+  const setNum = (key: NumField, v: string) => {
+    // accept digits, comma, dot, minus
+    const cleaned = v.replace(/[^0-9.,-]/g, "");
+    setNums((m) => ({ ...m, [key]: cleaned }));
+    if (errors[key]) setErrors((e) => { const c = { ...e }; delete c[key]; return c; });
+  };
+
+  const numInput = (key: NumField) => {
+    const hasErr = !!err(key);
+    return (
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={nums[key] ?? ""}
+          disabled={!canEdit}
+          onChange={(e) => setNum(key, e.target.value)}
+          aria-invalid={hasErr}
+          title={err(key) ?? ""}
+          className={`w-full bg-transparent outline-none text-center px-1 py-0.5 text-sm rounded-sm ${
+            hasErr ? "bg-destructive/10 ring-2 ring-destructive text-destructive" : ""
+          }`}
+        />
+      </div>
+    );
+  };
+
+  // Pobór = energia_end - energia_start (allows manual override)
+  const startNum = Number((nums.energia_start ?? "").replace(",", "."));
+  const endNum = Number((nums.energia_end ?? "").replace(",", "."));
+  const poborAuto =
+    nums.energia_start && nums.energia_end && !Number.isNaN(startNum) && !Number.isNaN(endNum)
+      ? +(endNum - startNum).toFixed(2)
       : "";
+  const [poborManual, setPoborManual] = useState<string>("");
+  const poborValue = poborManual !== "" ? poborManual : poborAuto === "" ? "" : String(poborAuto);
+  const poborErr =
+    poborManual !== "" && !/^-?\d+([.,]\d+)?$/.test(poborManual.trim())
+      ? "Pobór: nieprawidłowa liczba"
+      : poborAuto !== "" && (poborAuto as number) < 0
+      ? "Pobór ujemny — sprawdź wartości"
+      : "";
+  const pobor = poborValue;
 
   return (
     <div className="p-6 max-w-[900px] mx-auto space-y-3">
