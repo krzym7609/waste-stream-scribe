@@ -21,7 +21,10 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          must_change_password: boolean
+          phone: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -29,7 +32,10 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          must_change_password?: boolean
+          phone?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -37,7 +43,10 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          must_change_password?: boolean
+          phone?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -116,6 +125,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      username_to_email: { Args: { _username: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "kierownik" | "operator"
