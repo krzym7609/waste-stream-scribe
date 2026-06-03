@@ -130,6 +130,7 @@ function ShiftReportPage() {
   const [nums, setNums] = useState<Record<string, string>>({});
   const [opady, setOpady] = useState(false);
   const [uwagi, setUwagi] = useState("");
+  const [operatorzy, setOperatorzy] = useState("");
   const [items, setItems] = useState<Record<string, ItemState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [reason, setReason] = useState(""); // manager edit reason
