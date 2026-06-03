@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      handover_objects: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -88,6 +118,142 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      report_objects: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      schedule_overrides: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          override_date: string
+          shifts: Database["public"]["Enums"]["shift_type"][]
+          skip: boolean
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          override_date: string
+          shifts?: Database["public"]["Enums"]["shift_type"][]
+          skip?: boolean
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          override_date?: string
+          shifts?: Database["public"]["Enums"]["shift_type"][]
+          skip?: boolean
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_overrides_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_tasks: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          task_number: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          task_number: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          task_number?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      schedule_template_entries: {
+        Row: {
+          created_at: string
+          day_of_month: number
+          id: string
+          note: string | null
+          shifts: Database["public"]["Enums"]["shift_type"][]
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_month: number
+          id?: string
+          note?: string | null
+          shifts?: Database["public"]["Enums"]["shift_type"][]
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_month?: number
+          id?: string
+          note?: string | null
+          shifts?: Database["public"]["Enums"]["shift_type"][]
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_template_entries_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shifts: {
         Row: {
