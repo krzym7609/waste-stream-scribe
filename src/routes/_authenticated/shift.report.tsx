@@ -583,16 +583,23 @@ function ShiftReportPage() {
                   <td className="border border-black p-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Select
-                        value={i.ocena_status}
+                        value={i.ocena_status || undefined}
                         disabled={!canEdit}
                         onValueChange={(val) => setField("ocena_status", val as "ok" | "problem")}
                       >
-                        <SelectTrigger className="h-6 text-xs w-28"><SelectValue /></SelectTrigger>
+                        <SelectTrigger
+                          className={`h-6 text-xs w-32 ${errors[eKey("ocena_status")] ? "ring-2 ring-destructive" : ""}`}
+                        >
+                          <SelectValue placeholder="— wybierz —" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="ok">prawidłowo</SelectItem>
                           <SelectItem value="problem">awaria / problem</SelectItem>
                         </SelectContent>
                       </Select>
+                      {i.ocena_status === "ok" && (
+                        <Check className="w-4 h-4 text-emerald-600" aria-label="prawidłowo" />
+                      )}
                     </div>
                     {i.ocena_status === "problem" && (
                       <Textarea
@@ -608,16 +615,23 @@ function ShiftReportPage() {
                   <td className="border border-black p-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Select
-                        value={i.harmonogram_status}
+                        value={i.harmonogram_status || undefined}
                         disabled={!canEdit}
                         onValueChange={(val) => setField("harmonogram_status", val as "ok" | "nie_wykonano")}
                       >
-                        <SelectTrigger className="h-6 text-xs w-32"><SelectValue /></SelectTrigger>
+                        <SelectTrigger
+                          className={`h-6 text-xs w-36 ${errors[eKey("harmonogram_status")] ? "ring-2 ring-destructive" : ""}`}
+                        >
+                          <SelectValue placeholder="— wybierz —" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="ok">wykonane</SelectItem>
                           <SelectItem value="nie_wykonano">nie wykonano</SelectItem>
                         </SelectContent>
                       </Select>
+                      {i.harmonogram_status === "ok" && (
+                        <Check className="w-4 h-4 text-emerald-600" aria-label="wykonane" />
+                      )}
                     </div>
                     {i.harmonogram_status === "nie_wykonano" && (
                       <div className="space-y-1">
