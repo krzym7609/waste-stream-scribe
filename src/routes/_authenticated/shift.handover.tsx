@@ -394,9 +394,9 @@ function HandoverPage() {
   function renderReport(tab: "incoming" | "outgoing") {
     const editFrom = tab === "outgoing" && isMine && !locked;
     const editTo = tab === "incoming" && !!pendingForMe;
-
-    const ctxHandover =
-      tab === "incoming" ? pendingForMe ?? lastAccepted : mineAsFrom ?? activeHandover;
+    const currentItemMap = tab === "incoming" ? incomingItemMap : outgoingItemMap;
+    const setCurrentItemMap = tab === "incoming" ? setIncomingItemMap : setOutgoingItemMap;
+    const ctxHandover = tab === "incoming" ? incomingHandover : outgoingHandover;
 
     if (tab === "incoming" && !pendingForMe && !lastAccepted) {
       return (
@@ -463,9 +463,15 @@ function HandoverPage() {
           </thead>
           <tbody>
             {(objects ?? []).map((obj) => {
-              const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+              const v = currentItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
               const setField = (k: "uwagi_przekazujacego" | "uwagi_przyjmujacego", val: string) =>
-                setItemMap((m) => ({ ...m, [obj.id]: { ...v, [k]: val } }));
+                setCurrentItemMap((m) => ({
+                  ...m,
+                  [obj.id]: {
+                    ...(m[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" }),
+                    [k]: val,
+                  },
+                }));
               const errFrom = `${obj.id}:uwagi_przekazujacego`;
               const errTo = `${obj.id}:uwagi_przyjmujacego`;
               return (
