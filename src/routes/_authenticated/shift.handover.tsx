@@ -222,7 +222,7 @@ function HandoverPage() {
     }
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      toast.error("Każdy obiekt wymaga uwag (min. 3 znaki — wpisz „brak uwag”).");
+      toast.error("Sprawdź formularz.");
       return false;
     }
     return true;
