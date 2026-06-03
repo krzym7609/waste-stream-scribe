@@ -24,6 +24,9 @@ import { shiftReportSchema, shiftReportItemSchema } from "@/lib/validation/shift
 import { generateShiftReportPdf } from "@/lib/pdf/shift-report-pdf";
 
 export const Route = createFileRoute("/_authenticated/shift/report")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    session: typeof s.session === "string" ? s.session : undefined,
+  }),
   component: ShiftReportPage,
 });
 
@@ -71,9 +74,28 @@ function ShiftReportPage() {
   const { data: duty } = useCurrentDuty();
   const router = useRouter();
   const qc = useQueryClient();
+  const search = Route.useSearch();
+  const overrideSessionId = isManager ? search.session : undefined;
 
-  const sessionId = duty?.session?.id;
-  const isMine = duty?.session?.user_id === user?.id;
+  // Fetch override session details (for shift_type / operator) when manager opens another's report
+  const { data: overrideSession } = useQuery({
+    queryKey: ["duty_session", overrideSessionId],
+    enabled: !!overrideSessionId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("duty_sessions")
+        .select("*")
+        .eq("id", overrideSessionId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const sessionId = overrideSessionId ?? duty?.session?.id;
+  const sessionUserId = overrideSession?.user_id ?? duty?.session?.user_id;
+  const sessionShiftType = overrideSession?.shift_type ?? duty?.session?.shift_type;
+  const isMine = sessionUserId === user?.id;
+
 
   const { data: objects } = useQuery({
     queryKey: ["report_objects"],
