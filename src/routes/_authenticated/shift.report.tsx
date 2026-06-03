@@ -435,7 +435,16 @@ function ShiftReportPage() {
             </tr>
             <tr>
               <td className="border border-black p-1 bg-[#d9d9d9]">Operator(zy):</td>
-              <td className="border border-black p-1">&nbsp;</td>
+              <td className="border border-black p-1">
+                <input
+                  type="text"
+                  value={operatorzy}
+                  disabled={!canEdit}
+                  onChange={(e) => setOperatorzy(e.target.value)}
+                  placeholder="(opcjonalne)"
+                  className="w-full bg-transparent outline-none text-sm px-1 py-0.5"
+                />
+              </td>
             </tr>
           </tbody>
         </table>
