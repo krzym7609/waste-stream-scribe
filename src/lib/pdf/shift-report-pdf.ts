@@ -82,7 +82,7 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
         [
           {},
           { text: "Operator(zy):", fillColor: GRAY, margin: [4, 2, 4, 2] },
-          { text: "", margin: [4, 2, 4, 2] },
+          { text: d.operatorzy ?? "", margin: [4, 2, 4, 2] },
         ],
       ],
     },
