@@ -210,6 +210,7 @@ function ShiftReportPage() {
     const payload: Record<string, number | boolean | string | null> = {
       opady,
       uwagi: uwagi || null,
+      operatorzy: operatorzy.trim() || null,
       ...parsed,
     };
     return { ok: true, payload };
