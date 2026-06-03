@@ -451,13 +451,32 @@ function ShiftReportPage() {
           </thead>
           <tbody>
             <tr>
-              <td className="border border-black p-1">&nbsp;</td>
+              <td className="border border-black bg-[#d9d9d9] p-1 italic text-left">
+                Pobór energii elektrycznej [kWh]
+              </td>
               <td className="border border-black p-1">{numInput("energia_start")}</td>
               <td className="border border-black p-1">{numInput("energia_end")}</td>
-              <td className="border border-black p-1">{pobor}</td>
+              <td className={`border border-black p-1 ${poborErr ? "bg-destructive/10" : ""}`}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={pobor === "" ? "" : String(pobor)}
+                  disabled={!canEdit}
+                  onChange={(e) => setPoborManual(e.target.value.replace(/[^0-9.,-]/g, ""))}
+                  title={poborErr || "Auto: stan końcowy − stan początkowy (możesz nadpisać)"}
+                  className={`w-full bg-transparent outline-none text-center px-1 py-0.5 text-sm ${
+                    poborErr ? "text-destructive ring-2 ring-destructive rounded-sm" : ""
+                  }`}
+                />
+              </td>
             </tr>
           </tbody>
         </table>
+        {(err("energia_start") || err("energia_end") || poborErr) && (
+          <div className="text-destructive text-xs mb-2">
+            {err("energia_start") || err("energia_end") || poborErr}
+          </div>
+        )}
 
         {/* Chemicals + SM + opady */}
         <div className="flex gap-3 mb-3">
