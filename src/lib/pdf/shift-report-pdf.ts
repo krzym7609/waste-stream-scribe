@@ -218,7 +218,7 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
         margin: [0, 6, 0, 4],
       },
       {
-        table: { widths: [95, "*", "*", "*"], body: itemsBody, headerRows: 1, dontBreakRows: true },
+        table: { widths: [95, "*", "*", "*"], body: itemsBody, headerRows: 1 },
       },
       {
         text: `Podpis operatora wiodącego: ${d.operator}`,
