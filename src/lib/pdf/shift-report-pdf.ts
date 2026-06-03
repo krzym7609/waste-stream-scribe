@@ -227,8 +227,7 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
         margin: [0, 16, 0, 0],
       },
     ],
-    defaultStyle: { fontSize: 9, preserveLeadingSpaces: true },
-    styles: { wrap: { noWrap: false } },
+    defaultStyle: { fontSize: 9 },
   };
 
   await downloadPdf(doc, `raport-zmianowy-${d.date}-${d.shift}.pdf`);
