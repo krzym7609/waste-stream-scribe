@@ -639,11 +639,23 @@ function ShiftReportPage() {
         </p>
       </div>
 
+      {Object.keys(errors).length > 0 && (
+        <div className="border border-destructive/50 bg-destructive/10 rounded p-3 text-xs print:hidden">
+          <div className="font-semibold text-destructive mb-1">
+            Popraw {Object.keys(errors).length} {Object.keys(errors).length === 1 ? "błąd" : "błędy"}:
+          </div>
+          <ul className="list-disc pl-5 space-y-0.5 text-destructive">
+            {Object.values(errors).slice(0, 10).map((m, i) => (
+              <li key={i}>{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Toolbar zapisu */}
       <div className="flex justify-between items-center print:hidden">
         <div className="text-xs text-muted-foreground">
-          {Object.keys(errors).length > 0 && `Błędy: ${Object.keys(errors).length}`}
-          {today && <> · Data: <strong>{today}</strong></>}
+          {today && <>Data: <strong>{today}</strong></>}
         </div>
         {canEdit && (
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
