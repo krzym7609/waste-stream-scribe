@@ -509,7 +509,7 @@ function HandoverPage() {
                           <Textarea
                             value={v.uwagi_przekazujacego}
                             onChange={(e) => setField(e.target.value)}
-                            placeholder="Wpisz uwagi lub „brak uwag""
+                            placeholder={'Wpisz uwagi lub „brak uwag"'}
                             rows={3}
                             className={`text-xs ${errors[errKey] ? "border-destructive" : ""}`}
                           />
