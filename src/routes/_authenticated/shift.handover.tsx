@@ -592,6 +592,12 @@ function HandoverPage() {
         </table>
 
         <div className="flex justify-end gap-2 mt-3 print:hidden">
+          {ctxHandover && (
+            <Button variant="outline" onClick={() => downloadPdf(tab)}>
+              <Download className="w-4 h-4 mr-1" />
+              Pobierz PDF ({tab === "incoming" ? "przyjęcie" : "przekazanie"})
+            </Button>
+          )}
           {tab === "outgoing" && editFrom && (
             <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
               {saveFrom.isPending
