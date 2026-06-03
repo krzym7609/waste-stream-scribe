@@ -128,12 +128,12 @@ function ShiftReportPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!sessionId || !user) throw new Error("Brak dyżuru");
-      const payload: Record<string, unknown> = {
+      const payload: TablesInsert<"shift_reports"> = {
         duty_session_id: sessionId,
         submitted_by: user.id,
         opady,
         uwagi: uwagi || null,
-      };
+      } as TablesInsert<"shift_reports">;
       for (const f of NUM_FIELDS) {
         const raw = nums[f.key];
         payload[f.key] = raw === "" || raw == null ? null : Number(raw);
