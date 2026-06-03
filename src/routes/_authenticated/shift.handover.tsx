@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Download, Lock } from "lucide-react";
 import { handoverItemSchema } from "@/lib/validation/shift-report";
 import { generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/shift/handover")({
   validateSearch: (s: Record<string, unknown>) => ({
