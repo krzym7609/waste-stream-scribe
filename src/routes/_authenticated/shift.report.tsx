@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -166,16 +166,16 @@ function ShiftReportPage() {
 
   const validate = (): { ok: boolean; payload?: Record<string, number | boolean | string | null> } => {
     const errs: Record<string, string> = {};
-    // numeric
+    // numeric (accept comma or dot as decimal separator)
     const parsed: Record<string, number> = {};
     for (const f of NUM_FIELDS) {
-      const raw = nums[f.key];
-      if (raw === "" || raw == null) {
+      const raw = (nums[f.key] ?? "").trim().replace(",", ".");
+      if (raw === "") {
         errs[f.key] = `${f.label}: wymagane`;
+      } else if (!/^-?\d+(\.\d+)?$/.test(raw)) {
+        errs[f.key] = `${f.label}: nieprawidłowa liczba (użyj , lub .)`;
       } else {
-        const n = Number(raw);
-        if (Number.isNaN(n)) errs[f.key] = `${f.label}: nieprawidłowa liczba`;
-        else parsed[f.key] = n;
+        parsed[f.key] = Number(raw);
       }
     }
     if (Object.keys(errs).length === 0) {
@@ -336,22 +336,51 @@ function ShiftReportPage() {
   const signature = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const shiftShort = sessionShiftType === "rano" ? "I" : sessionShiftType === "popoludnie" ? "II" : sessionShiftType === "noc" ? "III" : "—";
   const err = (k: string) => errors[k];
-  const numInput = (key: NumField, extraCls = "") => (
-    <input
-      type="number"
-      step="0.01"
-      value={nums[key] ?? ""}
-      disabled={!canEdit}
-      onChange={(e) => setNums((m) => ({ ...m, [key]: e.target.value }))}
-      className={`w-full bg-transparent border-0 outline-none text-center px-1 py-0.5 text-sm ${err(key) ? "text-destructive" : ""} ${extraCls}`}
-      title={err(key) ?? ""}
-    />
-  );
 
-  const pobor =
-    nums.energia_start && nums.energia_end
-      ? Math.max(0, Number(nums.energia_end) - Number(nums.energia_start))
+  const setNum = (key: NumField, v: string) => {
+    // accept digits, comma, dot, minus
+    const cleaned = v.replace(/[^0-9.,-]/g, "");
+    setNums((m) => ({ ...m, [key]: cleaned }));
+    if (errors[key]) setErrors((e) => { const c = { ...e }; delete c[key]; return c; });
+  };
+
+  const numInput = (key: NumField) => {
+    const hasErr = !!err(key);
+    return (
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={nums[key] ?? ""}
+          disabled={!canEdit}
+          onChange={(e) => setNum(key, e.target.value)}
+          aria-invalid={hasErr}
+          title={err(key) ?? ""}
+          className={`w-full bg-transparent outline-none text-center px-1 py-0.5 text-sm rounded-sm ${
+            hasErr ? "bg-destructive/10 ring-2 ring-destructive text-destructive" : ""
+          }`}
+        />
+      </div>
+    );
+  };
+
+  // Pobór = energia_end - energia_start (allows manual override)
+  const startNum = Number((nums.energia_start ?? "").replace(",", "."));
+  const endNum = Number((nums.energia_end ?? "").replace(",", "."));
+  const poborAuto =
+    nums.energia_start && nums.energia_end && !Number.isNaN(startNum) && !Number.isNaN(endNum)
+      ? +(endNum - startNum).toFixed(2)
       : "";
+  const [poborManual, setPoborManual] = useState<string>("");
+  const poborValue = poborManual !== "" ? poborManual : poborAuto === "" ? "" : String(poborAuto);
+  const poborErr =
+    poborManual !== "" && !/^-?\d+([.,]\d+)?$/.test(poborManual.trim())
+      ? "Pobór: nieprawidłowa liczba"
+      : poborAuto !== "" && (poborAuto as number) < 0
+      ? "Pobór ujemny — sprawdź wartości"
+      : "";
+  const pobor = poborValue;
 
   return (
     <div className="p-6 max-w-[900px] mx-auto space-y-3">
@@ -422,13 +451,40 @@ function ShiftReportPage() {
           </thead>
           <tbody>
             <tr>
-              <td className="border border-black p-1">&nbsp;</td>
+              <td className="border border-black bg-[#d9d9d9] p-1 italic text-left">
+                Pobór energii elektrycznej [kWh]
+              </td>
               <td className="border border-black p-1">{numInput("energia_start")}</td>
               <td className="border border-black p-1">{numInput("energia_end")}</td>
-              <td className="border border-black p-1">{pobor}</td>
+              <td className={`border border-black p-1 ${poborErr ? "bg-destructive/10" : ""}`}>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={pobor === "" ? "" : String(pobor)}
+                  disabled={!canEdit}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9.,-]/g, "");
+                    setPoborManual(v);
+                    const s = Number((nums.energia_start ?? "").replace(",", "."));
+                    const p = Number(v.replace(",", "."));
+                    if (!Number.isNaN(s) && !Number.isNaN(p) && v !== "") {
+                      setNums((m) => ({ ...m, energia_end: String(+(s + p).toFixed(2)) }));
+                    }
+                  }}
+                  title={poborErr || "Auto: stan końcowy − stan początkowy (możesz nadpisać)"}
+                  className={`w-full bg-transparent outline-none text-center px-1 py-0.5 text-sm ${
+                    poborErr ? "text-destructive ring-2 ring-destructive rounded-sm" : ""
+                  }`}
+                />
+              </td>
             </tr>
           </tbody>
         </table>
+        {(err("energia_start") || err("energia_end") || poborErr) && (
+          <div className="text-destructive text-xs mb-2">
+            {err("energia_start") || err("energia_end") || poborErr}
+          </div>
+        )}
 
         {/* Chemicals + SM + opady */}
         <div className="flex gap-3 mb-3">
@@ -465,14 +521,19 @@ function ShiftReportPage() {
                 <tr>
                   <td className="border border-black bg-[#d9d9d9] p-1 italic">Występ. opadów (T/N):</td>
                   <td className="border border-black p-1 w-[90px] text-center">
-                    <button
-                      type="button"
+                    <Select
+                      value={opady ? "T" : "N"}
                       disabled={!canEdit}
-                      onClick={() => setOpady((o) => !o)}
-                      className="font-bold underline-offset-2"
+                      onValueChange={(v) => setOpady(v === "T")}
                     >
-                      {opady ? "T" : "N"}
-                    </button>
+                      <SelectTrigger className="h-7 text-xs font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="T">T — tak</SelectItem>
+                        <SelectItem value="N">N — nie</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </td>
                 </tr>
               </tbody>
@@ -586,11 +647,23 @@ function ShiftReportPage() {
         </p>
       </div>
 
+      {Object.keys(errors).length > 0 && (
+        <div className="border border-destructive/50 bg-destructive/10 rounded p-3 text-xs print:hidden">
+          <div className="font-semibold text-destructive mb-1">
+            Popraw {Object.keys(errors).length} {Object.keys(errors).length === 1 ? "błąd" : "błędy"}:
+          </div>
+          <ul className="list-disc pl-5 space-y-0.5 text-destructive">
+            {Object.values(errors).slice(0, 10).map((m, i) => (
+              <li key={i}>{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Toolbar zapisu */}
       <div className="flex justify-between items-center print:hidden">
         <div className="text-xs text-muted-foreground">
-          {Object.keys(errors).length > 0 && `Błędy: ${Object.keys(errors).length}`}
-          {today && <> · Data: <strong>{today}</strong></>}
+          {today && <>Data: <strong>{today}</strong></>}
         </div>
         {canEdit && (
           <Button onClick={() => save.mutate()} disabled={save.isPending}>
