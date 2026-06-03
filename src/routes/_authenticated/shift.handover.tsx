@@ -141,8 +141,8 @@ function HandoverPage() {
       if (locked && isManager && activeHandover) {
         const { error: snapErr } = await supabase.from("handover_report_snapshots").insert({
           handover_id: activeHandover.id,
-          snapshot: activeHandover as unknown as Record<string, unknown>,
-          items_snapshot: (items ?? []) as unknown as Record<string, unknown>,
+          snapshot: JSON.parse(JSON.stringify(activeHandover)),
+          items_snapshot: JSON.parse(JSON.stringify(items ?? [])),
           edited_by: user.id,
           reason: reason.trim(),
         });

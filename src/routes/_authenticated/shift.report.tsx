@@ -204,24 +204,25 @@ function ShiftReportPage() {
       if (locked && isManager && existing?.report) {
         const { error: snapErr } = await supabase.from("shift_report_snapshots").insert({
           report_id: existing.report.id,
-          snapshot: existing.report as unknown as Record<string, unknown>,
-          items_snapshot: existing.items as unknown as Record<string, unknown>,
+          snapshot: JSON.parse(JSON.stringify(existing.report)),
+          items_snapshot: JSON.parse(JSON.stringify(existing.items)),
           edited_by: user.id,
           reason: reason.trim(),
         });
         if (snapErr) throw snapErr;
       }
 
-      const insertPayload: TablesInsert<"shift_reports"> = {
+      const updatePayload = v.payload as Partial<TablesInsert<"shift_reports">>;
+      const insertPayload = {
+        ...updatePayload,
         duty_session_id: sessionId,
         submitted_by: existing?.report?.submitted_by ?? user.id,
-        ...(v.payload as unknown as TablesInsert<"shift_reports">),
-      };
+      } as TablesInsert<"shift_reports">;
       let reportId = existing?.report?.id;
       if (reportId) {
         const { error } = await supabase
           .from("shift_reports")
-          .update(v.payload)
+          .update(updatePayload)
           .eq("id", reportId);
         if (error) throw error;
       } else {
