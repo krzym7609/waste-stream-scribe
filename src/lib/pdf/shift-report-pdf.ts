@@ -95,20 +95,13 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
       widths: ["*", 90, 90, 90],
       body: [
         [
-          {
-            stack: [
-              { text: "Pobór energii elektrycznej", alignment: "center" },
-              { text: "[kwh]", alignment: "center" },
-            ],
-            fillColor: GRAY,
-            margin: [2, 2, 2, 2],
-          },
+          { text: "Pobór energii elektrycznej", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
           { text: "Stan początkowy", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
           { text: "Stan końcowy", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
           { text: "Pobór", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
         ],
         [
-          { text: "", margin: [2, 6, 2, 6] },
+          { text: "[kwh]", alignment: "center", margin: [2, 6, 2, 6] },
           { text: v(d.data.energia_start), alignment: "center", margin: [2, 6, 2, 6] },
           { text: v(d.data.energia_end), alignment: "center", margin: [2, 6, 2, 6] },
           { text: pobor, alignment: "center", margin: [2, 6, 2, 6] },
