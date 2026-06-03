@@ -485,6 +485,7 @@ function ReportActions({ report }: { report: any }) {
       date: report.submitted_at.slice(0, 10),
       shift: session?.shift_type ?? "—",
       operator,
+      operatorzy: report.operatorzy ?? null,
       submittedAt: report.submitted_at,
       data: {
         energia_start: report.energia_start,
