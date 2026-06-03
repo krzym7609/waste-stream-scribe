@@ -27,6 +27,7 @@ function AuthenticatedLayout() {
   const navItems = [
     { to: "/dashboard", label: "Pulpit", icon: LayoutDashboard },
     { to: "/shifts", label: "Zmiany", icon: ClipboardList },
+    { to: "/schedule", label: "Harmonogram", icon: CalendarRange },
     ...(isManager ? [{ to: "/team", label: "Zespół", icon: Users }] : []),
     { to: "/change-password", label: "Zmiana hasła", icon: KeyRound },
   ];
