@@ -259,18 +259,7 @@ function HandoverPage() {
   const accept = useMutation({
     mutationFn: async () => {
       if (!pendingForMe || !user || !sessionId) throw new Error("Brak protokołu do przyjęcia");
-      // Walidacja: każdy obiekt musi mieć uwagi przejmującego (min 3 znaki)
-      const errs: Record<string, string> = {};
-      for (const obj of objects ?? []) {
-        const v = incomingItemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
-        if (v.length < 3) {
-          errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag”)";
-        }
-      }
-      setErrors(errs);
-      if (Object.keys(errs).length > 0) {
-        throw new Error("Uzupełnij uwagi przejmującego dla każdego obiektu (min. 3 znaki).");
-      }
+      setErrors({});
       for (const obj of objects ?? []) {
         const v = incomingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         await supabase.from("handover_report_items").upsert(
