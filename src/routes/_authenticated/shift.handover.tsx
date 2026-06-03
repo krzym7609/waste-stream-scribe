@@ -443,7 +443,7 @@ function HandoverPage() {
               const errTo = `${obj.id}:uwagi_przyjmujacego`;
               return (
                 <tr key={obj.id} className="align-top">
-                  <td className="border border-black bg-[#d9d9d9] p-1 italic break-words">{obj.name}</td>
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic break-all">{obj.name}</td>
                   <td className={`border border-black p-1 break-words ${editFrom ? "bg-yellow-50" : ""}`}>
                     {editFrom ? (
                       <Textarea
