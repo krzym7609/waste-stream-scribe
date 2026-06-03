@@ -294,10 +294,11 @@ function ShiftReportPage() {
       profile?.username || "—";
     await generateShiftReportPdf({
       date: r.submitted_at.slice(0, 10),
-      shift: duty?.session?.shift_type ?? "—",
+      shift: sessionShiftType ?? "—",
       operator: operatorName,
       submittedAt: r.submitted_at,
       data: {
+
         energia_start: r.energia_start as number | null,
         energia_end: r.energia_end as number | null,
         flokulant_proszkowy_kg: r.flokulant_proszkowy_kg as number | null,
