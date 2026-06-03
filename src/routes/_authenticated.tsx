@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Navigate, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users } from "lucide-react";
+import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { session, loading, signOut, user, isManager } = useAuth();
+  const { session, loading, signOut, profile, isManager } = useAuth();
   const nav = useNavigate();
   const { location } = useRouterState();
 
@@ -18,11 +18,21 @@ function AuthenticatedLayout() {
   }
   if (!session) return <Navigate to="/auth" />;
 
+  // Wymuszenie zmiany hasła przy pierwszym logowaniu
+  if (profile?.must_change_password && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" />;
+  }
+
   const navItems = [
     { to: "/dashboard", label: "Pulpit", icon: LayoutDashboard },
     { to: "/shifts", label: "Zmiany", icon: ClipboardList },
     ...(isManager ? [{ to: "/team", label: "Zespół", icon: Users }] : []),
+    { to: "/change-password", label: "Zmiana hasła", icon: KeyRound },
   ];
+
+  const displayName = profile
+    ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || profile.username || ""
+    : "";
 
   return (
     <div className="min-h-screen flex">
@@ -55,7 +65,8 @@ function AuthenticatedLayout() {
           })}
         </nav>
         <div className="p-3 border-t">
-          <div className="text-xs text-muted-foreground truncate mb-2">{user?.email}</div>
+          <div className="text-sm font-medium truncate">{displayName}</div>
+          <div className="text-xs text-muted-foreground truncate mb-2">@{profile?.username ?? "—"}</div>
           <Button
             variant="outline"
             size="sm"
