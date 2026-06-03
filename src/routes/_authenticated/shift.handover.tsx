@@ -422,14 +422,14 @@ function HandoverPage() {
 
         <div className="italic mb-1">Uwagi dotyczące przekazania zmiany:</div>
 
-        <table className="w-full border-collapse border border-black">
+        <table className="w-full border-collapse border border-black table-fixed">
           <thead className="bg-[#d9d9d9]">
             <tr>
-              <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
-              <th className={`border border-black p-1 font-bold ${editFrom ? "bg-yellow-100" : ""}`}>
+              <th className="border border-black p-1 w-[22%] font-bold">Obiekt</th>
+              <th className={`border border-black p-1 w-[39%] font-bold ${editFrom ? "bg-yellow-100" : ""}`}>
                 Uwagi przekazującego zmianę
               </th>
-              <th className={`border border-black p-1 font-bold ${editTo ? "bg-yellow-100" : ""}`}>
+              <th className={`border border-black p-1 w-[39%] font-bold ${editTo ? "bg-yellow-100" : ""}`}>
                 Uwagi przejmującego zmianę
               </th>
             </tr>
