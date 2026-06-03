@@ -412,11 +412,7 @@ function HandoverPage() {
               <Lock className="w-3 h-3" /> Zamknięty
             </Badge>
           )}
-          {activeHandover && (
-            <Button variant="outline" size="sm" onClick={downloadPdf}>
-              <Download className="w-4 h-4 mr-1" /> Pobierz PDF
-            </Button>
-          )}
+          {/* Przycisk PDF znajduje się w każdej zakładce — osobno dla przyjęcia i przekazania */}
           <Button variant="outline" size="sm" onClick={() => router.history.back()}>
             Wstecz
           </Button>
