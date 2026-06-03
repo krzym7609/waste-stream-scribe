@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Navigate, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound, CalendarRange } from "lucide-react";
+import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound, CalendarRange, ListChecks, FileText, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DutyBar } from "@/components/duty-bar";
 
@@ -26,6 +26,9 @@ function AuthenticatedLayout() {
 
   const navItems = [
     { to: "/dashboard", label: "Pulpit", icon: LayoutDashboard },
+    { to: "/shift/checklist", label: "Checklista", icon: ListChecks },
+    { to: "/shift/report", label: "Raport zmiany", icon: FileText },
+    { to: "/shift/handover", label: "Przekazanie", icon: ArrowRightLeft },
     { to: "/shifts", label: "Zmiany", icon: ClipboardList },
     { to: "/schedule", label: "Harmonogram", icon: CalendarRange },
     ...(isManager ? [{ to: "/team", label: "Zespół", icon: Users }] : []),
