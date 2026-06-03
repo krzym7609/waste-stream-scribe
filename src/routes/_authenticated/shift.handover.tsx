@@ -444,17 +444,17 @@ function HandoverPage() {
               return (
                 <tr key={obj.id} className="align-top">
                   <td className="border border-black bg-[#d9d9d9] p-1 italic break-words">{obj.name}</td>
-                  <td className={`border border-black p-1 ${editFrom ? "bg-yellow-50" : ""}`}>
+                  <td className={`border border-black p-1 break-words ${editFrom ? "bg-yellow-50" : ""}`}>
                     {editFrom ? (
                       <Textarea
                         value={v.uwagi_przekazujacego}
                         onChange={(e) => setField("uwagi_przekazujacego", e.target.value)}
                         placeholder="Wpisz uwagi lub: brak uwag"
                         rows={3}
-                        className={`text-xs ${errors[errFrom] ? "border-destructive" : ""}`}
+                        className={`text-xs resize-none w-full ${errors[errFrom] ? "border-destructive" : ""}`}
                       />
                     ) : (
-                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
+                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1 break-words">
                         {v.uwagi_przekazujacego || (
                           <span className="italic text-gray-500">— brak uwag —</span>
                         )}
