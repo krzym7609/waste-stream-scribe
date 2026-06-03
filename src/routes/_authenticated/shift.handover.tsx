@@ -332,35 +332,55 @@ function HandoverPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const downloadPdf = async () => {
-    if (!activeHandover || !objects) return;
+  const downloadPdf = async (tab: "incoming" | "outgoing") => {
+    if (!objects) return;
+    const ctxHandover = tab === "incoming" ? incomingHandover : outgoingHandover;
+    if (!ctxHandover) {
+      toast.error(
+        tab === "incoming"
+          ? "Brak protokołu przyjęcia do pobrania."
+          : "Brak protokołu przekazania do pobrania.",
+      );
+      return;
+    }
     const objMap = new Map(objects.map((o) => [o.id, o.name]));
-    const useOutgoing = !!outgoingHandover;
-    const activeItems = useOutgoing ? outgoingItems : incomingItems;
     const meName =
       `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
       profile?.username ||
       "—";
-    // Operator przekazujący = autor raportu (from_user); przejmujący = to_user
-    const operatorFrom = useOutgoing ? meName : incomingFromName;
-    const operatorTo = useOutgoing
-      ? outgoingToName
-      : activeHandover.accepted_at
-        ? meName
-        : null;
+
+    let operatorFrom: string;
+    let operatorTo: string | null;
+    let itemMap: Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>;
+
+    if (tab === "outgoing") {
+      // To ja przekazuję zmianę
+      operatorFrom = meName;
+      operatorTo = outgoingToName;
+      itemMap = outgoingItemMap;
+    } else {
+      // Przyjmuję zmianę od poprzednika
+      operatorFrom = incomingFromName;
+      operatorTo = ctxHandover.accepted_at ? incomingToName : meName;
+      itemMap = incomingItemMap;
+    }
+
     await generateHandoverPdf({
-      date: activeHandover.submitted_at.slice(0, 10),
+      date: ctxHandover.submitted_at.slice(0, 10),
       shiftFrom: duty?.session?.shift_type ?? "—",
       operatorFrom,
       operatorTo,
-      submittedAt: activeHandover.submitted_at,
-      acceptedAt: activeHandover.accepted_at,
-      uwagiOgolne: activeHandover.uwagi_ogolne,
-      items: (activeItems ?? []).map((it) => ({
-        object_name: objMap.get(it.object_id) ?? "—",
-        uwagi_przekazujacego: it.uwagi_przekazujacego,
-        uwagi_przyjmujacego: it.uwagi_przyjmujacego,
-      })),
+      submittedAt: ctxHandover.submitted_at,
+      acceptedAt: ctxHandover.accepted_at,
+      uwagiOgolne: ctxHandover.uwagi_ogolne,
+      items: (objects ?? []).map((obj) => {
+        const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+        return {
+          object_name: objMap.get(obj.id) ?? "—",
+          uwagi_przekazujacego: v.uwagi_przekazujacego || null,
+          uwagi_przyjmujacego: v.uwagi_przyjmujacego || null,
+        };
+      }),
     });
   };
 
@@ -392,11 +412,7 @@ function HandoverPage() {
               <Lock className="w-3 h-3" /> Zamknięty
             </Badge>
           )}
-          {activeHandover && (
-            <Button variant="outline" size="sm" onClick={downloadPdf}>
-              <Download className="w-4 h-4 mr-1" /> Pobierz PDF
-            </Button>
-          )}
+          {/* Przycisk PDF znajduje się w każdej zakładce — osobno dla przyjęcia i przekazania */}
           <Button variant="outline" size="sm" onClick={() => router.history.back()}>
             Wstecz
           </Button>
@@ -576,6 +592,12 @@ function HandoverPage() {
         </table>
 
         <div className="flex justify-end gap-2 mt-3 print:hidden">
+          {ctxHandover && (
+            <Button variant="outline" onClick={() => downloadPdf(tab)}>
+              <Download className="w-4 h-4 mr-1" />
+              Pobierz PDF ({tab === "incoming" ? "przyjęcie" : "przekazanie"})
+            </Button>
+          )}
           {tab === "outgoing" && editFrom && (
             <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
               {saveFrom.isPending
