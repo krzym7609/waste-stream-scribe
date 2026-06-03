@@ -25,13 +25,15 @@ function AuthenticatedLayout() {
   }
 
   const navItems = [
-    { to: "/dashboard", label: "Pulpit", icon: LayoutDashboard },
-    { to: "/shift/checklist", label: "Checklista", icon: ListChecks },
+    { to: "/shift/checklist", label: "Pulpit", icon: LayoutDashboard },
     { to: "/shift/report", label: "Raport zmiany", icon: FileText },
-    { to: "/shift/handover", label: "Przekazanie", icon: ArrowRightLeft },
-    { to: "/shifts", label: "Zmiany", icon: ClipboardList },
-    { to: "/schedule", label: "Harmonogram", icon: CalendarRange },
-    ...(isManager ? [{ to: "/team", label: "Zespół", icon: Users }] : []),
+    ...(isManager
+      ? [
+          { to: "/schedule", label: "Harmonogram", icon: CalendarRange },
+          { to: "/shifts", label: "Zmiany", icon: ClipboardList },
+          { to: "/team", label: "Zespół", icon: Users },
+        ]
+      : []),
     { to: "/change-password", label: "Zmiana hasła", icon: KeyRound },
   ];
 
