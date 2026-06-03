@@ -86,6 +86,23 @@ function ChecklistPage() {
     },
   });
 
+  // 2b. Status raportu zmiany i przekazania (dla bieżącego dyżuru)
+  const { data: reportStatus } = useQuery({
+    queryKey: ["shift_report_status", duty?.session?.id],
+    enabled: !!duty?.session,
+    queryFn: async () => {
+      const [{ data: r }, { data: h }] = await Promise.all([
+        supabase.from("shift_reports").select("id, energia_end").eq("duty_session_id", duty!.session!.id).maybeSingle(),
+        supabase.from("handover_reports").select("id, submitted_at").eq("duty_session_from_id", duty!.session!.id).maybeSingle(),
+      ]);
+      return {
+        reportDone: !!r && r.energia_end != null,
+        reportStarted: !!r,
+        handoverDone: !!h?.submitted_at,
+      };
+    },
+  });
+
   // 3. Upewnij się że wpisy istnieją (pending) dla scheduled
   const ensure = useMutation({
     mutationFn: async () => {
