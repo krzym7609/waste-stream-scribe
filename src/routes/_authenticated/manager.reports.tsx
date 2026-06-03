@@ -146,11 +146,19 @@ function DailyView() {
               {data.reports.map((r: any) => (
                 <div key={r.id} className="border rounded p-3 text-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="font-medium">
+                    <div className="font-medium flex items-center gap-2">
                       {data.profMap.get(r.submitted_by) ?? "—"}
+                      {r.locked_at && (
+                        <Badge variant="outline" className="gap-1 text-[10px]">
+                          <Lock className="w-3 h-3" /> Zamknięty
+                        </Badge>
+                      )}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(r.submitted_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(r.submitted_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      <ReportActions report={r} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
