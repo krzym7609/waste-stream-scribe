@@ -84,23 +84,39 @@ function HandoverPage() {
     (h) => !h.accepted_at && h.from_user_id !== user?.id,
   );
   const lastAccepted = handovers?.find((h) => h.to_user_id === user?.id && h.accepted_at);
-  const activeHandover = overrideHandover ?? mineAsFrom ?? pendingForMe ?? lastAccepted;
-  const activeId = activeHandover?.id;
+  const incomingHandover = overrideHandover ?? pendingForMe ?? lastAccepted;
+  const outgoingHandover = overrideHandover ?? mineAsFrom;
+  const activeHandover = outgoingHandover ?? incomingHandover;
 
 
-  const { data: items } = useQuery({
-    queryKey: ["handover_items", activeId],
-    enabled: !!activeId,
+  const { data: incomingItems } = useQuery({
+    queryKey: ["handover_items", "incoming", incomingHandover?.id],
+    enabled: !!incomingHandover?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from("handover_report_items")
         .select("*")
-        .eq("handover_id", activeId!);
+        .eq("handover_id", incomingHandover!.id);
       return data ?? [];
     },
   });
 
-  const [itemMap, setItemMap] = useState<
+  const { data: outgoingItems } = useQuery({
+    queryKey: ["handover_items", "outgoing", outgoingHandover?.id],
+    enabled: !!outgoingHandover?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("handover_report_items")
+        .select("*")
+        .eq("handover_id", outgoingHandover!.id);
+      return data ?? [];
+    },
+  });
+
+  const [incomingItemMap, setIncomingItemMap] = useState<
+    Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
+  >({});
+  const [outgoingItemMap, setOutgoingItemMap] = useState<
     Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
   >({});
   const [uwagiOgolne, setUwagiOgolne] = useState("");
@@ -108,16 +124,27 @@ function HandoverPage() {
   const [reason, setReason] = useState("");
 
   useEffect(() => {
-    const m: typeof itemMap = {};
-    for (const it of items ?? []) {
+    const m: typeof incomingItemMap = {};
+    for (const it of incomingItems ?? []) {
       m[it.object_id] = {
         uwagi_przekazujacego: it.uwagi_przekazujacego ?? "",
         uwagi_przyjmujacego: it.uwagi_przyjmujacego ?? "",
       };
     }
-    setItemMap(m);
-    setUwagiOgolne(activeHandover?.uwagi_ogolne ?? "");
-  }, [items?.length, activeHandover?.id]);
+    setIncomingItemMap(m);
+  }, [incomingItems, incomingHandover?.id]);
+
+  useEffect(() => {
+    const m: typeof outgoingItemMap = {};
+    for (const it of outgoingItems ?? []) {
+      m[it.object_id] = {
+        uwagi_przekazujacego: it.uwagi_przekazujacego ?? "",
+        uwagi_przyjmujacego: it.uwagi_przyjmujacego ?? "",
+      };
+    }
+    setOutgoingItemMap(m);
+    setUwagiOgolne(outgoingHandover?.uwagi_ogolne ?? "");
+  }, [outgoingItems, outgoingHandover?.id]);
 
   const locked = !!activeHandover?.locked_at;
   const mode: "incoming" | "outgoing" | "history" = pendingForMe
