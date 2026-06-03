@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileText, ArrowRightLeft } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/shift/checklist")({
   component: ChecklistPage,
@@ -83,6 +83,23 @@ function ChecklistPage() {
           `and(scheduled_date.eq.${today},scheduled_shift.eq.${currentShift}),and(status.eq.pending,scheduled_date.lt.${today})`,
         );
       return data ?? [];
+    },
+  });
+
+  // 2b. Status raportu zmiany i przekazania (dla bieżącego dyżuru)
+  const { data: reportStatus } = useQuery({
+    queryKey: ["shift_report_status", duty?.session?.id],
+    enabled: !!duty?.session,
+    queryFn: async () => {
+      const [{ data: r }, { data: h }] = await Promise.all([
+        supabase.from("shift_reports").select("id, energia_end").eq("duty_session_id", duty!.session!.id).maybeSingle(),
+        supabase.from("handover_reports").select("id, submitted_at").eq("duty_session_from_id", duty!.session!.id).maybeSingle(),
+      ]);
+      return {
+        reportDone: !!r && r.energia_end != null,
+        reportStarted: !!r,
+        handoverDone: !!h?.submitted_at,
+      };
     },
   });
 
@@ -200,14 +217,52 @@ function ChecklistPage() {
             {today} · Zmiana: <strong>{currentShift}</strong>
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/shift/handover">Przekazanie zmiany</Link>
-          </Button>
-          <Button onClick={() => setConfirmEndOpen(true)}>
-            Rozlicz zmianę
-          </Button>
-        </div>
+        <Button onClick={() => setConfirmEndOpen(true)}>
+          Rozlicz zmianę
+        </Button>
+      </div>
+
+      {/* Stałe pozycje zmiany: raport + przekazanie */}
+      <div className="border rounded-md">
+        <div className="p-4 border-b font-medium">Dokumenty zmiany</div>
+        <ul className="divide-y">
+          <li className="p-3 flex items-center gap-3">
+            <FileText className="w-5 h-5 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="text-sm font-medium">Raport zmianowy</div>
+              <div className="text-xs text-muted-foreground">
+                Energia, chemia, S.M. osadu, ocena obiektów
+              </div>
+            </div>
+            {reportStatus?.reportDone ? (
+              <Badge className="bg-emerald-600">Wypełniony</Badge>
+            ) : reportStatus?.reportStarted ? (
+              <Badge variant="outline" className="border-amber-500 text-amber-700">W trakcie</Badge>
+            ) : (
+              <Badge variant="outline">Do wypełnienia</Badge>
+            )}
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/shift/report">{reportStatus?.reportStarted ? "Edytuj" : "Wypełnij"}</Link>
+            </Button>
+          </li>
+          <li className="p-3 flex items-center gap-3">
+            <ArrowRightLeft className="w-5 h-5 text-muted-foreground" />
+            <div className="flex-1">
+              <div className="text-sm font-medium">Przekazanie zmiany</div>
+              <div className="text-xs text-muted-foreground">
+                Uwagi dla operatora przejmującego dyżur
+              </div>
+            </div>
+            {reportStatus?.handoverDone ? (
+              <Badge className="bg-emerald-600">Przekazane</Badge>
+            ) : (
+              <Badge variant="outline">Do wypełnienia</Badge>
+            )}
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/shift/handover">{reportStatus?.handoverDone ? "Pokaż" : "Wypełnij"}</Link>
+            </Button>
+          </li>
+        </ul>
       </div>
 
       {overdue.length > 0 && (
