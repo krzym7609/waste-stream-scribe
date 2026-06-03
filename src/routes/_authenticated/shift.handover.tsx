@@ -61,14 +61,13 @@ function HandoverPage() {
     queryKey: ["handovers", sessionId, user?.id],
     enabled: !!user && !overrideHandoverId,
     queryFn: async () => {
+      // Pobieramy: (a) moje przekazania (jako from/to) (b) wszystkie nieprzyjęte
+      // przekazania (żeby nowy operator zobaczył oczekujące od poprzedniej zmiany).
       const { data } = await supabase
         .from("handover_reports")
         .select("*")
         .or(
-          `from_user_id.eq.${user!.id},to_user_id.eq.${user!.id}` +
-            (sessionId
-              ? `,duty_session_from_id.eq.${sessionId},duty_session_to_id.eq.${sessionId}`
-              : ""),
+          `from_user_id.eq.${user!.id},to_user_id.eq.${user!.id},accepted_at.is.null`,
         )
         .order("submitted_at", { ascending: false })
         .limit(20);
@@ -79,7 +78,10 @@ function HandoverPage() {
   const mineAsFrom = handovers?.find(
     (h) => h.duty_session_from_id === sessionId && !h.accepted_at,
   );
-  const pendingForMe = handovers?.find((h) => h.to_user_id === user?.id && !h.accepted_at);
+  // Nieprzyjęte przekazanie od poprzedniej zmiany (nie moje własne)
+  const pendingForMe = handovers?.find(
+    (h) => !h.accepted_at && h.from_user_id !== user?.id,
+  );
   const lastAccepted = handovers?.find((h) => h.to_user_id === user?.id && h.accepted_at);
   const activeHandover = overrideHandover ?? mineAsFrom ?? pendingForMe ?? lastAccepted;
   const activeId = activeHandover?.id;
