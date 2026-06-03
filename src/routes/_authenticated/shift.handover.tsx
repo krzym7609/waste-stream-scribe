@@ -535,7 +535,7 @@ function HandoverPage() {
             <tr>
               <td className="border border-black bg-[#d9d9d9] p-2 font-bold">Podpisy:</td>
               <td className="border border-black p-2 underline">
-                Przekazujący : {tab === "outgoing" ? fromName : ""}
+                Przekazujący : {tab === "outgoing" ? fromName : incomingFromName}
               </td>
               <td className="border border-black p-2 underline">
                 Przejmujący : {tab === "incoming" ? fromName : (ctxHandover?.accepted_at ? toName : "")}
