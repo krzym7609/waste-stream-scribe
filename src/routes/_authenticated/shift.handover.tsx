@@ -159,7 +159,7 @@ function HandoverPage() {
   const validateFrom = (): boolean => {
     const errs: Record<string, string> = {};
     for (const obj of objects ?? []) {
-      const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+      const v = outgoingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
       const r = handoverItemSchema.safeParse({
         object_id: obj.id,
         uwagi_przekazujacego: v.uwagi_przekazujacego,
@@ -187,18 +187,18 @@ function HandoverPage() {
       }
 
       // Snapshot przed edycją kierownika
-      if (locked && isManager && activeHandover) {
+      if (locked && isManager && outgoingHandover) {
         const { error: snapErr } = await supabase.from("handover_report_snapshots").insert({
-          handover_id: activeHandover.id,
-          snapshot: JSON.parse(JSON.stringify(activeHandover)),
-          items_snapshot: JSON.parse(JSON.stringify(items ?? [])),
+          handover_id: outgoingHandover.id,
+          snapshot: JSON.parse(JSON.stringify(outgoingHandover)),
+          items_snapshot: JSON.parse(JSON.stringify(outgoingItems ?? [])),
           edited_by: user.id,
           reason: reason.trim(),
         });
         if (snapErr) throw snapErr;
       }
 
-      let id = activeHandover?.id;
+      let id = outgoingHandover?.id;
       if (!id) {
         const { data, error } = await supabase
           .from("handover_reports")
@@ -218,13 +218,12 @@ function HandoverPage() {
           .eq("id", id);
       }
       for (const obj of objects ?? []) {
-        const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
+        const v = outgoingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         const { error } = await supabase.from("handover_report_items").upsert(
           {
             handover_id: id!,
             object_id: obj.id,
             uwagi_przekazujacego: v.uwagi_przekazujacego || null,
-            ...(canEditTo ? { uwagi_przyjmujacego: v.uwagi_przyjmujacego || null } : {}),
           },
           { onConflict: "handover_id,object_id" },
         );
