@@ -172,7 +172,7 @@ function ChecklistPage() {
           task_id: e.task_id,
           scheduled_date: nextDate,
           scheduled_shift: ns.type,
-          deferred_from_session_id: duty.session!.id,
+          deferred_from_session_id: duty!.session!.id,
           status: "pending",
         });
       }
