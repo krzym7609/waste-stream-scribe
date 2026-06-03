@@ -153,19 +153,6 @@ function ChecklistPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!duty?.session) {
-    return (
-      <div className="p-6 text-muted-foreground">Brak otwartej zmiany. Rozpocznij zmianę, aby zobaczyć checklistę.</div>
-    );
-  }
-  if (!isMine) {
-    return (
-      <div className="p-6 text-muted-foreground">
-        Zmianę pełni inny operator. Możesz zobaczyć checklistę dopiero po przejęciu zmiany.
-      </div>
-    );
-  }
-
   const current = (executions ?? []).filter(
     (e) => e.scheduled_date === today && e.scheduled_shift === currentShift,
   );
