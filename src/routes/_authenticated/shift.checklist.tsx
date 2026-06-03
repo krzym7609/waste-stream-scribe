@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,9 +200,14 @@ function ChecklistPage() {
             {today} · Zmiana: <strong>{currentShift}</strong>
           </p>
         </div>
-        <Button variant="outline" onClick={() => setConfirmEndOpen(true)}>
-          Rozlicz zmianę
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/shift/handover">Przekazanie zmiany</Link>
+          </Button>
+          <Button onClick={() => setConfirmEndOpen(true)}>
+            Rozlicz zmianę
+          </Button>
+        </div>
       </div>
 
       {overdue.length > 0 && (
