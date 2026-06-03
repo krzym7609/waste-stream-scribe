@@ -613,6 +613,7 @@ export type Database = {
           id: string
           locked_at: string | null
           opady: boolean
+          operatorzy: string | null
           sm_osadu_odwwapn: number | null
           sm_osadu_zageszcz: number | null
           submitted_at: string
@@ -632,6 +633,7 @@ export type Database = {
           id?: string
           locked_at?: string | null
           opady?: boolean
+          operatorzy?: string | null
           sm_osadu_odwwapn?: number | null
           sm_osadu_zageszcz?: number | null
           submitted_at?: string
@@ -651,6 +653,7 @@ export type Database = {
           id?: string
           locked_at?: string | null
           opady?: boolean
+          operatorzy?: string | null
           sm_osadu_odwwapn?: number | null
           sm_osadu_zageszcz?: number | null
           submitted_at?: string

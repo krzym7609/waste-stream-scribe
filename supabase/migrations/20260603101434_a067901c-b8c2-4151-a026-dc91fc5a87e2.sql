@@ -1,0 +1,1 @@
+ALTER TABLE public.shift_reports ADD COLUMN IF NOT EXISTS operatorzy text;
