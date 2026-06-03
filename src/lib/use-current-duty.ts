@@ -53,12 +53,10 @@ export function useCurrentDuty() {
   });
 
   useEffect(() => {
-    const ch = supabase
-      .channel("duty-sessions-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "duty_sessions" }, () => {
-        qc.invalidateQueries({ queryKey: ["current-duty"] });
-      })
-      .subscribe();
+    const ch = supabase.channel(`duty-sessions-rt-${Math.random().toString(36).slice(2)}`);
+    ch.on("postgres_changes", { event: "*", schema: "public", table: "duty_sessions" }, () => {
+      qc.invalidateQueries({ queryKey: ["current-duty"] });
+    }).subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
