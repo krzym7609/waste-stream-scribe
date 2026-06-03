@@ -130,6 +130,40 @@ function HandoverPage() {
     incomingFromProfile?.username ||
     "—";
 
+  const { data: incomingToProfile } = useQuery({
+    queryKey: ["profile", incomingHandover?.to_user_id],
+    enabled: !!incomingHandover?.to_user_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,username")
+        .eq("id", incomingHandover!.to_user_id!)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const incomingToName =
+    `${incomingToProfile?.first_name ?? ""} ${incomingToProfile?.last_name ?? ""}`.trim() ||
+    incomingToProfile?.username ||
+    "—";
+
+  const { data: outgoingToProfile } = useQuery({
+    queryKey: ["profile", outgoingHandover?.to_user_id],
+    enabled: !!outgoingHandover?.to_user_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,username")
+        .eq("id", outgoingHandover!.to_user_id!)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const outgoingToName =
+    `${outgoingToProfile?.first_name ?? ""} ${outgoingToProfile?.last_name ?? ""}`.trim() ||
+    outgoingToProfile?.username ||
+    null;
+
   const [incomingItemMap, setIncomingItemMap] = useState<
     Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
   >({});
