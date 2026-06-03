@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
+import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
 import { Route as AuthenticatedScheduleTasksRouteImport } from './routes/_authenticated/schedule.tasks'
@@ -42,6 +43,11 @@ const AuthenticatedShiftsRoute = AuthenticatedShiftsRouteImport.update({
   path: '/shifts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -55,9 +61,9 @@ const AuthenticatedChangePasswordRoute =
   } as any)
 const AuthenticatedScheduleTasksRoute =
   AuthenticatedScheduleTasksRouteImport.update({
-    id: '/schedule/tasks',
-    path: '/schedule/tasks',
-    getParentRoute: () => AuthenticatedRoute,
+    id: '/tasks',
+    path: '/tasks',
+    getParentRoute: () => AuthenticatedScheduleRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/schedule': typeof AuthenticatedScheduleRouteWithChildren
   '/shifts': typeof AuthenticatedShiftsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/schedule': typeof AuthenticatedScheduleRouteWithChildren
   '/shifts': typeof AuthenticatedShiftsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/change-password': typeof AuthenticatedChangePasswordRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/schedule': typeof AuthenticatedScheduleRouteWithChildren
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/dashboard'
+    | '/schedule'
     | '/shifts'
     | '/team'
     | '/schedule/tasks'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/dashboard'
+    | '/schedule'
     | '/shifts'
     | '/team'
     | '/schedule/tasks'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/change-password'
     | '/_authenticated/dashboard'
+    | '/_authenticated/schedule'
     | '/_authenticated/shifts'
     | '/_authenticated/team'
     | '/_authenticated/schedule/tasks'
@@ -163,6 +175,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShiftsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/schedule': {
+      id: '/_authenticated/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -179,28 +198,41 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/schedule/tasks': {
       id: '/_authenticated/schedule/tasks'
-      path: '/schedule/tasks'
+      path: '/tasks'
       fullPath: '/schedule/tasks'
       preLoaderRoute: typeof AuthenticatedScheduleTasksRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      parentRoute: typeof AuthenticatedScheduleRoute
     }
   }
 }
 
+interface AuthenticatedScheduleRouteChildren {
+  AuthenticatedScheduleTasksRoute: typeof AuthenticatedScheduleTasksRoute
+}
+
+const AuthenticatedScheduleRouteChildren: AuthenticatedScheduleRouteChildren = {
+  AuthenticatedScheduleTasksRoute: AuthenticatedScheduleTasksRoute,
+}
+
+const AuthenticatedScheduleRouteWithChildren =
+  AuthenticatedScheduleRoute._addFileChildren(
+    AuthenticatedScheduleRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedChangePasswordRoute: typeof AuthenticatedChangePasswordRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRouteWithChildren
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
-  AuthenticatedScheduleTasksRoute: typeof AuthenticatedScheduleTasksRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChangePasswordRoute: AuthenticatedChangePasswordRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedScheduleRoute: AuthenticatedScheduleRouteWithChildren,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
-  AuthenticatedScheduleTasksRoute: AuthenticatedScheduleTasksRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
