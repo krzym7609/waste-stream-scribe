@@ -265,9 +265,10 @@ function HandoverPage() {
     });
   };
 
-  if (!sessionId) {
+  if (!sessionId && !overrideHandoverId) {
     return <div className="p-6 text-muted-foreground">Brak otwartej zmiany.</div>;
   }
+
 
   const signature = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
 
