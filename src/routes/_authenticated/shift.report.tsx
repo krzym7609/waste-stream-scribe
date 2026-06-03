@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, Lock } from "lucide-react";
+import { Download, Lock, Check } from "lucide-react";
 import { shiftReportSchema, shiftReportItemSchema } from "@/lib/validation/shift-report";
 import { generateShiftReportPdf } from "@/lib/pdf/shift-report-pdf";
 
