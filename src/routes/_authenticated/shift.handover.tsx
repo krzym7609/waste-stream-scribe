@@ -153,9 +153,6 @@ function HandoverPage() {
       ? "outgoing"
       : "history";
 
-  const canEditFrom = (mode === "outgoing" && !locked) || (locked && isManager);
-  const canEditTo = mode === "incoming" || (locked && isManager);
-
   const validateFrom = (): boolean => {
     const errs: Record<string, string> = {};
     for (const obj of objects ?? []) {
