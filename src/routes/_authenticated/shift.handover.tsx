@@ -130,6 +130,40 @@ function HandoverPage() {
     incomingFromProfile?.username ||
     "—";
 
+  const { data: incomingToProfile } = useQuery({
+    queryKey: ["profile", incomingHandover?.to_user_id],
+    enabled: !!incomingHandover?.to_user_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,username")
+        .eq("id", incomingHandover!.to_user_id!)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const incomingToName =
+    `${incomingToProfile?.first_name ?? ""} ${incomingToProfile?.last_name ?? ""}`.trim() ||
+    incomingToProfile?.username ||
+    "—";
+
+  const { data: outgoingToProfile } = useQuery({
+    queryKey: ["profile", outgoingHandover?.to_user_id],
+    enabled: !!outgoingHandover?.to_user_id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,username")
+        .eq("id", outgoingHandover!.to_user_id!)
+        .maybeSingle();
+      return data;
+    },
+  });
+  const outgoingToName =
+    `${outgoingToProfile?.first_name ?? ""} ${outgoingToProfile?.last_name ?? ""}`.trim() ||
+    outgoingToProfile?.username ||
+    null;
+
   const [incomingItemMap, setIncomingItemMap] = useState<
     Record<string, { uwagi_przekazujacego: string; uwagi_przyjmujacego: string }>
   >({});
@@ -188,7 +222,7 @@ function HandoverPage() {
     }
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
-      toast.error("Każdy obiekt wymaga uwag (min. 3 znaki — wpisz „brak uwag”).");
+      toast.error("Sprawdź formularz.");
       return false;
     }
     return true;
@@ -259,18 +293,7 @@ function HandoverPage() {
   const accept = useMutation({
     mutationFn: async () => {
       if (!pendingForMe || !user || !sessionId) throw new Error("Brak protokołu do przyjęcia");
-      // Walidacja: każdy obiekt musi mieć uwagi przejmującego (min 3 znaki)
-      const errs: Record<string, string> = {};
-      for (const obj of objects ?? []) {
-        const v = incomingItemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
-        if (v.length < 3) {
-          errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag”)";
-        }
-      }
-      setErrors(errs);
-      if (Object.keys(errs).length > 0) {
-        throw new Error("Uzupełnij uwagi przejmującego dla każdego obiektu (min. 3 znaki).");
-      }
+      setErrors({});
       for (const obj of objects ?? []) {
         const v = incomingItemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         await supabase.from("handover_report_items").upsert(
@@ -312,16 +335,24 @@ function HandoverPage() {
   const downloadPdf = async () => {
     if (!activeHandover || !objects) return;
     const objMap = new Map(objects.map((o) => [o.id, o.name]));
-    const activeItems = outgoingHandover ? outgoingItems : incomingItems;
-    const fromName =
+    const useOutgoing = !!outgoingHandover;
+    const activeItems = useOutgoing ? outgoingItems : incomingItems;
+    const meName =
       `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
       profile?.username ||
       "—";
+    // Operator przekazujący = autor raportu (from_user); przejmujący = to_user
+    const operatorFrom = useOutgoing ? meName : incomingFromName;
+    const operatorTo = useOutgoing
+      ? outgoingToName
+      : activeHandover.accepted_at
+        ? meName
+        : null;
     await generateHandoverPdf({
       date: activeHandover.submitted_at.slice(0, 10),
       shiftFrom: duty?.session?.shift_type ?? "—",
-      operatorFrom: fromName,
-      operatorTo: null,
+      operatorFrom,
+      operatorTo,
       submittedAt: activeHandover.submitted_at,
       acceptedAt: activeHandover.accepted_at,
       uwagiOgolne: activeHandover.uwagi_ogolne,
@@ -515,7 +546,7 @@ function HandoverPage() {
                       <Textarea
                         value={v.uwagi_przyjmujacego}
                         onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
-                        placeholder="Wpisz uwagi (wymagane, min. 3 znaki)"
+                        placeholder="Wpisz uwagi (opcjonalne)"
                         rows={3}
                         className={`text-xs resize-none w-full ${errors[errTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
                       />

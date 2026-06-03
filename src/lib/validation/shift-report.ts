@@ -68,10 +68,7 @@ export type ShiftReportItemInput = z.infer<typeof shiftReportItemSchema>;
 
 export const handoverItemSchema = z.object({
   object_id: z.string().uuid(),
-  uwagi_przekazujacego: z
-    .string()
-    .trim()
-    .min(3, "Uwagi: min. 3 znaki (wpisz „brak uwag” jeśli nic do zgłoszenia)"),
+  uwagi_przekazujacego: z.string().max(2000).optional(),
 });
 
 export type HandoverItemInput = z.infer<typeof handoverItemSchema>;

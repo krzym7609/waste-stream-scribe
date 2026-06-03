@@ -36,6 +36,17 @@ const SHIFT_SHORT: Record<string, string> = {
   noc: "III",
 };
 
+const SHIFT_NUM: Record<string, string> = {
+  rano: "1",
+  popoludnie: "2",
+  noc: "3",
+};
+
+const orBrak = (v: string | null | undefined) => {
+  const s = String(v ?? "").trim();
+  return s === "" ? "Brak" : s;
+};
+
 const v = (x: number | null | undefined) => (x == null ? "" : String(x));
 
 const GRAY = "#d9d9d9";
@@ -246,7 +257,8 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
     defaultStyle: { fontSize: 9 },
   };
 
-  await downloadPdf(doc, `raport-zmianowy-${d.date}-${d.shift}.pdf`);
+  const shiftNr = SHIFT_NUM[d.shift] ?? d.shift;
+  await downloadPdf(doc, `Raport-Zmianowy-${d.date}-zmiana-nr-${shiftNr}.pdf`);
 }
 
 export type HandoverPdfData = {
@@ -287,8 +299,8 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
         [
           {
             stack: [
-              { text: `Zmianę przekazuje: ${d.operatorFrom}`, margin: [4, 2, 4, 2] },
-              { text: `Zmianę przejmuje: ${d.operatorTo ?? ""}`, margin: [4, 2, 4, 2] },
+              { text: `Zmianę przekazuje: ${orBrak(d.operatorFrom)}`, margin: [4, 2, 4, 2] },
+              { text: `Zmianę przejmuje: ${orBrak(d.operatorTo)}`, margin: [4, 2, 4, 2] },
             ],
             colSpan: 2,
             border: [true, true, true, true],
@@ -326,19 +338,19 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
   for (const it of d.items) {
     itemsBody.push([
       { text: it.object_name, fillColor: "#d9d9d9", margin: [3, 4, 3, 4] },
-      textCell(it.uwagi_przekazujacego, [3, 4, 3, 4]),
-      textCell(it.uwagi_przyjmujacego, [3, 4, 3, 4]),
+      textCell(orBrak(it.uwagi_przekazujacego), [3, 4, 3, 4]),
+      textCell(orBrak(it.uwagi_przyjmujacego), [3, 4, 3, 4]),
     ]);
   }
   itemsBody.push([
     { text: "Podpisy:", fillColor: "#d9d9d9", margin: [3, 6, 3, 6], bold: true },
     {
-      text: `Przekazujący : ${d.operatorFrom}`,
+      text: `Przekazujący : ${orBrak(d.operatorFrom)}`,
       decoration: "underline",
       margin: [3, 6, 3, 6],
     },
     {
-      text: `Przejmujący : ${d.operatorTo ?? ""}`,
+      text: `Przejmujący : ${orBrak(d.operatorTo)}`,
       decoration: "underline",
       margin: [3, 6, 3, 6],
     },
@@ -365,5 +377,6 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
     defaultStyle: { fontSize: 9 },
   };
 
-  await downloadPdf(doc, `przekazanie-zmiany-${d.date}.pdf`);
+  const shiftNr = SHIFT_NUM[d.shiftFrom] ?? d.shiftFrom;
+  await downloadPdf(doc, `Raport-Przekazania-Zmiany-${d.date}-zmiana-nr-${shiftNr}.pdf`);
 }
