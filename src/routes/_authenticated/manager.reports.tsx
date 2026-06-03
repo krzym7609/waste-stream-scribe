@@ -466,3 +466,182 @@ function Stat({ label, value }: { label: string; value: string | number }) {
     </div>
   );
 }
+
+/* ---------------- ACTIONS / HISTORY ---------------- */
+
+function ReportActions({ report }: { report: any }) {
+  const downloadPdf = async () => {
+    const [{ data: items }, { data: objects }, { data: session }, { data: profile }] =
+      await Promise.all([
+        supabase.from("shift_report_items").select("*").eq("report_id", report.id),
+        supabase.from("report_objects").select("id, name").eq("active", true),
+        supabase.from("duty_sessions").select("shift_type").eq("id", report.duty_session_id).maybeSingle(),
+        supabase.from("profiles").select("first_name, last_name, username").eq("id", report.submitted_by).maybeSingle(),
+      ]);
+    const objMap = new Map((objects ?? []).map((o) => [o.id, o.name]));
+    const operator =
+      `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() || profile?.username || "—";
+    await generateShiftReportPdf({
+      date: report.submitted_at.slice(0, 10),
+      shift: session?.shift_type ?? "—",
+      operator,
+      submittedAt: report.submitted_at,
+      data: {
+        energia_start: report.energia_start,
+        energia_end: report.energia_end,
+        flokulant_proszkowy_kg: report.flokulant_proszkowy_kg,
+        flokulant_emulsyjny_l: report.flokulant_emulsyjny_l,
+        wapno_kg: report.wapno_kg,
+        chlorek_zelaza_l: report.chlorek_zelaza_l,
+        sm_osadu_zageszcz: report.sm_osadu_zageszcz,
+        sm_osadu_odwwapn: report.sm_osadu_odwwapn,
+        opady: report.opady,
+        uwagi: report.uwagi,
+      },
+      items: (items ?? []).map((it: any) => ({
+        object_name: objMap.get(it.object_id) ?? "—",
+        ocena_status: it.ocena_status,
+        ocena_opis: it.ocena_opis,
+        harmonogram_status: it.harmonogram_status,
+        harmonogram_opis: it.harmonogram_opis,
+        proponowany_termin: it.proponowany_termin,
+        inne_czynnosci: it.inne_czynnosci,
+      })),
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="sm" onClick={downloadPdf} title="Pobierz PDF">
+        <Download className="w-4 h-4" />
+      </Button>
+      <Button asChild variant="ghost" size="sm" title="Edytuj">
+        <Link to="/shift/report" search={{ session: report.duty_session_id }}>
+          <Pencil className="w-4 h-4" />
+        </Link>
+      </Button>
+      <HistoryDialog kind="report" id={report.id} />
+    </div>
+  );
+}
+
+function HandoverActions({ handover }: { handover: any }) {
+  const downloadPdf = async () => {
+    const [{ data: items }, { data: objects }, { data: fromP }, { data: toP }] = await Promise.all([
+      supabase.from("handover_report_items").select("*").eq("handover_id", handover.id),
+      supabase.from("handover_objects").select("id, name").eq("active", true),
+      supabase.from("profiles").select("first_name, last_name, username").eq("id", handover.from_user_id).maybeSingle(),
+      handover.to_user_id
+        ? supabase.from("profiles").select("first_name, last_name, username").eq("id", handover.to_user_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    const objMap = new Map((objects ?? []).map((o) => [o.id, o.name]));
+    const fmt = (p: any) =>
+      p ? `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.username || "—" : "—";
+    await generateHandoverPdf({
+      date: handover.submitted_at.slice(0, 10),
+      shiftFrom: "—",
+      operatorFrom: fmt(fromP),
+      operatorTo: handover.to_user_id ? fmt(toP) : null,
+      submittedAt: handover.submitted_at,
+      acceptedAt: handover.accepted_at,
+      uwagiOgolne: handover.uwagi_ogolne,
+      items: (items ?? []).map((it: any) => ({
+        object_name: objMap.get(it.object_id) ?? "—",
+        uwagi_przekazujacego: it.uwagi_przekazujacego,
+        uwagi_przyjmujacego: it.uwagi_przyjmujacego,
+      })),
+    });
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Button variant="ghost" size="sm" onClick={downloadPdf} title="Pobierz PDF">
+        <Download className="w-4 h-4" />
+      </Button>
+      <Button asChild variant="ghost" size="sm" title="Edytuj">
+        <Link to="/shift/handover" search={{ handover: handover.id }}>
+          <Pencil className="w-4 h-4" />
+        </Link>
+      </Button>
+      <HistoryDialog kind="handover" id={handover.id} />
+    </span>
+  );
+}
+
+function HistoryDialog({ kind, id }: { kind: "report" | "handover"; id: string }) {
+  const [open, setOpen] = useState(false);
+  const table = kind === "report" ? "shift_report_snapshots" : "handover_report_snapshots";
+  const fk = kind === "report" ? "report_id" : "handover_id";
+
+  const { data } = useQuery({
+    queryKey: ["snapshots", kind, id, open],
+    enabled: open,
+    queryFn: async () => {
+      const { data: snaps } = await supabase
+        .from(table)
+        .select("*")
+        .eq(fk, id)
+        .order("edited_at", { ascending: false });
+      const editorIds = Array.from(new Set((snaps ?? []).map((s: any) => s.edited_by)));
+      const { data: profiles } = editorIds.length
+        ? await supabase.from("profiles").select("id, first_name, last_name, username").in("id", editorIds)
+        : { data: [] as any[] };
+      const profMap = new Map(
+        (profiles ?? []).map((p: any) => [
+          p.id,
+          `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || p.username || "—",
+        ]),
+      );
+      return { snaps: snaps ?? [], profMap };
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" title="Historia zmian">
+          <History className="w-4 h-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Historia zmian</DialogTitle>
+        </DialogHeader>
+        {!data ? (
+          <div className="text-sm text-muted-foreground">Ładowanie…</div>
+        ) : data.snaps.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Brak edycji — raport w wersji pierwotnej.</div>
+        ) : (
+          <ul className="space-y-3 text-sm">
+            {data.snaps.map((s: any) => (
+              <li key={s.id} className="border rounded p-3">
+                <div className="flex justify-between text-xs mb-2">
+                  <strong>{data.profMap.get(s.edited_by) ?? "—"}</strong>
+                  <span className="text-muted-foreground">
+                    {new Date(s.edited_at).toLocaleString("pl-PL")}
+                  </span>
+                </div>
+                {s.reason && (
+                  <div className="text-xs italic mb-2">Powód: „{s.reason}"</div>
+                )}
+                <details>
+                  <summary className="cursor-pointer text-xs text-muted-foreground">
+                    Pokaż snapshot
+                  </summary>
+                  <pre className="text-[10px] bg-muted/40 rounded p-2 mt-2 overflow-x-auto">
+                    {JSON.stringify(s.snapshot, null, 2)}
+                  </pre>
+                  <pre className="text-[10px] bg-muted/40 rounded p-2 mt-1 overflow-x-auto">
+                    {JSON.stringify(s.items_snapshot, null, 2)}
+                  </pre>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
