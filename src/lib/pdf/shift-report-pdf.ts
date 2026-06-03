@@ -1,11 +1,11 @@
-import type { TDocumentDefinitions, Content } from "pdfmake/interfaces";
+import type { TDocumentDefinitions, Content, TableCell } from "pdfmake/interfaces";
 import { downloadPdf } from "./pdfmake-instance";
 
 export type ShiftReportPdfData = {
-  date: string; // YYYY-MM-DD
-  shift: string; // "rano" | "popoludnie" | "noc"
+  date: string;
+  shift: string;
   operator: string;
-  submittedAt: string; // ISO
+  submittedAt: string;
   data: {
     energia_start: number | null;
     energia_end: number | null;
@@ -29,153 +29,205 @@ export type ShiftReportPdfData = {
   }>;
 };
 
-const fmt = (v: number | null | undefined, unit: string) =>
-  v == null || v === undefined ? "—" : `${v} ${unit}`;
-
-const SHIFT_LABEL: Record<string, string> = {
-  rano: "Ranna (6:00–14:00)",
-  popoludnie: "Popołudniowa (14:00–22:00)",
-  noc: "Nocna (22:00–6:00)",
+const SHIFT_SHORT: Record<string, string> = {
+  rano: "I",
+  popoludnie: "II",
+  noc: "III",
 };
 
+const v = (x: number | null | undefined) => (x == null ? "" : String(x));
+
+const GRAY = "#d9d9d9";
+
 export async function generateShiftReportPdf(d: ShiftReportPdfData) {
-  const dataRows: Content = {
+  const pobor =
+    d.data.energia_end != null && d.data.energia_start != null
+      ? String(Math.max(0, d.data.energia_end - d.data.energia_start))
+      : "";
+
+  // Top header: Data/zmiana | Operator wiodący / Operator(zy)
+  const headerTop: Content = {
     table: {
-      widths: ["*", 80],
+      widths: [180, 110, "*"],
       body: [
-        [{ text: "Parametr", style: "th" }, { text: "Wartość", style: "th" }],
-        ["Energia – stan początkowy [kWh]", fmt(d.data.energia_start, "")],
-        ["Energia – stan końcowy [kWh]", fmt(d.data.energia_end, "")],
         [
-          "Energia – zużycie [kWh]",
-          d.data.energia_end != null && d.data.energia_start != null
-            ? String(Math.max(0, d.data.energia_end - d.data.energia_start))
-            : "—",
+          {
+            text: `Data / zmiana : ${d.date} / ${SHIFT_SHORT[d.shift] ?? d.shift}`,
+            rowSpan: 2,
+            margin: [4, 14, 4, 14],
+          },
+          { text: "Operator wiodący:", fillColor: GRAY, margin: [4, 2, 4, 2] },
+          { text: d.operator, margin: [4, 2, 4, 2] },
         ],
-        ["Flokulant proszkowy [kg]", fmt(d.data.flokulant_proszkowy_kg, "")],
-        ["Flokulant emulsyjny [l]", fmt(d.data.flokulant_emulsyjny_l, "")],
-        ["Wapno [kg]", fmt(d.data.wapno_kg, "")],
-        ["Chlorek żelaza [l]", fmt(d.data.chlorek_zelaza_l, "")],
-        ["S.M. osadu zagęszczonego [%]", fmt(d.data.sm_osadu_zageszcz, "")],
-        ["S.M. osadu odwodnionego/wapnowanego [%]", fmt(d.data.sm_osadu_odwwapn, "")],
-        ["Opady atmosferyczne", d.data.opady ? "TAK" : "NIE"],
+        [
+          {},
+          { text: "Operator(zy):", fillColor: GRAY, margin: [4, 2, 4, 2] },
+          { text: "", margin: [4, 2, 4, 2] },
+        ],
       ],
     },
-    layout: "lightHorizontalLines",
-    margin: [0, 0, 0, 12],
+    margin: [0, 0, 0, 6],
   };
 
-  const itemsBody: Content[][] = [
-    [
-      { text: "Lp.", style: "th" },
-      { text: "Obiekt", style: "th" },
-      { text: "Ocena pracy", style: "th" },
-      { text: "Harmonogram", style: "th" },
-      { text: "Inne czynności", style: "th" },
+  // Energy table
+  const energyTable: Content = {
+    table: {
+      widths: ["*", 90, 90, 90],
+      body: [
+        [
+          {
+            stack: [
+              { text: "Pobór energii elektrycznej", alignment: "center" },
+              { text: "[kwh]", alignment: "center" },
+            ],
+            fillColor: GRAY,
+            margin: [2, 2, 2, 2],
+          },
+          { text: "Stan początkowy", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
+          { text: "Stan końcowy", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
+          { text: "Pobór", alignment: "center", fillColor: GRAY, margin: [2, 6, 2, 6] },
+        ],
+        [
+          { text: "", margin: [2, 6, 2, 6] },
+          { text: v(d.data.energia_start), alignment: "center", margin: [2, 6, 2, 6] },
+          { text: v(d.data.energia_end), alignment: "center", margin: [2, 6, 2, 6] },
+          { text: pobor, alignment: "center", margin: [2, 6, 2, 6] },
+        ],
+      ],
+    },
+    margin: [0, 0, 0, 6],
+  };
+
+  // Two column chemicals/SM
+  const labelCell = (t: string): TableCell => ({
+    text: t,
+    fillColor: GRAY,
+    margin: [4, 3, 4, 3],
+  });
+  const valueCell = (t: string): TableCell => ({
+    text: t,
+    margin: [4, 3, 4, 3],
+    alignment: "center",
+  });
+  const chemicals: Content = {
+    columns: [
+      {
+        width: "*",
+        table: {
+          widths: ["*", 70],
+          body: [
+            [labelCell("Zużycie flokulanta proszkowego [kg]"), valueCell(v(d.data.flokulant_proszkowy_kg))],
+            [labelCell("Zużycie flokulanta emulsyjnego [l]"), valueCell(v(d.data.flokulant_emulsyjny_l))],
+            [labelCell("Dostawa wapna do higienizacji [kg]:"), valueCell(v(d.data.wapno_kg))],
+            [labelCell("Zużycie chlorku żelazowego [l]:"), valueCell(v(d.data.chlorek_zelaza_l))],
+          ],
+        },
+      },
+      { width: 10, text: "" },
+      {
+        width: 240,
+        stack: [
+          {
+            table: {
+              widths: ["*", 60],
+              body: [
+                [labelCell("S.M. osadu zagęszcz:"), valueCell(v(d.data.sm_osadu_zageszcz))],
+                [labelCell("S.M. osadu odw.wapn.:"), valueCell(v(d.data.sm_osadu_odwwapn))],
+              ],
+            },
+            margin: [0, 0, 0, 18],
+          },
+          {
+            table: {
+              widths: ["*", 60],
+              body: [[labelCell("Występ. opadów (T/N):"), valueCell(d.data.opady ? "T" : "N")]],
+            },
+          },
+        ],
+      },
     ],
+    margin: [0, 0, 0, 8],
+  };
+
+  // Items table — 4 columns matching paper
+  const itemHeader: TableCell[] = [
+    { text: "Nazwa\nobiektu", alignment: "center", fillColor: GRAY, margin: [2, 4, 2, 4] },
+    {
+      text:
+        "Ocena prawidłowości pracy\nw ciągu zmiany, ew. awarie i\nprawdopodobne przyczyny.",
+      alignment: "center",
+      fillColor: GRAY,
+      margin: [2, 4, 2, 4],
+    },
+    {
+      text:
+        "Wykonane zgodnie z harmonogramem\nczynności obsługowe, ew. przyczyna nie-\nwykonania z propozycją nowego terminu.",
+      alignment: "center",
+      fillColor: GRAY,
+      margin: [2, 4, 2, 4],
+    },
+    {
+      text:
+        "Inne bieżące czynności\neksploatacyjne, remon-\ntowe i porządkowe.",
+      alignment: "center",
+      fillColor: GRAY,
+      margin: [2, 4, 2, 4],
+    },
   ];
-  d.items.forEach((it, i) => {
+
+  const itemsBody: TableCell[][] = [itemHeader];
+  for (const it of d.items) {
     const ocena =
       it.ocena_status === "ok"
-        ? { text: "✓ OK", color: "#047857" }
-        : {
-            stack: [
-              { text: "⚠ Problem", color: "#b91c1c", bold: true },
-              { text: it.ocena_opis ?? "", italics: true, fontSize: 8 },
-            ],
-          };
+        ? "prawidłowo"
+        : `Problem / awaria:\n${it.ocena_opis ?? ""}`;
     const harm =
       it.harmonogram_status === "ok"
-        ? { text: "✓ Wykonane", color: "#047857" }
-        : {
-            stack: [
-              { text: "✗ Nie wykonano", color: "#b91c1c", bold: true },
-              { text: it.harmonogram_opis ?? "", italics: true, fontSize: 8 },
-              ...(it.proponowany_termin
-                ? [{ text: `Proponowany termin: ${it.proponowany_termin}`, fontSize: 8 }]
-                : []),
-            ],
-          };
+        ? "wykonane zgodnie z harmonogramem"
+        : `Nie wykonano: ${it.harmonogram_opis ?? ""}${
+            it.proponowany_termin ? `\nProponowany termin: ${it.proponowany_termin}` : ""
+          }`;
     itemsBody.push([
-      { text: String(i + 1) },
-      { text: it.object_name },
-      ocena as Content,
-      harm as Content,
-      { text: it.inne_czynnosci ?? "—", fontSize: 8 },
+      { text: it.object_name, fillColor: GRAY, margin: [3, 3, 3, 3] },
+      { text: ocena, margin: [3, 3, 3, 3] },
+      { text: harm, margin: [3, 3, 3, 3] },
+      { text: it.inne_czynnosci ?? "", margin: [3, 3, 3, 3] },
     ]);
-  });
+  }
 
   const doc: TDocumentDefinitions = {
     pageSize: "A4",
-    pageMargins: [40, 60, 40, 60],
-    info: {
-      title: `Raport zmianowy ${d.date} (${d.shift})`,
-      author: d.operator,
-    },
+    pageMargins: [36, 36, 36, 36],
+    info: { title: `Raport zmianowy ${d.date}`, author: d.operator },
     content: [
       {
-        text: "RAPORT ZMIANOWY",
-        style: "h1",
+        text: "Raport zmianowy oczyszczalni ścieków.",
         alignment: "center",
+        bold: true,
+        decoration: "underline",
+        fontSize: 13,
+        margin: [0, 0, 0, 8],
+      },
+      headerTop,
+      energyTable,
+      chemicals,
+      {
+        text: "EKSPLOATACJA  URZĄDZEŃ  OCZYSZCZALNI.",
+        italics: true,
+        bold: true,
+        margin: [0, 6, 0, 4],
       },
       {
-        text: "Oczyszczalnia ścieków",
+        table: { widths: [95, "*", "*", "*"], body: itemsBody, headerRows: 1, dontBreakRows: true },
+      },
+      {
+        text: `Podpis operatora wiodącego: ${d.operator}`,
         alignment: "center",
-        margin: [0, 0, 0, 12],
-        color: "#6b7280",
-      },
-      {
-        columns: [
-          { text: [{ text: "Data: ", bold: true }, d.date] },
-          { text: [{ text: "Zmiana: ", bold: true }, SHIFT_LABEL[d.shift] ?? d.shift] },
-          { text: [{ text: "Operator: ", bold: true }, d.operator] },
-        ],
-        margin: [0, 0, 0, 12],
-      },
-      { text: "1. Dane eksploatacyjne", style: "h2" },
-      dataRows,
-      { text: "2. Ocena obiektów i wykonanie harmonogramu", style: "h2" },
-      {
-        table: { widths: [20, 110, 90, 130, "*"], body: itemsBody, headerRows: 1 },
-        layout: {
-          fillColor: (row: number) => (row === 0 ? "#f3f4f6" : null),
-        },
-      },
-      ...(d.data.uwagi
-        ? ([
-            { text: "3. Uwagi ogólne", style: "h2", margin: [0, 12, 0, 4] },
-            { text: d.data.uwagi, italics: true },
-          ] as Content[])
-        : []),
-      {
-        margin: [0, 30, 0, 0],
-        columns: [
-          {
-            stack: [
-              { text: "_______________________________", margin: [0, 20, 0, 4] },
-              { text: `Operator: ${d.operator}`, fontSize: 9 },
-              {
-                text: `Zapisano: ${new Date(d.submittedAt).toLocaleString("pl-PL")}`,
-                fontSize: 8,
-                color: "#6b7280",
-              },
-            ],
-          },
-          {
-            stack: [
-              { text: "_______________________________", margin: [0, 20, 0, 4] },
-              { text: "Kierownik / data", fontSize: 9 },
-            ],
-          },
-        ],
+        bold: true,
+        margin: [0, 16, 0, 0],
       },
     ],
-    styles: {
-      h1: { fontSize: 18, bold: true, margin: [0, 0, 0, 4] },
-      h2: { fontSize: 12, bold: true, margin: [0, 8, 0, 4] },
-      th: { bold: true, fillColor: "#f3f4f6" },
-    },
-    defaultStyle: { fontSize: 10 },
+    defaultStyle: { fontSize: 9 },
   };
 
   await downloadPdf(doc, `raport-zmianowy-${d.date}-${d.shift}.pdf`);
@@ -197,89 +249,104 @@ export type HandoverPdfData = {
 };
 
 export async function generateHandoverPdf(d: HandoverPdfData) {
-  const itemsBody: Content[][] = [
+  const headerTop: Content = {
+    table: {
+      widths: ["*", 260],
+      body: [
+        [
+          {
+            text: "PRZEKAZANIE  ZMIANY :",
+            bold: true,
+            italics: true,
+            decoration: "underline",
+            margin: [4, 6, 4, 6],
+            border: [false, false, false, false],
+          },
+          {
+            stack: [
+              { text: `Data : ${d.date}`, margin: [4, 2, 4, 2] },
+            ],
+          },
+        ],
+        [
+          {
+            stack: [
+              { text: `Zmianę przekazuje: ${d.operatorFrom}`, margin: [4, 2, 4, 2] },
+              { text: `Zmianę przejmuje: ${d.operatorTo ?? ""}`, margin: [4, 2, 4, 2] },
+            ],
+            colSpan: 2,
+            border: [true, true, true, true],
+          },
+          {},
+        ],
+      ],
+    },
+    layout: {
+      hLineWidth: () => 0.5,
+      vLineWidth: () => 0.5,
+    },
+    margin: [0, 0, 0, 4],
+  };
+
+  const itemsBody: TableCell[][] = [
     [
-      { text: "Lp.", style: "th" },
-      { text: "Obiekt", style: "th" },
-      { text: "Uwagi przekazującego", style: "th" },
-      { text: "Uwagi przyjmującego", style: "th" },
+      { text: "Obiekt", alignment: "center", bold: true, fillColor: "#d9d9d9", margin: [2, 4, 2, 4] },
+      {
+        text: "Uwagi przekazującego zmianę",
+        alignment: "center",
+        bold: true,
+        fillColor: "#d9d9d9",
+        margin: [2, 4, 2, 4],
+      },
+      {
+        text: "Uwagi przejmującego zmianę",
+        alignment: "center",
+        bold: true,
+        fillColor: "#d9d9d9",
+        margin: [2, 4, 2, 4],
+      },
     ],
   ];
-  d.items.forEach((it, i) => {
+  for (const it of d.items) {
     itemsBody.push([
-      { text: String(i + 1) },
-      { text: it.object_name },
-      { text: it.uwagi_przekazujacego ?? "—" },
-      { text: it.uwagi_przyjmujacego ?? "—" },
+      { text: it.object_name, fillColor: "#d9d9d9", margin: [3, 4, 3, 4] },
+      { text: it.uwagi_przekazujacego ?? "", margin: [3, 4, 3, 4] },
+      { text: it.uwagi_przyjmujacego ?? "", margin: [3, 4, 3, 4] },
     ]);
-  });
+  }
+  itemsBody.push([
+    { text: "Podpisy:", fillColor: "#d9d9d9", margin: [3, 6, 3, 6], bold: true },
+    {
+      text: `Przekazujący : ${d.operatorFrom}`,
+      decoration: "underline",
+      margin: [3, 6, 3, 6],
+    },
+    {
+      text: `Przejmujący : ${d.operatorTo ?? ""}`,
+      decoration: "underline",
+      margin: [3, 6, 3, 6],
+    },
+  ]);
 
   const doc: TDocumentDefinitions = {
     pageSize: "A4",
-    pageMargins: [40, 60, 40, 60],
+    pageMargins: [36, 36, 36, 36],
     info: { title: `Przekazanie zmiany ${d.date}`, author: d.operatorFrom },
     content: [
-      { text: "PROTOKÓŁ PRZEKAZANIA ZMIANY", style: "h1", alignment: "center" },
+      headerTop,
       {
-        text: "Oczyszczalnia ścieków",
-        alignment: "center",
-        margin: [0, 0, 0, 12],
-        color: "#6b7280",
+        text: "Uwagi dotyczące przekazania zmiany:",
+        italics: true,
+        margin: [0, 2, 0, 4],
       },
       {
-        columns: [
-          { text: [{ text: "Data: ", bold: true }, d.date] },
-          { text: [{ text: "Przekazujący: ", bold: true }, d.operatorFrom] },
-          { text: [{ text: "Przyjmujący: ", bold: true }, d.operatorTo ?? "—"] },
-        ],
-        margin: [0, 0, 0, 12],
-      },
-      {
-        table: { widths: [20, 110, "*", "*"], body: itemsBody, headerRows: 1 },
-        layout: { fillColor: (row: number) => (row === 0 ? "#f3f4f6" : null) },
+        table: { widths: [150, "*", "*"], body: itemsBody, headerRows: 1, dontBreakRows: true },
       },
       ...(d.uwagiOgolne
-        ? ([
-            { text: "Uwagi ogólne", style: "h2", margin: [0, 12, 0, 4] },
-            { text: d.uwagiOgolne, italics: true },
-          ] as Content[])
+        ? ([{ text: d.uwagiOgolne, italics: true, margin: [0, 8, 0, 0] }] as Content[])
         : []),
-      {
-        margin: [0, 30, 0, 0],
-        columns: [
-          {
-            stack: [
-              { text: "_______________________________", margin: [0, 20, 0, 4] },
-              { text: `Przekazujący: ${d.operatorFrom}`, fontSize: 9 },
-              {
-                text: `Zapisano: ${new Date(d.submittedAt).toLocaleString("pl-PL")}`,
-                fontSize: 8,
-                color: "#6b7280",
-              },
-            ],
-          },
-          {
-            stack: [
-              { text: "_______________________________", margin: [0, 20, 0, 4] },
-              { text: `Przyjmujący: ${d.operatorTo ?? "—"}`, fontSize: 9 },
-              {
-                text: d.acceptedAt
-                  ? `Przyjęte: ${new Date(d.acceptedAt).toLocaleString("pl-PL")}`
-                  : "Oczekuje na przyjęcie",
-                fontSize: 8,
-                color: "#6b7280",
-              },
-            ],
-          },
-        ],
-      },
     ],
-    styles: {
-      h1: { fontSize: 18, bold: true, margin: [0, 0, 0, 4] },
-      h2: { fontSize: 12, bold: true, margin: [0, 8, 0, 4] },
-      th: { bold: true, fillColor: "#f3f4f6" },
-    },
-    defaultStyle: { fontSize: 10 },
+    defaultStyle: { fontSize: 9 },
   };
 
   await downloadPdf(doc, `przekazanie-zmiany-${d.date}.pdf`);

@@ -334,17 +334,31 @@ function ShiftReportPage() {
   }
 
   const signature = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
-  const fieldClass = (key: string) =>
-    `w-full ${errors[key] ? "border-destructive focus-visible:ring-destructive" : ""}`;
+  const shiftShort = sessionShiftType === "rano" ? "I" : sessionShiftType === "popoludnie" ? "II" : sessionShiftType === "noc" ? "III" : "—";
+  const err = (k: string) => errors[k];
+  const numInput = (key: NumField, extraCls = "") => (
+    <input
+      type="number"
+      step="0.01"
+      value={nums[key] ?? ""}
+      disabled={!canEdit}
+      onChange={(e) => setNums((m) => ({ ...m, [key]: e.target.value }))}
+      className={`w-full bg-transparent border-0 outline-none text-center px-1 py-0.5 text-sm ${err(key) ? "text-destructive" : ""} ${extraCls}`}
+      title={err(key) ?? ""}
+    />
+  );
+
+  const pobor =
+    nums.energia_start && nums.energia_end
+      ? Math.max(0, Number(nums.energia_end) - Number(nums.energia_start))
+      : "";
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Raport zmianowy</h1>
-          <p className="text-sm text-muted-foreground">
-            Data: <strong>{today}</strong> · Operator: <strong>{signature || profile?.username}</strong>
-          </p>
+    <div className="p-6 max-w-[900px] mx-auto space-y-3">
+      {/* Toolbar (poza papierowym formularzem) */}
+      <div className="flex items-center justify-between flex-wrap gap-2 print:hidden">
+        <div className="text-sm text-muted-foreground">
+          Raport zmianowy · Operator: <strong>{signature || profile?.username}</strong>
         </div>
         <div className="flex items-center gap-2">
           {locked && (
@@ -364,162 +378,201 @@ function ShiftReportPage() {
       </div>
 
       {needsReason && (
-        <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm">
+        <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
           <div className="font-medium mb-1">Edycja zamkniętego raportu przez kierownika</div>
           <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1" />
         </div>
       )}
 
-      {/* --- Sekcja 1: Dane eksploatacyjne (tabela jak na papierze) --- */}
-      <section className="border rounded-md overflow-hidden">
-        <div className="p-3 border-b font-medium bg-muted/40">1. Dane eksploatacyjne</div>
-        <table className="w-full text-sm">
-          <thead className="bg-muted/30 border-b">
-            <tr>
-              <th className="text-left p-2 font-medium w-1/2">Parametr</th>
-              <th className="text-left p-2 font-medium w-32">Wartość</th>
-              <th className="text-left p-2 font-medium w-20">Jedn.</th>
-              <th className="text-left p-2 font-medium">Uwagi / błąd</th>
-            </tr>
-          </thead>
+      {/* === Papierowy formularz === */}
+      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
+        <h1 className="text-center font-bold underline text-[15px] mb-3">
+          Raport zmianowy oczyszczalni ścieków.
+        </h1>
+
+        {/* Header: Data/zmiana | Operator */}
+        <table className="w-full border-collapse border border-black mb-2">
           <tbody>
-            {NUM_FIELDS.map((f) => (
-              <tr key={f.key} className="border-b">
-                <td className="p-2">{f.label}</td>
-                <td className="p-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={nums[f.key] ?? ""}
-                    disabled={!canEdit}
-                    onChange={(e) => setNums((m) => ({ ...m, [f.key]: e.target.value }))}
-                    className={fieldClass(f.key)}
-                  />
-                </td>
-                <td className="p-2 text-muted-foreground">{f.unit}</td>
-                <td className="p-2 text-xs text-destructive">{errors[f.key]}</td>
-              </tr>
-            ))}
-            <tr className="border-b">
-              <td className="p-2">Opady atmosferyczne</td>
-              <td className="p-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="opady"
-                    checked={opady}
-                    disabled={!canEdit}
-                    onCheckedChange={(v) => setOpady(!!v)}
-                  />
-                  <Label htmlFor="opady" className="text-sm">{opady ? "TAK" : "NIE"}</Label>
-                </div>
+            <tr>
+              <td rowSpan={2} className="border border-black p-2 align-middle w-[42%]">
+                Data / zmiana : <strong>{today}</strong> / <strong>{shiftShort}</strong>
               </td>
-              <td colSpan={2}></td>
+              <td className="border border-black p-1 bg-[#d9d9d9] w-[22%]">Operator wiodący:</td>
+              <td className="border border-black p-1">{signature || profile?.username}</td>
+            </tr>
+            <tr>
+              <td className="border border-black p-1 bg-[#d9d9d9]">Operator(zy):</td>
+              <td className="border border-black p-1">&nbsp;</td>
             </tr>
           </tbody>
         </table>
-      </section>
 
-      {/* --- Sekcja 2: Ocena obiektów --- */}
-      <section className="border rounded-md overflow-hidden">
-        <div className="p-3 border-b font-medium bg-muted/40">
-          2. Ocena obiektów i wykonanie harmonogramu ({objectsList.length})
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-muted/30 border-b">
-            <tr>
-              <th className="text-left p-2 font-medium w-8">Lp.</th>
-              <th className="text-left p-2 font-medium w-1/4">Obiekt</th>
-              <th className="text-left p-2 font-medium w-1/4">Ocena pracy</th>
-              <th className="text-left p-2 font-medium w-1/4">Harmonogram</th>
-              <th className="text-left p-2 font-medium">Inne czynności</th>
+        {/* Energy */}
+        <table className="w-full border-collapse border border-black mb-2 text-center">
+          <thead>
+            <tr className="bg-[#d9d9d9]">
+              <th className="border border-black p-1 font-normal">
+                Pobór energii elektrycznej<br />[kwh]
+              </th>
+              <th className="border border-black p-1 font-normal">Stan początkowy</th>
+              <th className="border border-black p-1 font-normal">Stan końcowy</th>
+              <th className="border border-black p-1 font-normal">Pobór</th>
             </tr>
           </thead>
           <tbody>
-            {objectsList.map((obj, idx) => {
+            <tr>
+              <td className="border border-black p-1">&nbsp;</td>
+              <td className="border border-black p-1">{numInput("energia_start")}</td>
+              <td className="border border-black p-1">{numInput("energia_end")}</td>
+              <td className="border border-black p-1">{pobor}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Chemicals + SM + opady */}
+        <div className="flex gap-3 mb-3">
+          <table className="border-collapse border border-black flex-1">
+            <tbody>
+              {[
+                ["Zużycie flokulanta proszkowego [kg]", "flokulant_proszkowy_kg"],
+                ["Zużycie flokulanta emulsyjnego [l]", "flokulant_emulsyjny_l"],
+                ["Dostawa wapna do higienizacji [kg]:", "wapno_kg"],
+                ["Zużycie chlorku żelazowego [l]:", "chlorek_zelaza_l"],
+              ].map(([label, key]) => (
+                <tr key={key}>
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic">{label}</td>
+                  <td className="border border-black p-1 w-[110px]">{numInput(key as NumField)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="w-[300px] flex flex-col gap-3">
+            <table className="border-collapse border border-black">
+              <tbody>
+                <tr>
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic">S.M. osadu zagęszcz:</td>
+                  <td className="border border-black p-1 w-[90px]">{numInput("sm_osadu_zageszcz")}</td>
+                </tr>
+                <tr>
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic">S.M. osadu odw.wapn.:</td>
+                  <td className="border border-black p-1 w-[90px]">{numInput("sm_osadu_odwwapn")}</td>
+                </tr>
+              </tbody>
+            </table>
+            <table className="border-collapse border border-black">
+              <tbody>
+                <tr>
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic">Występ. opadów (T/N):</td>
+                  <td className="border border-black p-1 w-[90px] text-center">
+                    <button
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => setOpady((o) => !o)}
+                      className="font-bold underline-offset-2"
+                    >
+                      {opady ? "T" : "N"}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="italic font-bold mb-1">EKSPLOATACJA  URZĄDZEŃ  OCZYSZCZALNI.</div>
+
+        {/* Objects table — 4 columns */}
+        <table className="w-full border-collapse border border-black">
+          <thead className="bg-[#d9d9d9]">
+            <tr>
+              <th className="border border-black p-1 w-[14%] font-normal">Nazwa<br />obiektu</th>
+              <th className="border border-black p-1 w-[27%] font-normal">
+                Ocena prawidłowości pracy w ciągu zmiany, ew. awarie i prawdopodobne przyczyny.
+              </th>
+              <th className="border border-black p-1 w-[32%] font-normal">
+                Wykonane zgodnie z harmonogramem czynności obsługowe, ew. przyczyna nie-wykonania z propozycją nowego terminu.
+              </th>
+              <th className="border border-black p-1 font-normal">
+                Inne bieżące czynności eksploatacyjne, remon-towe i porządkowe.
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {objectsList.map((obj) => {
               const i = items[obj.id] ?? emptyItem();
-              const setField = <K extends keyof ItemState>(k: K, v: ItemState[K]) =>
-                setItems((m) => ({ ...m, [obj.id]: { ...i, [k]: v } }));
+              const setField = <K extends keyof ItemState>(k: K, val: ItemState[K]) =>
+                setItems((m) => ({ ...m, [obj.id]: { ...i, [k]: val } }));
               const eKey = (k: string) => `item:${obj.id}:${k}`;
               return (
-                <tr key={obj.id} className="border-b align-top">
-                  <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="p-2 font-medium">{obj.name}</td>
-                  <td className="p-2 space-y-1">
-                    <Select
-                      value={i.ocena_status}
-                      disabled={!canEdit}
-                      onValueChange={(v) => setField("ocena_status", v as "ok" | "problem")}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ok">✓ OK</SelectItem>
-                        <SelectItem value="problem">⚠ Problem</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <tr key={obj.id} className="align-top">
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
+                  <td className="border border-black p-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Select
+                        value={i.ocena_status}
+                        disabled={!canEdit}
+                        onValueChange={(val) => setField("ocena_status", val as "ok" | "problem")}
+                      >
+                        <SelectTrigger className="h-6 text-xs w-28"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ok">prawidłowo</SelectItem>
+                          <SelectItem value="problem">awaria / problem</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {i.ocena_status === "problem" && (
-                      <>
-                        <Textarea
-                          placeholder="Opis problemu (min. 10 znaków)"
-                          value={i.ocena_opis}
-                          disabled={!canEdit}
-                          onChange={(e) => setField("ocena_opis", e.target.value)}
-                          rows={2}
-                          className={errors[eKey("ocena_opis")] ? "border-destructive" : ""}
-                        />
-                        {errors[eKey("ocena_opis")] && (
-                          <p className="text-xs text-destructive">{errors[eKey("ocena_opis")]}</p>
-                        )}
-                      </>
+                      <Textarea
+                        value={i.ocena_opis}
+                        disabled={!canEdit}
+                        onChange={(e) => setField("ocena_opis", e.target.value)}
+                        rows={3}
+                        placeholder="Opis (min. 10 znaków)"
+                        className={`text-xs ${errors[eKey("ocena_opis")] ? "border-destructive" : ""}`}
+                      />
                     )}
                   </td>
-                  <td className="p-2 space-y-1">
-                    <Select
-                      value={i.harmonogram_status}
-                      disabled={!canEdit}
-                      onValueChange={(v) =>
-                        setField("harmonogram_status", v as "ok" | "nie_wykonano")
-                      }
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ok">✓ Wykonane</SelectItem>
-                        <SelectItem value="nie_wykonano">✗ Nie wykonano</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <td className="border border-black p-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Select
+                        value={i.harmonogram_status}
+                        disabled={!canEdit}
+                        onValueChange={(val) => setField("harmonogram_status", val as "ok" | "nie_wykonano")}
+                      >
+                        <SelectTrigger className="h-6 text-xs w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ok">wykonane</SelectItem>
+                          <SelectItem value="nie_wykonano">nie wykonano</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {i.harmonogram_status === "nie_wykonano" && (
-                      <>
+                      <div className="space-y-1">
                         <Textarea
-                          placeholder="Opis (min. 10 znaków)"
                           value={i.harmonogram_opis}
                           disabled={!canEdit}
                           onChange={(e) => setField("harmonogram_opis", e.target.value)}
                           rows={2}
-                          className={errors[eKey("harmonogram_opis")] ? "border-destructive" : ""}
+                          placeholder="Przyczyna (min. 10 znaków)"
+                          className={`text-xs ${errors[eKey("harmonogram_opis")] ? "border-destructive" : ""}`}
                         />
-                        {errors[eKey("harmonogram_opis")] && (
-                          <p className="text-xs text-destructive">{errors[eKey("harmonogram_opis")]}</p>
-                        )}
                         <Input
                           type="date"
                           value={i.proponowany_termin}
                           disabled={!canEdit}
                           onChange={(e) => setField("proponowany_termin", e.target.value)}
-                          className={errors[eKey("proponowany_termin")] ? "border-destructive" : ""}
+                          className={`h-7 text-xs ${errors[eKey("proponowany_termin")] ? "border-destructive" : ""}`}
                         />
-                        {errors[eKey("proponowany_termin")] && (
-                          <p className="text-xs text-destructive">{errors[eKey("proponowany_termin")]}</p>
-                        )}
-                      </>
+                      </div>
                     )}
                   </td>
-                  <td className="p-2">
+                  <td className="border border-black p-1">
                     <Textarea
                       value={i.inne_czynnosci}
                       disabled={!canEdit}
                       onChange={(e) => setField("inne_czynnosci", e.target.value)}
-                      rows={2}
-                      placeholder="—"
+                      rows={3}
+                      className="text-xs"
                     />
                   </td>
                 </tr>
@@ -527,25 +580,17 @@ function ShiftReportPage() {
             })}
           </tbody>
         </table>
-      </section>
 
-      {/* --- Sekcja 3: Uwagi ogólne --- */}
-      <section className="border rounded-md">
-        <div className="p-3 border-b font-medium bg-muted/40">3. Uwagi ogólne</div>
-        <div className="p-3">
-          <Textarea
-            value={uwagi}
-            disabled={!canEdit}
-            onChange={(e) => setUwagi(e.target.value)}
-            rows={3}
-            placeholder="Dodatkowe informacje, awarie, obserwacje…"
-          />
-        </div>
-      </section>
+        <p className="text-center font-bold mt-4">
+          Podpis operatora wiodącego: {signature || profile?.username}
+        </p>
+      </div>
 
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          Podpis: <strong>{signature || profile?.username}</strong>
+      {/* Toolbar zapisu */}
+      <div className="flex justify-between items-center print:hidden">
+        <div className="text-xs text-muted-foreground">
+          {Object.keys(errors).length > 0 && `Błędy: ${Object.keys(errors).length}`}
+          {today && <> · Data: <strong>{today}</strong></>}
         </div>
         {canEdit && (
           <Button onClick={() => save.mutate()} disabled={save.isPending}>

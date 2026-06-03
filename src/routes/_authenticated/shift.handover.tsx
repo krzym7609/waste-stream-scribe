@@ -271,15 +271,16 @@ function HandoverPage() {
 
 
   const signature = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
+  const today = new Date().toISOString().slice(0, 10);
+  const fromName = signature || profile?.username || "—";
+  const toName = activeHandover?.to_user_id ? "—" : "—";
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Protokół przekazania zmiany</h1>
-          <p className="text-sm text-muted-foreground">
-            Operator: <strong>{signature || profile?.username}</strong>
-          </p>
+    <div className="p-6 max-w-[900px] mx-auto space-y-3">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-2 print:hidden">
+        <div className="text-sm text-muted-foreground">
+          Protokół przekazania zmiany · Operator: <strong>{fromName}</strong>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">
@@ -304,7 +305,7 @@ function HandoverPage() {
       </div>
 
       {locked && isManager && (
-        <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm">
+        <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
           <div className="font-medium mb-1">Edycja zamkniętego protokołu przez kierownika</div>
           <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1" />
@@ -312,74 +313,88 @@ function HandoverPage() {
       )}
 
       {mode === "incoming" && (
-        <div className="border border-blue-500/40 bg-blue-500/10 rounded-md p-3 text-sm">
+        <div className="border border-blue-500/40 bg-blue-500/10 rounded-md p-3 text-sm print:hidden">
           Masz protokół do przyjęcia. Przeczytaj uwagi przekazującego i dopisz swoje.
         </div>
       )}
 
-      <section className="border rounded-md overflow-hidden">
-        <div className="p-3 border-b font-medium bg-muted/40">Uwagi per obiekt</div>
-        <table className="w-full text-sm">
-          <thead className="bg-muted/30 border-b">
+      {/* === Papierowy formularz === */}
+      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
+        <table className="w-full border-collapse mb-1">
+          <tbody>
             <tr>
-              <th className="text-left p-2 font-medium w-8">Lp.</th>
-              <th className="text-left p-2 font-medium w-1/4">Obiekt</th>
-              <th className="text-left p-2 font-medium">Uwagi przekazującego</th>
-              <th className="text-left p-2 font-medium">Uwagi przyjmującego</th>
+              <td className="align-top pb-1 w-1/2">
+                <span className="italic font-bold underline">PRZEKAZANIE  ZMIANY :</span>
+              </td>
+              <td className="align-top pb-1 border border-black p-2">
+                Data : <strong>{activeHandover?.submitted_at?.slice(0, 10) ?? today}</strong>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <table className="w-full border-collapse border border-black mb-2">
+          <tbody>
+            <tr>
+              <td className="border border-black p-2">
+                <div>Zmianę przekazuje: <strong>{fromName}</strong></div>
+                <div className="mt-1">Zmianę przejmuje: <strong>{activeHandover?.accepted_at ? toName : "—"}</strong></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="italic mb-1">Uwagi dotyczące przekazania zmiany:</div>
+
+        <table className="w-full border-collapse border border-black">
+          <thead className="bg-[#d9d9d9]">
+            <tr>
+              <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
+              <th className="border border-black p-1 font-bold">Uwagi przekazującego zmianę</th>
+              <th className="border border-black p-1 font-bold">Uwagi przejmującego zmianę</th>
             </tr>
           </thead>
           <tbody>
-            {(objects ?? []).map((obj, idx) => {
+            {(objects ?? []).map((obj) => {
               const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
-              const setField = (
-                k: "uwagi_przekazujacego" | "uwagi_przyjmujacego",
-                val: string,
-              ) => setItemMap((m) => ({ ...m, [obj.id]: { ...v, [k]: val } }));
+              const setField = (k: "uwagi_przekazujacego" | "uwagi_przyjmujacego", val: string) =>
+                setItemMap((m) => ({ ...m, [obj.id]: { ...v, [k]: val } }));
               const errKey = `${obj.id}:uwagi_przekazujacego`;
               return (
-                <tr key={obj.id} className="border-b align-top">
-                  <td className="p-2 text-muted-foreground">{idx + 1}</td>
-                  <td className="p-2 font-medium">{obj.name}</td>
-                  <td className="p-2">
+                <tr key={obj.id} className="align-top">
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
+                  <td className="border border-black p-1">
                     <Textarea
                       value={v.uwagi_przekazujacego}
                       onChange={(e) => setField("uwagi_przekazujacego", e.target.value)}
                       disabled={!canEditFrom}
-                      placeholder={canEditFrom ? "Wpisz uwagi lub „brak uwag”" : "—"}
-                      rows={2}
-                      className={errors[errKey] ? "border-destructive" : ""}
+                      placeholder={canEditFrom ? "Wpisz uwagi lub „brak uwag”" : ""}
+                      rows={3}
+                      className={`text-xs ${errors[errKey] ? "border-destructive" : ""}`}
                     />
-                    {errors[errKey] && (
-                      <p className="text-xs text-destructive mt-1">{errors[errKey]}</p>
-                    )}
                   </td>
-                  <td className="p-2">
+                  <td className="border border-black p-1">
                     <Textarea
                       value={v.uwagi_przyjmujacego}
                       onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
                       disabled={!canEditTo}
-                      placeholder={canEditTo ? "Dopisz uwagi…" : "—"}
-                      rows={2}
+                      placeholder={canEditTo ? "Dopisz uwagi…" : ""}
+                      rows={3}
+                      className="text-xs"
                     />
                   </td>
                 </tr>
               );
             })}
+            <tr>
+              <td className="border border-black bg-[#d9d9d9] p-2 font-bold">Podpisy:</td>
+              <td className="border border-black p-2 underline">Przekazujący : {fromName}</td>
+              <td className="border border-black p-2 underline">Przejmujący : {activeHandover?.accepted_at ? toName : ""}</td>
+            </tr>
           </tbody>
         </table>
-      </section>
-
-      <div>
-        <Label>Uwagi ogólne</Label>
-        <Textarea
-          value={uwagiOgolne}
-          onChange={(e) => setUwagiOgolne(e.target.value)}
-          disabled={!canEditFrom}
-          rows={2}
-        />
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 print:hidden">
         {(canEditFrom || canEditTo) && mode !== "incoming" && (
           <Button onClick={() => saveFrom.mutate()} disabled={saveFrom.isPending}>
             {saveFrom.isPending
