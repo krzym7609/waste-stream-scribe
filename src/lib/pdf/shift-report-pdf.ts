@@ -299,8 +299,8 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
         [
           {
             stack: [
-              { text: `Zmianę przekazuje: ${d.operatorFrom}`, margin: [4, 2, 4, 2] },
-              { text: `Zmianę przejmuje: ${d.operatorTo ?? ""}`, margin: [4, 2, 4, 2] },
+              { text: `Zmianę przekazuje: ${orBrak(d.operatorFrom)}`, margin: [4, 2, 4, 2] },
+              { text: `Zmianę przejmuje: ${orBrak(d.operatorTo)}`, margin: [4, 2, 4, 2] },
             ],
             colSpan: 2,
             border: [true, true, true, true],
