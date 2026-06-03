@@ -237,13 +237,15 @@ function DailyView() {
                       {" → "}
                       <strong>{h.to_user_id ? data.profMap.get(h.to_user_id) ?? "—" : "—"}</strong>
                     </span>
-                    <span className="text-muted-foreground">
+                    <span className="text-muted-foreground flex items-center gap-2">
                       {new Date(h.submitted_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
                       {h.accepted_at ? " · przyjęte" : " · oczekuje"}
+                      <HandoverActions handover={h} />
                     </span>
                   </div>
                   {h.uwagi_ogolne && <div className="mt-1 italic text-xs">„{h.uwagi_ogolne}"</div>}
                 </li>
+
               ))}
             </ul>
           )}
