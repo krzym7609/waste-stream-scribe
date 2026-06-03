@@ -571,8 +571,8 @@ function HandoverActions({ handover }: { handover: any }) {
 
 function HistoryDialog({ kind, id }: { kind: "report" | "handover"; id: string }) {
   const [open, setOpen] = useState(false);
-  const table = kind === "report" ? "shift_report_snapshots" : "handover_report_snapshots";
-  const fk = kind === "report" ? "report_id" : "handover_id";
+
+
 
   const { data } = useQuery({
     queryKey: ["snapshots", kind, id, open],
