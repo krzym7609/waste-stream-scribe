@@ -546,7 +546,7 @@ function HandoverPage() {
                       <Textarea
                         value={v.uwagi_przyjmujacego}
                         onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
-                        placeholder="Wpisz uwagi (wymagane, min. 3 znaki)"
+                        placeholder="Wpisz uwagi (opcjonalne)"
                         rows={3}
                         className={`text-xs resize-none w-full ${errors[errTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
                       />
