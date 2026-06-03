@@ -26,6 +26,8 @@ function HandoverPage() {
   const { data: duty } = useCurrentDuty();
   const router = useRouter();
   const qc = useQueryClient();
+  const search = Route.useSearch();
+  const overrideHandoverId = isManager ? search.handover : undefined;
 
   const sessionId = duty?.session?.id;
   const isMine = duty?.session?.user_id === user?.id;
@@ -42,9 +44,22 @@ function HandoverPage() {
     },
   });
 
+  const { data: overrideHandover } = useQuery({
+    queryKey: ["handover_override", overrideHandoverId],
+    enabled: !!overrideHandoverId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("handover_reports")
+        .select("*")
+        .eq("id", overrideHandoverId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   const { data: handovers } = useQuery({
     queryKey: ["handovers", sessionId, user?.id],
-    enabled: !!user,
+    enabled: !!user && !overrideHandoverId,
     queryFn: async () => {
       const { data } = await supabase
         .from("handover_reports")
@@ -66,8 +81,9 @@ function HandoverPage() {
   );
   const pendingForMe = handovers?.find((h) => h.to_user_id === user?.id && !h.accepted_at);
   const lastAccepted = handovers?.find((h) => h.to_user_id === user?.id && h.accepted_at);
-  const activeHandover = mineAsFrom ?? pendingForMe ?? lastAccepted;
+  const activeHandover = overrideHandover ?? mineAsFrom ?? pendingForMe ?? lastAccepted;
   const activeId = activeHandover?.id;
+
 
   const { data: items } = useQuery({
     queryKey: ["handover_items", activeId],
