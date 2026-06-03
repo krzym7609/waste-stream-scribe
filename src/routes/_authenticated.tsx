@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DutyBar } from "@/components/duty-bar";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -81,8 +82,11 @@ function AuthenticatedLayout() {
           </Button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">
-        <Outlet />
+      <main className="flex-1 overflow-auto flex flex-col">
+        <DutyBar />
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

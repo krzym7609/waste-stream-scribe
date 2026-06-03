@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      duty_sessions: {
+        Row: {
+          created_at: string
+          end_note: string | null
+          ended_at: string | null
+          id: string
+          outside_window: boolean
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          start_note: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_note?: string | null
+          ended_at?: string | null
+          id?: string
+          outside_window?: boolean
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          start_note?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_note?: string | null
+          ended_at?: string | null
+          id?: string
+          outside_window?: boolean
+          shift_type?: Database["public"]["Enums"]["shift_type"]
+          start_note?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
