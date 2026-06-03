@@ -140,6 +140,7 @@ function ShiftReportPage() {
       const r = existing.report;
       setOpady(r.opady);
       setUwagi(r.uwagi ?? "");
+      setOperatorzy((r as { operatorzy?: string | null }).operatorzy ?? "");
       const next: Record<string, string> = {};
       for (const f of NUM_FIELDS) {
         const v = r[f.key as keyof typeof r];
