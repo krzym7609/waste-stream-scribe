@@ -335,16 +335,24 @@ function HandoverPage() {
   const downloadPdf = async () => {
     if (!activeHandover || !objects) return;
     const objMap = new Map(objects.map((o) => [o.id, o.name]));
-    const activeItems = outgoingHandover ? outgoingItems : incomingItems;
-    const fromName =
+    const useOutgoing = !!outgoingHandover;
+    const activeItems = useOutgoing ? outgoingItems : incomingItems;
+    const meName =
       `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
       profile?.username ||
       "—";
+    // Operator przekazujący = autor raportu (from_user); przejmujący = to_user
+    const operatorFrom = useOutgoing ? meName : incomingFromName;
+    const operatorTo = useOutgoing
+      ? outgoingToName
+      : activeHandover.accepted_at
+        ? meName
+        : null;
     await generateHandoverPdf({
       date: activeHandover.submitted_at.slice(0, 10),
       shiftFrom: duty?.session?.shift_type ?? "—",
-      operatorFrom: fromName,
-      operatorTo: null,
+      operatorFrom,
+      operatorTo,
       submittedAt: activeHandover.submitted_at,
       acceptedAt: activeHandover.accepted_at,
       uwagiOgolne: activeHandover.uwagi_ogolne,
