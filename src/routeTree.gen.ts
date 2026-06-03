@@ -17,6 +17,7 @@ import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
+import { Route as AuthenticatedShiftReportRouteImport } from './routes/_authenticated/shift.report'
 import { Route as AuthenticatedShiftChecklistRouteImport } from './routes/_authenticated/shift.checklist'
 import { Route as AuthenticatedScheduleTasksRouteImport } from './routes/_authenticated/schedule.tasks'
 
@@ -60,6 +61,12 @@ const AuthenticatedChangePasswordRoute =
     path: '/change-password',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedShiftReportRoute =
+  AuthenticatedShiftReportRouteImport.update({
+    id: '/shift/report',
+    path: '/shift/report',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedShiftChecklistRoute =
   AuthenticatedShiftChecklistRouteImport.update({
     id: '/shift/checklist',
@@ -83,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AuthenticatedTeamRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/shift/checklist': typeof AuthenticatedShiftChecklistRoute
+  '/shift/report': typeof AuthenticatedShiftReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
   '/team': typeof AuthenticatedTeamRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/shift/checklist': typeof AuthenticatedShiftChecklistRoute
+  '/shift/report': typeof AuthenticatedShiftReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +116,7 @@ export interface FileRoutesById {
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/_authenticated/shift/checklist': typeof AuthenticatedShiftChecklistRoute
+  '/_authenticated/shift/report': typeof AuthenticatedShiftReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/schedule/tasks'
     | '/shift/checklist'
+    | '/shift/report'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/schedule/tasks'
     | '/shift/checklist'
+    | '/shift/report'
   id:
     | '__root__'
     | '/'
@@ -143,6 +155,7 @@ export interface FileRouteTypes {
     | '/_authenticated/team'
     | '/_authenticated/schedule/tasks'
     | '/_authenticated/shift/checklist'
+    | '/_authenticated/shift/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -209,6 +222,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChangePasswordRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/shift/report': {
+      id: '/_authenticated/shift/report'
+      path: '/shift/report'
+      fullPath: '/shift/report'
+      preLoaderRoute: typeof AuthenticatedShiftReportRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/shift/checklist': {
       id: '/_authenticated/shift/checklist'
       path: '/shift/checklist'
@@ -246,6 +266,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedShiftChecklistRoute: typeof AuthenticatedShiftChecklistRoute
+  AuthenticatedShiftReportRoute: typeof AuthenticatedShiftReportRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -255,6 +276,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedShiftChecklistRoute: AuthenticatedShiftChecklistRoute,
+  AuthenticatedShiftReportRoute: AuthenticatedShiftReportRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
