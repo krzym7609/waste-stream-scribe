@@ -257,7 +257,8 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
     defaultStyle: { fontSize: 9 },
   };
 
-  await downloadPdf(doc, `raport-zmianowy-${d.date}-${d.shift}.pdf`);
+  const shiftNr = SHIFT_NUM[d.shift] ?? d.shift;
+  await downloadPdf(doc, `Raport-Zmianowy-${d.date}-zmiana-nr-${shiftNr}.pdf`);
 }
 
 export type HandoverPdfData = {
