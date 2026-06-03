@@ -216,6 +216,18 @@ function HandoverPage() {
   const accept = useMutation({
     mutationFn: async () => {
       if (!pendingForMe || !user || !sessionId) throw new Error("Brak protokołu do przyjęcia");
+      // Walidacja: każdy obiekt musi mieć uwagi przejmującego (min 3 znaki)
+      const errs: Record<string, string> = {};
+      for (const obj of objects ?? []) {
+        const v = itemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
+        if (v.length < 3) {
+          errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag")";
+        }
+      }
+      setErrors(errs);
+      if (Object.keys(errs).length > 0) {
+        throw new Error("Uzupełnij uwagi przejmującego dla każdego obiektu (min. 3 znaki).");
+      }
       for (const obj of objects ?? []) {
         const v = itemMap[obj.id] ?? { uwagi_przekazujacego: "", uwagi_przyjmujacego: "" };
         await supabase.from("handover_report_items").upsert(
@@ -236,9 +248,19 @@ function HandoverPage() {
         })
         .eq("id", pendingForMe.id);
       if (error) throw error;
+      // Powiadom kierownika o przyjęciu zmiany
+      await supabase.from("shift_notifications").insert({
+        recipient_role: "kierownik",
+        kind: "handover_accepted",
+        title: "Przekazanie zmiany przyjęte",
+        body: `Operator przyjął przekazanie zmiany (protokół ${pendingForMe.id.slice(0, 8)}).`,
+        related_session_id: sessionId,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["handovers"] });
+      qc.invalidateQueries({ queryKey: ["handover_items"] });
+      qc.invalidateQueries({ queryKey: ["mgr-daily"] });
       toast.success("Protokół przyjęty");
     },
     onError: (e: Error) => toast.error(e.message),
