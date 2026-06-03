@@ -218,7 +218,7 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
         margin: [0, 6, 0, 4],
       },
       {
-        table: { widths: [95, "*", "*", "*"], body: itemsBody, headerRows: 1, dontBreakRows: true },
+        table: { widths: [95, "*", "*", "*"], body: itemsBody, headerRows: 1 },
       },
       {
         text: `Podpis operatora wiodącego: ${d.operator}`,
@@ -340,7 +340,7 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
         margin: [0, 2, 0, 4],
       },
       {
-        table: { widths: [150, "*", "*"], body: itemsBody, headerRows: 1, dontBreakRows: true },
+        table: { widths: [150, "*", "*"], body: itemsBody, headerRows: 1 },
       },
       ...(d.uwagiOgolne
         ? ([{ text: d.uwagiOgolne, italics: true, margin: [0, 8, 0, 0] }] as Content[])
