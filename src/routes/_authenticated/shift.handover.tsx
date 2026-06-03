@@ -146,10 +146,12 @@ function HandoverPage() {
     setUwagiOgolne(outgoingHandover?.uwagi_ogolne ?? "");
   }, [outgoingItems, outgoingHandover?.id]);
 
-  const locked = !!activeHandover?.locked_at;
+  const incomingLocked = !!incomingHandover?.locked_at;
+  const outgoingLocked = !!outgoingHandover?.locked_at;
+  const activeLocked = !!activeHandover?.locked_at;
   const mode: "incoming" | "outgoing" | "history" = pendingForMe
     ? "incoming"
-    : isMine && !locked
+    : isMine && !outgoingLocked
       ? "outgoing"
       : "history";
 
@@ -179,12 +181,12 @@ function HandoverPage() {
     mutationFn: async () => {
       if (!sessionId || !user) throw new Error("Brak otwartej zmiany");
       if (!validateFrom()) throw new Error("Formularz zawiera błędy");
-      if (locked && isManager && reason.trim().length < 5) {
+      if (outgoingLocked && isManager && reason.trim().length < 5) {
         throw new Error("Edycja zamkniętego protokołu wymaga powodu (min. 5 znaków)");
       }
 
       // Snapshot przed edycją kierownika
-      if (locked && isManager && outgoingHandover) {
+      if (outgoingLocked && isManager && outgoingHandover) {
         const { error: snapErr } = await supabase.from("handover_report_snapshots").insert({
           handover_id: outgoingHandover.id,
           snapshot: JSON.parse(JSON.stringify(outgoingHandover)),
@@ -337,7 +339,7 @@ function HandoverPage() {
             {mode === "outgoing" && "Przekazujesz zmianę"}
             {mode === "history" && "Historia"}
           </Badge>
-          {locked && (
+          {activeLocked && (
             <Badge variant="outline" className="gap-1">
               <Lock className="w-3 h-3" /> Zamknięty
             </Badge>
@@ -353,7 +355,7 @@ function HandoverPage() {
         </div>
       </div>
 
-      {locked && isManager && (
+      {activeLocked && isManager && (
         <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
           <div className="font-medium mb-1">Edycja zamkniętego protokołu przez kierownika</div>
           <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
@@ -389,8 +391,8 @@ function HandoverPage() {
   );
 
   function renderReport(tab: "incoming" | "outgoing") {
-    const editFrom = tab === "outgoing" && isMine && !locked;
-    const editTo = tab === "incoming" && !!pendingForMe;
+    const editFrom = tab === "outgoing" && isMine && !outgoingLocked;
+    const editTo = tab === "incoming" && !!pendingForMe && !incomingLocked;
     const currentItemMap = tab === "incoming" ? incomingItemMap : outgoingItemMap;
     const setCurrentItemMap = tab === "incoming" ? setIncomingItemMap : setOutgoingItemMap;
     const ctxHandover = tab === "incoming" ? incomingHandover : outgoingHandover;
