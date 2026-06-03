@@ -221,7 +221,7 @@ function HandoverPage() {
       for (const obj of objects ?? []) {
         const v = itemMap[obj.id]?.uwagi_przyjmujacego?.trim() ?? "";
         if (v.length < 3) {
-          errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag")";
+          errs[`${obj.id}:uwagi_przyjmujacego`] = "Wymagane (min. 3 znaki, np. „brak uwag”)";
         }
       }
       setErrors(errs);
