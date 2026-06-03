@@ -299,6 +299,7 @@ function ShiftReportPage() {
       date: r.submitted_at.slice(0, 10),
       shift: sessionShiftType ?? "—",
       operator: operatorName,
+      operatorzy: (r as { operatorzy?: string | null }).operatorzy ?? null,
       submittedAt: r.submitted_at,
       data: {
 
