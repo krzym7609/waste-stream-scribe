@@ -461,17 +461,17 @@ function HandoverPage() {
                       </div>
                     )}
                   </td>
-                  <td className={`border border-black p-1 ${editTo ? "bg-yellow-50" : ""}`}>
+                  <td className={`border border-black p-1 break-words ${editTo ? "bg-yellow-50" : ""}`}>
                     {editTo ? (
                       <Textarea
                         value={v.uwagi_przyjmujacego}
                         onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
                         placeholder="Wpisz uwagi (wymagane, min. 3 znaki)"
                         rows={3}
-                        className={`text-xs ${errors[errTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
+                        className={`text-xs resize-none w-full ${errors[errTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
                       />
                     ) : (
-                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
+                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1 break-words">
                         {v.uwagi_przyjmujacego || (
                           <span className="italic text-gray-500">
                             {tab === "outgoing" ? "— wypełni przejmujący —" : "— brak uwag —"}
