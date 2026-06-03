@@ -200,9 +200,14 @@ function ChecklistPage() {
             {today} · Zmiana: <strong>{currentShift}</strong>
           </p>
         </div>
-        <Button variant="outline" onClick={() => setConfirmEndOpen(true)}>
-          Rozlicz zmianę
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/shift/handover">Przekazanie zmiany</Link>
+          </Button>
+          <Button onClick={() => setConfirmEndOpen(true)}>
+            Rozlicz zmianę
+          </Button>
+        </div>
       </div>
 
       {overdue.length > 0 && (
