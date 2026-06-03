@@ -388,7 +388,7 @@ function HandoverPage() {
     }
 
     return (
-      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight">
+      <div className="bg-white text-black border border-black p-6 font-serif text-[13px] leading-tight max-w-full overflow-x-auto">
         <table className="w-full border-collapse mb-1">
           <tbody>
             <tr>
@@ -422,14 +422,14 @@ function HandoverPage() {
 
         <div className="italic mb-1">Uwagi dotyczące przekazania zmiany:</div>
 
-        <table className="w-full border-collapse border border-black">
+        <table className="w-full border-collapse border border-black table-fixed">
           <thead className="bg-[#d9d9d9]">
             <tr>
-              <th className="border border-black p-1 w-[20%] font-bold">Obiekt</th>
-              <th className={`border border-black p-1 font-bold ${editFrom ? "bg-yellow-100" : ""}`}>
+              <th className="border border-black p-1 w-[22%] font-bold">Obiekt</th>
+              <th className={`border border-black p-1 w-[39%] font-bold ${editFrom ? "bg-yellow-100" : ""}`}>
                 Uwagi przekazującego zmianę
               </th>
-              <th className={`border border-black p-1 font-bold ${editTo ? "bg-yellow-100" : ""}`}>
+              <th className={`border border-black p-1 w-[39%] font-bold ${editTo ? "bg-yellow-100" : ""}`}>
                 Uwagi przejmującego zmianę
               </th>
             </tr>
@@ -443,35 +443,35 @@ function HandoverPage() {
               const errTo = `${obj.id}:uwagi_przyjmujacego`;
               return (
                 <tr key={obj.id} className="align-top">
-                  <td className="border border-black bg-[#d9d9d9] p-1 italic">{obj.name}</td>
-                  <td className={`border border-black p-1 ${editFrom ? "bg-yellow-50" : ""}`}>
+                  <td className="border border-black bg-[#d9d9d9] p-1 italic break-all">{obj.name}</td>
+                  <td className={`border border-black p-1 break-all ${editFrom ? "bg-yellow-50" : ""}`}>
                     {editFrom ? (
                       <Textarea
                         value={v.uwagi_przekazujacego}
                         onChange={(e) => setField("uwagi_przekazujacego", e.target.value)}
                         placeholder="Wpisz uwagi lub: brak uwag"
                         rows={3}
-                        className={`text-xs ${errors[errFrom] ? "border-destructive" : ""}`}
+                        className={`text-xs resize-none w-full ${errors[errFrom] ? "border-destructive" : ""}`}
                       />
                     ) : (
-                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
+                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1 break-words">
                         {v.uwagi_przekazujacego || (
                           <span className="italic text-gray-500">— brak uwag —</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td className={`border border-black p-1 ${editTo ? "bg-yellow-50" : ""}`}>
+                  <td className={`border border-black p-1 break-words ${editTo ? "bg-yellow-50" : ""}`}>
                     {editTo ? (
                       <Textarea
                         value={v.uwagi_przyjmujacego}
                         onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
                         placeholder="Wpisz uwagi (wymagane, min. 3 znaki)"
                         rows={3}
-                        className={`text-xs ${errors[errTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
+                        className={`text-xs resize-none w-full ${errors[errTo] ? "border-destructive ring-1 ring-destructive" : ""}`}
                       />
                     ) : (
-                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1">
+                      <div className="text-xs whitespace-pre-wrap min-h-[3em] p-1 break-words">
                         {v.uwagi_przyjmujacego || (
                           <span className="italic text-gray-500">
                             {tab === "outgoing" ? "— wypełni przejmujący —" : "— brak uwag —"}
