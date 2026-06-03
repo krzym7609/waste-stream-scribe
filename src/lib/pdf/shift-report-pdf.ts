@@ -5,6 +5,7 @@ export type ShiftReportPdfData = {
   date: string;
   shift: string;
   operator: string;
+  operatorzy?: string | null;
   submittedAt: string;
   data: {
     energia_start: number | null;
