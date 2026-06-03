@@ -31,9 +31,9 @@ export const shiftReportSchema = z
 export const shiftReportItemSchema = z
   .object({
     object_id: z.string().uuid(),
-    ocena_status: z.enum(["ok", "problem"]),
+    ocena_status: z.enum(["ok", "problem"], { message: "Ocena: wybierz „prawidłowo" lub „awaria / problem"" }),
     ocena_opis: z.string().optional(),
-    harmonogram_status: z.enum(["ok", "nie_wykonano"]),
+    harmonogram_status: z.enum(["ok", "nie_wykonano"], { message: "Harmonogram: wybierz „wykonane" lub „nie wykonano"" }),
     harmonogram_opis: z.string().optional(),
     proponowany_termin: z.string().optional(),
     inne_czynnosci: z.string().optional(),
