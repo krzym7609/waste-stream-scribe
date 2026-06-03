@@ -401,9 +401,9 @@ function HandoverPage() {
                       value={v.uwagi_przyjmujacego}
                       onChange={(e) => setField("uwagi_przyjmujacego", e.target.value)}
                       disabled={!canEditTo}
-                      placeholder={canEditTo ? "Dopisz uwagi…" : ""}
+                      placeholder={canEditTo ? "Dopisz uwagi (wymagane przed przyjęciem zmiany)" : ""}
                       rows={3}
-                      className="text-xs"
+                      className={`text-xs ${errors[`${obj.id}:uwagi_przyjmujacego`] ? "border-destructive ring-1 ring-destructive" : ""}`}
                     />
                   </td>
                 </tr>
