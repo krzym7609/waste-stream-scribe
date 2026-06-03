@@ -578,11 +578,20 @@ function HistoryDialog({ kind, id }: { kind: "report" | "handover"; id: string }
     queryKey: ["snapshots", kind, id, open],
     enabled: open,
     queryFn: async () => {
-      const { data: snaps } = await supabase
-        .from(table)
-        .select("*")
-        .eq(fk, id)
-        .order("edited_at", { ascending: false });
+      const snapsRes =
+        kind === "report"
+          ? await supabase
+              .from("shift_report_snapshots")
+              .select("*")
+              .eq("report_id", id)
+              .order("edited_at", { ascending: false })
+          : await supabase
+              .from("handover_report_snapshots")
+              .select("*")
+              .eq("handover_id", id)
+              .order("edited_at", { ascending: false });
+      const snaps = snapsRes.data ?? [];
+
       const editorIds = Array.from(new Set((snaps ?? []).map((s: any) => s.edited_by)));
       const { data: profiles } = editorIds.length
         ? await supabase.from("profiles").select("id, first_name, last_name, username").in("id", editorIds)
