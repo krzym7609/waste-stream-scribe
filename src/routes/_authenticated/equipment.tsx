@@ -48,6 +48,33 @@ type Attachment = {
   uploaded_at: string;
 };
 
+type EventKind = "awaria" | "naprawa" | "serwis" | "przeglad" | "inne";
+type EquipmentEvent = {
+  id: string;
+  equipment_id: string;
+  kind: EventKind;
+  title: string | null;
+  description: string | null;
+  performed_at: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+const EVENT_LABELS: Record<EventKind, string> = {
+  awaria: "Awaria",
+  naprawa: "Naprawa",
+  serwis: "Serwis",
+  przeglad: "Przegląd",
+  inne: "Inne",
+};
+const EVENT_ICONS: Record<EventKind, React.ComponentType<{ className?: string }>> = {
+  awaria: AlertTriangle,
+  naprawa: CheckCircle2,
+  serwis: Droplet,
+  przeglad: ClipboardCheck,
+  inne: History,
+};
+
 const KIND_LABELS: Record<AttachmentKind, string> = {
   documentation: "Dokumentacja",
   photo: "Zdjęcia",
