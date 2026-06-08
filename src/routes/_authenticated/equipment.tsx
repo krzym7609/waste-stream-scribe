@@ -11,9 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Search, Settings, AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Search, Settings, AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/equipment")({
   head: () => ({ meta: [{ title: "Urządzenia" }] }),
@@ -773,6 +774,9 @@ function EquipmentTimeline({
   const [eventAtts, setEventAtts] = useState<Record<string, Attachment[]>>({});
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const ALL_KINDS: EventKind[] = ["awaria", "naprawa", "serwis", "przeglad", "inne"];
+  const [selectedKinds, setSelectedKinds] = useState<EventKind[]>([...ALL_KINDS]);
+  const [groupByStatus, setGroupByStatus] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -801,6 +805,16 @@ function EquipmentTimeline({
 
   useEffect(() => { load(); }, [equipmentId]);
 
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => selectedKinds.includes(e.kind));
+  }, [events, selectedKinds]);
+
+  const { damaged, repaired } = useMemo(() => {
+    const d = filteredEvents.filter((e) => e.kind === "awaria");
+    const r = filteredEvents.filter((e) => e.kind !== "awaria");
+    return { damaged: d, repaired: r };
+  }, [filteredEvents]);
+
   async function openFile(att: Attachment) {
     const { data, error } = await supabase.storage
       .from("equipment-files")
@@ -820,78 +834,129 @@ function EquipmentTimeline({
     else { toast.success("Usunięto"); load(); }
   }
 
+  const renderList = (items: EquipmentEvent[]) => (
+    <ol className="relative border-l ml-2 space-y-3">
+      {items.map((ev) => {
+        const Icon = EVENT_ICONS[ev.kind];
+        const color =
+          ev.kind === "awaria" ? "bg-destructive text-destructive-foreground" :
+          ev.kind === "naprawa" ? "bg-emerald-600 text-white" :
+          ev.kind === "serwis" ? "bg-blue-600 text-white" :
+          ev.kind === "przeglad" ? "bg-amber-600 text-white" :
+          "bg-muted text-foreground";
+        return (
+          <li key={ev.id} className="ml-4">
+            <span className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ${color}`}>
+              <Icon className="w-3 h-3" />
+            </span>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">
+                  {EVENT_LABELS[ev.kind]}{ev.title ? ` — ${ev.title}` : ""}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(ev.performed_at).toLocaleString("pl-PL")}
+                </div>
+                {ev.description && (
+                  <div className="text-sm whitespace-pre-wrap mt-1">{ev.description}</div>
+                )}
+                {(eventAtts[ev.id]?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {eventAtts[ev.id]!.map((a) => {
+                      const isImg = (a.mime_type ?? "").startsWith("image/");
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => openFile(a)}
+                          className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-muted"
+                          title={a.original_name}
+                        >
+                          {isImg ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                          <span className="max-w-[160px] truncate">{a.original_name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {(isManager || ev.created_by === userId) && (
+                <Button variant="ghost" size="sm" onClick={() => handleDelete(ev)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+
   return (
-    <div className="border-t pt-3 space-y-2">
+    <div className="border-t pt-3 space-y-3">
       <div className="flex items-center justify-between">
         <div className="font-medium text-sm flex items-center gap-2">
-          <History className="w-4 h-4" /> Historia serwisowa ({events.length})
+          <History className="w-4 h-4" /> Historia serwisowa ({filteredEvents.length})
         </div>
         <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
           <Plus className="w-3.5 h-3.5" /> Dodaj wpis
         </Button>
       </div>
-      {loading ? (
-        <div className="text-sm text-muted-foreground">Ładowanie…</div>
-      ) : events.length === 0 ? (
-        <div className="text-sm text-muted-foreground border rounded p-4 text-center">
-          Brak wpisów. Dodaj wymianę oleju, przegląd lub naprawę.
-        </div>
-      ) : (
-        <ol className="relative border-l ml-2 space-y-3">
-          {events.map((ev) => {
-            const Icon = EVENT_ICONS[ev.kind];
-            const color =
-              ev.kind === "awaria" ? "bg-destructive text-destructive-foreground" :
-              ev.kind === "naprawa" ? "bg-emerald-600 text-white" :
-              ev.kind === "serwis" ? "bg-blue-600 text-white" :
-              ev.kind === "przeglad" ? "bg-amber-600 text-white" :
-              "bg-muted text-foreground";
+
+      <div className="flex flex-wrap items-center gap-3">
+        <ToggleGroup
+          type="multiple"
+          value={selectedKinds}
+          onValueChange={(v) => setSelectedKinds(v as EventKind[])}
+          className="flex flex-wrap gap-1"
+        >
+          {ALL_KINDS.map((k) => {
+            const Icon = EVENT_ICONS[k];
             return (
-              <li key={ev.id} className="ml-4">
-                <span className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ${color}`}>
-                  <Icon className="w-3 h-3" />
-                </span>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium">
-                      {EVENT_LABELS[ev.kind]}{ev.title ? ` — ${ev.title}` : ""}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(ev.performed_at).toLocaleString("pl-PL")}
-                    </div>
-                    {ev.description && (
-                      <div className="text-sm whitespace-pre-wrap mt-1">{ev.description}</div>
-                    )}
-                    {(eventAtts[ev.id]?.length ?? 0) > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {eventAtts[ev.id]!.map((a) => {
-                          const isImg = (a.mime_type ?? "").startsWith("image/");
-                          return (
-                            <button
-                              key={a.id}
-                              type="button"
-                              onClick={() => openFile(a)}
-                              className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-muted"
-                              title={a.original_name}
-                            >
-                              {isImg ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                              <span className="max-w-[160px] truncate">{a.original_name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  {(isManager || ev.created_by === userId) && (
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(ev)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </li>
+              <ToggleGroupItem key={k} value={k} aria-label={EVENT_LABELS[k]} className="text-xs h-8 px-2 gap-1">
+                <Icon className="w-3.5 h-3.5" /> {EVENT_LABELS[k]}
+              </ToggleGroupItem>
             );
           })}
-        </ol>
+        </ToggleGroup>
+        <label className="inline-flex items-center gap-2 text-xs cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={groupByStatus}
+            onChange={(e) => setGroupByStatus(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          <span className="flex items-center gap-1"><ListFilter className="w-3.5 h-3.5" /> Grupuj: uszkodzone / naprawione</span>
+        </label>
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Ładowanie…</div>
+      ) : filteredEvents.length === 0 ? (
+        <div className="text-sm text-muted-foreground border rounded p-4 text-center">
+          Brak wpisów pasujących do filtrów.
+        </div>
+      ) : groupByStatus ? (
+        <div className="space-y-4">
+          {damaged.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold text-destructive flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4" /> Uszkodzone ({damaged.length})
+              </div>
+              {renderList(damaged)}
+            </div>
+          )}
+          {repaired.length > 0 && (
+            <div>
+              <div className="text-sm font-semibold text-emerald-600 flex items-center gap-2 mb-2">
+                <CheckCircle2 className="w-4 h-4" /> Naprawione / serwis ({repaired.length})
+              </div>
+              {renderList(repaired)}
+            </div>
+          )}
+        </div>
+      ) : (
+        renderList(filteredEvents)
       )}
 
       {adding && (
