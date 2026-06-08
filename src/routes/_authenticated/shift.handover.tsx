@@ -200,6 +200,9 @@ function HandoverPage() {
   const incomingLocked = !!incomingHandover?.locked_at;
   const outgoingLocked = !!outgoingHandover?.locked_at;
   const activeLocked = !!activeHandover?.locked_at;
+  // Kierownik edytujący cudzy/zamknięty protokół musi podać powód → zapis w historii
+  const managerEditingOutgoing =
+    !!outgoingHandover && isManager && (outgoingLocked || outgoingHandover.from_user_id !== user?.id);
   const mode: "incoming" | "outgoing" | "history" = pendingForMe
     ? "incoming"
     : isMine && !outgoingLocked
@@ -232,12 +235,12 @@ function HandoverPage() {
     mutationFn: async () => {
       if (!sessionId || !user) throw new Error("Brak otwartej zmiany");
       if (!validateFrom()) throw new Error("Formularz zawiera błędy");
-      if (outgoingLocked && isManager && reason.trim().length < 5) {
-        throw new Error("Edycja zamkniętego protokołu wymaga powodu (min. 5 znaków)");
+      if (managerEditingOutgoing && reason.trim().length < 5) {
+        throw new Error("Edycja przez kierownika wymaga powodu (min. 5 znaków)");
       }
 
       // Snapshot przed edycją kierownika
-      if (outgoingLocked && isManager && outgoingHandover) {
+      if (managerEditingOutgoing && outgoingHandover) {
         const { error: snapErr } = await supabase.from("handover_report_snapshots").insert({
           handover_id: outgoingHandover.id,
           snapshot: JSON.parse(JSON.stringify(outgoingHandover)),
@@ -419,10 +422,10 @@ function HandoverPage() {
         </div>
       </div>
 
-      {activeLocked && isManager && (
+      {managerEditingOutgoing && (
         <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
-          <div className="font-medium mb-1">Edycja zamkniętego protokołu przez kierownika</div>
-          <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
+          <div className="font-medium mb-1">Edycja protokołu przez kierownika</div>
+          <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków) — zostanie zapisany w historii</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1" />
         </div>
       )}

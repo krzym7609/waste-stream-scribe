@@ -1,100 +1,49 @@
-## 1. Terminologia — „dyżur" → „zmiana"
+# Plan zmian
 
-Globalna zamiana etykiet UI (kod/tabele zostają — `duty_sessions`):
-- „Przyjmij/Przejmij/Zakończ dyżur" → „Rozpocznij/Przejmij/Zakończ zmianę"
-- „Brak otwartego dyżuru" → „Brak otwartej zmiany" itd.
-- Pliki: `duty-bar.tsx`, `shift.checklist.tsx`, `shift.report.tsx`, `shift.handover.tsx`, `manager.reports.tsx`.
+## 1. Harmonogram czynności eksploatacyjnych
 
-## 2. Jeden przycisk zamykający zmianę
+### 1a. Dane zadań (seed)
+- Wyczyścić `schedule_tasks` i wstawić 35 zadań z listy użytkownika w dokładnej kolejności i z dokładnymi nazwami.
+- Dodać kolumnę `requires_service_report boolean default false` (oznacza „niebieska czcionka" — wymaga raportu serwisowego).
+- Dodać kolumnę `frequency_note text` (np. `*) — raz na 3 m-ce`, `**) — raz na 6 m-cy`, `***) — raz na miesiąc, tylko w sezonie`) wyciągniętą z `[...]` w nazwie. Sama nazwa zostaje z `[...*)]` tak jak chce użytkownik (tak jest w oryginale).
+- Renderować zadania „serwisowe" niebieską czcionką w tabeli oraz dodać pod tabelą legendę:
+  > UWAGA! Czynności wypisane niebieską czcionką wymagają wypełnienia wewnętrznych raportów serwisowych.
+  > [*)] — raz na trzy miesiące, [**)] — raz na sześć miesięcy, [***)] — raz na miesiąc, ale tylko w sezonie.
 
-Usuwam „Rozlicz zmianę" z checklisty. Zostaje **jeden** przycisk w pasku górnym: **„Zakończ zmianę"**. Dialog krok po kroku:
+### 1b. Wybór roku i miesiąca
+- Aktualny `schedule_template_entries` (szablon „dzień miesiąca → zmiany") zostawiamy jako bazę domyślną.
+- Dodać tabelę `schedule_month_overrides(task_id, year, month, day_of_month, shifts text[])` — przypisanie zmian dla konkretnego miesiąca/roku.
+- W UI `/schedule`: dodać selektor **rok + miesiąc** (domyślnie bieżące). Komórki tabeli czytane są z `month_overrides` jeżeli istnieją, w przeciwnym razie z szablonu (z indykatorem „z szablonu" — wyszarzone). Edycja zapisuje override dla wybranego miesiąca.
+- Liczba dni dynamicznie z wybranego miesiąca (28–31).
 
-1. Sprawdź czy raport zmianowy jest **wypełniony i prawidłowy** (walidacja jak niżej). Jeśli nie → CTA „Otwórz raport".
-2. Sprawdź czy przekazanie zmiany jest **wypełnione** (wszystkie 10 obiektów z uwagami przekazującego). Jeśli nie → CTA „Otwórz przekazanie".
-3. Pokaż listę niewykonanych zadań z checklisty + checkbox „przenoszę na kolejną zmianę". Wymagana notatka jeśli pomijasz.
-4. Dopiero potem `ended_at = now()` na `duty_sessions`.
+### 1c. Edycja zadań (kierownik)
+- Strona `/schedule/tasks` już istnieje — rozszerzyć: edycja nazwy, dodawanie nowych, usuwanie (soft `active=false`), checkbox „wymaga raportu serwisowego", pole `frequency_note`.
 
-Tj. nie da się zamknąć zmiany bez kompletu dokumentów.
+## 2. Edycja raportów przez kierownika + historia zmian
 
-## 3. Walidacja raportu zmianowego (`shift_reports`)
+### 2a. Tabela historii
+- `report_edit_history(id, report_kind enum('shift','handover'), report_id uuid, edited_by uuid, edited_at, reason text not null, diff jsonb)`.
 
-Schema Zod, blokuje zapis + wyświetla błędy inline:
-- Wszystkie 8 pól liczbowych **wymagane** (`> 0` dla energii i chemii, `0–100` dla S.M.).
-- `energia_end ≥ energia_start` i `energia_end − energia_start ≤ 100000` (sanity).
-- Każdy z 10 obiektów ma `ocena_status`. Jeśli `problem` → `ocena_opis` wymagany (min. 10 znaków).
-- Każdy obiekt ma `harmonogram_status`. Jeśli `nie_wykonano` → `harmonogram_opis` + `proponowany_termin` (data ≥ dziś).
-- Podpis = imię+nazwisko z profilu (automat).
+### 2b. UI dla kierownika
+- W `/manager/reports`: na każdym raporcie przycisk **Edytuj**. Otwiera formularz w trybie edycji (identyczny z formularzem operatora). Po `Zapisz` wymaga modala **„Powód zmiany"** (textarea, min 5 znaków) — dopiero potem zapisuje + tworzy wpis w `report_edit_history` z diffem (stare vs nowe pola/itemy).
+- Pod każdym raportem sekcja **„Historia zmian"** z listą edycji: kto, kiedy, powód, lista zmienionych pól.
 
-Analogicznie przekazanie: wszystkie 10 obiektów musi mieć `uwagi_przekazujacego` (min. 3 znaki, „brak uwag" akceptowane).
+### 2c. Naprawa istniejącej historii
+- Sprawdzić obecny mechanizm w `shift.report.tsx` / `shift.handover.tsx` — kierownik edytujący nie uruchamia wpisu historii. Podpiąć ten sam mechanizm (modal powodu + insert do `report_edit_history`) wszędzie, gdzie kierownik zapisuje cudzy raport.
 
-## 4. Edycja kierownika + snapshoty (wersjonowanie)
+## 3. Naprawa widoku „Przekazania zmiany" u kierownika
+- W `/manager/reports` zakładka Przekazania zmiany: obecnie błędnie pokazuje pary przekazujący/przejmujący. Zmienić zapytanie żeby ciągnęło `from_user_id` (przekazujący = autor `uwagi_przekazujacego`) i `to_user_id` (przejmujący = autor `uwagi_przejmujacego` / ten kto zaakceptował). Wyświetlać oba imiona + nazwiska z `profiles`.
 
-Po `ended_at` na sesji raport jest „zamknięty" dla operatora. Kierownik widzi przycisk **„Edytuj"** w `/manager/reports`.
+## Pliki do edycji / utworzenia
+- Migracje:
+  - `schedule_tasks` + kolumny `requires_service_report`, `frequency_note`
+  - tabela `schedule_month_overrides` + GRANT + RLS + polityki
+  - tabela `report_edit_history` + GRANT + RLS + polityki
+  - czyszczenie i seed 35 zadań
+- `src/routes/_authenticated/schedule.tsx` — selektor rok/miesiąc, czytanie overrides, kolorowanie, legenda
+- `src/routes/_authenticated/schedule.tasks.tsx` — pełna edycja
+- `src/routes/_authenticated/manager.reports.tsx` — edycja + historia + fix par przekazań
+- `src/lib/report-history.ts` — helper diff + insert
 
-Nowa migracja — dwie tabele snapshotów:
-
-```
-shift_report_snapshots(id, report_id, snapshot jsonb, items_snapshot jsonb,
-                       edited_by uuid, edited_at timestamptz, reason text)
-handover_report_snapshots(id, handover_id, snapshot jsonb, items_snapshot jsonb,
-                          edited_by uuid, edited_at timestamptz, reason text)
-```
-
-Przed każdą edycją kierownika → trigger BEFORE UPDATE robi snapshot poprzedniej wersji. Operator nie może już edytować po zakończeniu zmiany. Kierownik wpisuje powód edycji.
-
-W UI: zakładka „Historia zmian" z listą wersji + diff (proste: stara wartość → nowa wartość per pole).
-
-## 5. Tabelkowe UI raportu (jak na papierze)
-
-Refaktor `shift.report.tsx` na układ tabelowy zgodny ze zdjęciami:
-
-**Sekcja 1 — Dane wejściowe** (tabela 2 kolumny: parametr | wartość, z jednostkami w nagłówku).
-
-**Sekcja 2 — Ocena obiektów** (tabela 5 kolumn):
-| Lp | Nazwa obiektu | Ocena prawidłowości pracy | Wykonanie harmonogramu | Inne czynności |
-
-Każdy wiersz rozwija się przy „problem"/„nie_wykonano" na pole tekstowe.
-
-**Sekcja 3 — Podpis** (operator, data, godzina automatycznie).
-
-Analogicznie `shift.handover.tsx` — tabela 4 kolumn:
-| Lp | Obiekt | Uwagi przekazującego | Uwagi przyjmującego |
-
-Używam `<table>` + Tailwind (borders, padding) — wygląda jak druk.
-
-## 6. PDF 1:1 z papierowym
-
-Biblioteka: **`jspdf` + `jspdf-autotable`** (działa w przeglądarce, mały bundle, dobrze radzi sobie z tabelami).
-
-Nowy plik `src/lib/pdf/shift-report-pdf.ts` (i analogicznie handover). Layout odzwierciedla skany:
-- Nagłówek: „RAPORT ZMIANOWY OCZYSZCZALNI ŚCIEKÓW", data, zmiana, operator.
-- Tabela danych wejściowych.
-- Tabela oceny obiektów z dynamiczną wysokością wierszy.
-- Stopka: podpis operatora.
-- Font: standardowy Helvetica (jspdf domyślny) — polskie znaki: dodaję font Roboto via base64 (skill PDF), żeby ł/ą/ę działały.
-
-Przycisk **„Pobierz PDF"** na stronie raportu (operator po wypełnieniu) i w panelu kierownika przy każdym raporcie.
-
-W panelu kierownika dodatkowo: **„Pobierz wszystkie PDF z dnia"** (zip — `jszip`) opcjonalnie.
-
-## 7. Etapowanie (jeden commit, dużo zmian)
-
-```text
-1. Migracja: shift_report_snapshots + handover_report_snapshots + triggery BEFORE UPDATE
-2. src/lib/validation/shift-report.ts — Zod schemas
-3. src/lib/pdf/ — generator PDF dla obu raportów
-4. shift.report.tsx — refaktor na tabelki + walidacja + przycisk PDF
-5. shift.handover.tsx — refaktor na tabelki + walidacja + PDF
-6. duty-bar.tsx — rename + dialog 3-stopniowy zamykania
-7. shift.checklist.tsx — usuń przycisk „Rozlicz zmianę", przeniesienie niewykonanych do dialogu zakończenia
-8. manager.reports.tsx — przycisk Edytuj + Historia wersji + Pobierz PDF
-9. bun add jspdf jspdf-autotable
-```
-
-## Pytania otwarte (mogę założyć domyślnie)
-
-- **Powód edycji kierownika** — obowiązkowy czy opcjonalny? *(zakładam obowiązkowy, min. 5 znaków)*
-- **Operator po zakończeniu zmiany** — czy widzi swój raport (tylko podgląd + PDF) czy w ogóle nie ma dostępu? *(zakładam: podgląd + PDF, bez edycji)*
-- **Niewykonane zadania w dialogu zakończenia** — przenosimy automatycznie na **następną najbliższą zmianę** czy operator wybiera datę? *(zakładam: automatycznie na następną, plus powiadomienie kierownika — już zaimplementowane)*
-
-Jeśli powyższe założenia OK — wbijam. Jeśli coś zmienić, daj znać które.
+## Pytania
+Czy potwierdzasz zakres? Czy override miesięczny ma być **kopią szablonu przy pierwszej edycji** (kopiuje cały miesiąc, potem edytujesz), czy **per komórka** (zostawia resztę „z szablonu")? Proponuję **per komórka** — mniej śmieci w bazie.

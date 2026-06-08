@@ -164,7 +164,10 @@ function ShiftReportPage() {
 
   const locked = !!existing?.report?.locked_at;
   const canEdit = !locked || isManager;
-  const needsReason = locked && isManager;
+  // Snapshot/historia wymagana, gdy kierownik edytuje istniejący raport (cudzy lub zamknięty)
+  const managerEditingExisting =
+    !!existing?.report && isManager && (locked || existing.report.submitted_by !== user?.id);
+  const needsReason = managerEditingExisting;
 
   const validate = (): { ok: boolean; payload?: Record<string, number | boolean | string | null> } => {
     const errs: Record<string, string> = {};
@@ -222,11 +225,11 @@ function ShiftReportPage() {
       const v = validate();
       if (!v.ok || !v.payload) throw new Error("Formularz zawiera błędy");
       if (needsReason && reason.trim().length < 5) {
-        throw new Error("Kierownik edytujący zamknięty raport musi podać powód (min. 5 znaków)");
+        throw new Error("Kierownik edytujący cudzy/zamknięty raport musi podać powód (min. 5 znaków)");
       }
 
-      // Snapshot before manager edit on locked report
-      if (locked && isManager && existing?.report) {
+      // Snapshot przed edycją kierownika (zachowanie historii zmian)
+      if (managerEditingExisting && existing?.report) {
         const { error: snapErr } = await supabase.from("shift_report_snapshots").insert({
           report_id: existing.report.id,
           snapshot: JSON.parse(JSON.stringify(existing.report)),
@@ -412,8 +415,8 @@ function ShiftReportPage() {
 
       {needsReason && (
         <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
-          <div className="font-medium mb-1">Edycja zamkniętego raportu przez kierownika</div>
-          <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
+          <div className="font-medium mb-1">Edycja raportu przez kierownika</div>
+          <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków) — zostanie zapisany w historii</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1" />
         </div>
       )}
