@@ -162,7 +162,7 @@ function EquipmentPage() {
             <div className="text-muted-foreground text-sm">Ładowanie…</div>
           ) : filtered.length === 0 ? (
             <div className="text-muted-foreground text-sm py-8 text-center">
-              Brak urządzeń. {isManager && `Kliknij „Dodaj urządzenie", aby utworzyć pierwsze.`}
+              Brak urządzeń. {isManager && "Kliknij Dodaj urządzenie, aby utworzyć pierwsze."}
             </div>
           ) : (
             <Table>
