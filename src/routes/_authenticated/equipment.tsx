@@ -883,6 +883,7 @@ function EquipmentEventDialog({
   const [kind, setKind] = useState<EventKind>(fixedKind ?? "serwis");
   const [titleVal, setTitleVal] = useState("");
   const [desc, setDesc] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [performedAt, setPerformedAt] = useState(() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -893,15 +894,41 @@ function EquipmentEventDialog({
     e.preventDefault();
     setBusy(true);
     try {
-      const { error } = await supabase.from("equipment_events").insert({
-        equipment_id: equipment.id,
-        kind,
-        title: titleVal.trim() || null,
-        description: desc.trim() || null,
-        performed_at: new Date(performedAt).toISOString(),
-        created_by: userId,
-      });
+      const { data: inserted, error } = await supabase
+        .from("equipment_events")
+        .insert({
+          equipment_id: equipment.id,
+          kind,
+          title: titleVal.trim() || null,
+          description: desc.trim() || null,
+          performed_at: new Date(performedAt).toISOString(),
+          created_by: userId,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (files.length > 0 && inserted) {
+        for (const file of files) {
+          const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+          const path = `${equipment.id}/event/${inserted.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+          const { error: upErr } = await supabase.storage.from("equipment-files").upload(path, file);
+          if (upErr) throw upErr;
+          const isImage = (file.type || "").startsWith("image/");
+          const { error: dbErr } = await supabase.from("equipment_attachments").insert({
+            equipment_id: equipment.id,
+            event_id: inserted.id,
+            kind: isImage ? "photo" : "service",
+            file_path: path,
+            original_name: file.name,
+            mime_type: file.type || null,
+            size_bytes: file.size,
+            uploaded_by: userId,
+          });
+          if (dbErr) throw dbErr;
+        }
+      }
+
       toast.success("Dodano wpis");
       await afterSave(equipment.id);
     } catch (err) {
