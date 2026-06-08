@@ -805,6 +805,16 @@ function EquipmentTimeline({
 
   useEffect(() => { load(); }, [equipmentId]);
 
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => selectedKinds.includes(e.kind));
+  }, [events, selectedKinds]);
+
+  const { damaged, repaired } = useMemo(() => {
+    const d = filteredEvents.filter((e) => e.kind === "awaria");
+    const r = filteredEvents.filter((e) => e.kind !== "awaria");
+    return { damaged: d, repaired: r };
+  }, [filteredEvents]);
+
   async function openFile(att: Attachment) {
     const { data, error } = await supabase.storage
       .from("equipment-files")
