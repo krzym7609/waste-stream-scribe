@@ -171,6 +171,7 @@ export function DutyBar() {
       </div>
 
       <div className="flex-1" />
+      <NotificationsBell />
 
       {data?.session ? (
         <>
