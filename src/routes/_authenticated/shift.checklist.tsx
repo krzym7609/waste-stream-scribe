@@ -140,13 +140,16 @@ function ChecklistPage() {
     },
   });
 
-  // Auto-ensure raz po załadowaniu
-  useMemo(() => {
-    if (scheduled && executions && duty?.session && isMine) {
-      ensure.mutate();
-    }
+  // Auto-ensure raz po załadowaniu (guard przed pętlą)
+  const ensuredKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!scheduled || !executions || !duty?.session || !isMine) return;
+    const key = `${today}|${currentShift}|${duty.session.id}|${scheduled.length}`;
+    if (ensuredKey.current === key) return;
+    ensuredKey.current = key;
+    ensure.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduled?.length, executions?.length, duty?.session?.id, isMine]);
+  }, [scheduled, executions, duty?.session?.id, isMine, today, currentShift]);
 
   const toggle = useMutation({
     mutationFn: async (input: { id: string; done: boolean; note?: string }) => {
