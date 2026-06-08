@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Search, Settings, AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/equipment")({
+export const Route = createFileRoute("/_authenticated/equipment/")({
   head: () => ({ meta: [{ title: "Urządzenia" }] }),
   component: EquipmentPage,
 });
@@ -96,7 +96,7 @@ function EquipmentPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<string>("all");
-  const [selectedEq, setSelectedEq] = useState<Equipment | null>(null);
+  
   const [editEq, setEditEq] = useState<Equipment | null>(null);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [showNewEq, setShowNewEq] = useState(false);
@@ -230,7 +230,9 @@ function EquipmentPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedEq(e)}>Szczegóły</Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
+                      </Button>
                       {isManager && (
                         <>
                           {e.status !== "awaria" ? (
@@ -265,15 +267,6 @@ function EquipmentPage() {
         </CardContent>
       </Card>
 
-      {selectedEq && (
-        <EquipmentDetailsDialog
-          equipment={selectedEq}
-          categoryName={catName(selectedEq.category_id)}
-          userId={user?.id ?? null}
-          isManager={isManager}
-          onClose={() => setSelectedEq(null)}
-        />
-      )}
 
       {(showNewEq || editEq) && (
         <EquipmentFormDialog

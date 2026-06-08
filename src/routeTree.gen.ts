@@ -15,14 +15,15 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
-import { Route as AuthenticatedEquipmentRouteImport } from './routes/_authenticated/equipment'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
+import { Route as AuthenticatedEquipmentIndexRouteImport } from './routes/_authenticated/equipment.index'
 import { Route as AuthenticatedShiftReportRouteImport } from './routes/_authenticated/shift.report'
 import { Route as AuthenticatedShiftHandoverRouteImport } from './routes/_authenticated/shift.handover'
 import { Route as AuthenticatedShiftChecklistRouteImport } from './routes/_authenticated/shift.checklist'
 import { Route as AuthenticatedScheduleTasksRouteImport } from './routes/_authenticated/schedule_.tasks'
 import { Route as AuthenticatedManagerReportsRouteImport } from './routes/_authenticated/manager.reports'
+import { Route as AuthenticatedEquipmentIdRouteImport } from './routes/_authenticated/equipment.$id'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -53,11 +54,6 @@ const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedEquipmentRoute = AuthenticatedEquipmentRouteImport.update({
-  id: '/equipment',
-  path: '/equipment',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -67,6 +63,12 @@ const AuthenticatedChangePasswordRoute =
   AuthenticatedChangePasswordRouteImport.update({
     id: '/change-password',
     path: '/change-password',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedEquipmentIndexRoute =
+  AuthenticatedEquipmentIndexRouteImport.update({
+    id: '/equipment/',
+    path: '/equipment/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedShiftReportRoute =
@@ -99,36 +101,44 @@ const AuthenticatedManagerReportsRoute =
     path: '/manager/reports',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedEquipmentIdRoute =
+  AuthenticatedEquipmentIdRouteImport.update({
+    id: '/equipment/$id',
+    path: '/equipment/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/equipment': typeof AuthenticatedEquipmentRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/equipment/$id': typeof AuthenticatedEquipmentIdRoute
   '/manager/reports': typeof AuthenticatedManagerReportsRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/shift/checklist': typeof AuthenticatedShiftChecklistRoute
   '/shift/handover': typeof AuthenticatedShiftHandoverRoute
   '/shift/report': typeof AuthenticatedShiftReportRoute
+  '/equipment/': typeof AuthenticatedEquipmentIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/equipment': typeof AuthenticatedEquipmentRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/team': typeof AuthenticatedTeamRoute
+  '/equipment/$id': typeof AuthenticatedEquipmentIdRoute
   '/manager/reports': typeof AuthenticatedManagerReportsRoute
   '/schedule/tasks': typeof AuthenticatedScheduleTasksRoute
   '/shift/checklist': typeof AuthenticatedShiftChecklistRoute
   '/shift/handover': typeof AuthenticatedShiftHandoverRoute
   '/shift/report': typeof AuthenticatedShiftReportRoute
+  '/equipment': typeof AuthenticatedEquipmentIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,15 +147,16 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/change-password': typeof AuthenticatedChangePasswordRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/equipment': typeof AuthenticatedEquipmentRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
+  '/_authenticated/equipment/$id': typeof AuthenticatedEquipmentIdRoute
   '/_authenticated/manager/reports': typeof AuthenticatedManagerReportsRoute
   '/_authenticated/schedule_/tasks': typeof AuthenticatedScheduleTasksRoute
   '/_authenticated/shift/checklist': typeof AuthenticatedShiftChecklistRoute
   '/_authenticated/shift/handover': typeof AuthenticatedShiftHandoverRoute
   '/_authenticated/shift/report': typeof AuthenticatedShiftReportRoute
+  '/_authenticated/equipment/': typeof AuthenticatedEquipmentIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -154,30 +165,32 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/dashboard'
-    | '/equipment'
     | '/schedule'
     | '/shifts'
     | '/team'
+    | '/equipment/$id'
     | '/manager/reports'
     | '/schedule/tasks'
     | '/shift/checklist'
     | '/shift/handover'
     | '/shift/report'
+    | '/equipment/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/change-password'
     | '/dashboard'
-    | '/equipment'
     | '/schedule'
     | '/shifts'
     | '/team'
+    | '/equipment/$id'
     | '/manager/reports'
     | '/schedule/tasks'
     | '/shift/checklist'
     | '/shift/handover'
     | '/shift/report'
+    | '/equipment'
   id:
     | '__root__'
     | '/'
@@ -185,15 +198,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/change-password'
     | '/_authenticated/dashboard'
-    | '/_authenticated/equipment'
     | '/_authenticated/schedule'
     | '/_authenticated/shifts'
     | '/_authenticated/team'
+    | '/_authenticated/equipment/$id'
     | '/_authenticated/manager/reports'
     | '/_authenticated/schedule_/tasks'
     | '/_authenticated/shift/checklist'
     | '/_authenticated/shift/handover'
     | '/_authenticated/shift/report'
+    | '/_authenticated/equipment/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -246,13 +260,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedScheduleRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/equipment': {
-      id: '/_authenticated/equipment'
-      path: '/equipment'
-      fullPath: '/equipment'
-      preLoaderRoute: typeof AuthenticatedEquipmentRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -265,6 +272,13 @@ declare module '@tanstack/react-router' {
       path: '/change-password'
       fullPath: '/change-password'
       preLoaderRoute: typeof AuthenticatedChangePasswordRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/equipment/': {
+      id: '/_authenticated/equipment/'
+      path: '/equipment'
+      fullPath: '/equipment/'
+      preLoaderRoute: typeof AuthenticatedEquipmentIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/shift/report': {
@@ -302,35 +316,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerReportsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/equipment/$id': {
+      id: '/_authenticated/equipment/$id'
+      path: '/equipment/$id'
+      fullPath: '/equipment/$id'
+      preLoaderRoute: typeof AuthenticatedEquipmentIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedChangePasswordRoute: typeof AuthenticatedChangePasswordRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedEquipmentRoute: typeof AuthenticatedEquipmentRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
+  AuthenticatedEquipmentIdRoute: typeof AuthenticatedEquipmentIdRoute
   AuthenticatedManagerReportsRoute: typeof AuthenticatedManagerReportsRoute
   AuthenticatedScheduleTasksRoute: typeof AuthenticatedScheduleTasksRoute
   AuthenticatedShiftChecklistRoute: typeof AuthenticatedShiftChecklistRoute
   AuthenticatedShiftHandoverRoute: typeof AuthenticatedShiftHandoverRoute
   AuthenticatedShiftReportRoute: typeof AuthenticatedShiftReportRoute
+  AuthenticatedEquipmentIndexRoute: typeof AuthenticatedEquipmentIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChangePasswordRoute: AuthenticatedChangePasswordRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedEquipmentRoute: AuthenticatedEquipmentRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
+  AuthenticatedEquipmentIdRoute: AuthenticatedEquipmentIdRoute,
   AuthenticatedManagerReportsRoute: AuthenticatedManagerReportsRoute,
   AuthenticatedScheduleTasksRoute: AuthenticatedScheduleTasksRoute,
   AuthenticatedShiftChecklistRoute: AuthenticatedShiftChecklistRoute,
   AuthenticatedShiftHandoverRoute: AuthenticatedShiftHandoverRoute,
   AuthenticatedShiftReportRoute: AuthenticatedShiftReportRoute,
+  AuthenticatedEquipmentIndexRoute: AuthenticatedEquipmentIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -345,13 +368,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
