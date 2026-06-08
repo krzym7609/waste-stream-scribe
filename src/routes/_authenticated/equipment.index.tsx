@@ -267,15 +267,6 @@ function EquipmentPage() {
         </CardContent>
       </Card>
 
-      {selectedEq && (
-        <EquipmentDetailsDialog
-          equipment={selectedEq}
-          categoryName={catName(selectedEq.category_id)}
-          userId={user?.id ?? null}
-          isManager={isManager}
-          onClose={() => setSelectedEq(null)}
-        />
-      )}
 
       {(showNewEq || editEq) && (
         <EquipmentFormDialog
