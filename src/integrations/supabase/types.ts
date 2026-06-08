@@ -180,6 +180,47 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          equipment_id: string
+          id: string
+          kind: Database["public"]["Enums"]["equipment_event_kind"]
+          performed_at: string
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          equipment_id: string
+          id?: string
+          kind: Database["public"]["Enums"]["equipment_event_kind"]
+          performed_at?: string
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          equipment_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["equipment_event_kind"]
+          performed_at?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_events_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       handover_objects: {
         Row: {
           active: boolean
@@ -931,6 +972,12 @@ export type Database = {
         | "photo"
         | "schema"
         | "service"
+      equipment_event_kind:
+        | "awaria"
+        | "naprawa"
+        | "serwis"
+        | "przeglad"
+        | "inne"
       shift_status: "zaplanowana" | "w_trakcie" | "zakonczona"
       shift_type: "rano" | "popoludnie" | "noc"
     }
@@ -1067,6 +1114,7 @@ export const Constants = {
         "schema",
         "service",
       ],
+      equipment_event_kind: ["awaria", "naprawa", "serwis", "przeglad", "inne"],
       shift_status: ["zaplanowana", "w_trakcie", "zakonczona"],
       shift_type: ["rano", "popoludnie", "noc"],
     },

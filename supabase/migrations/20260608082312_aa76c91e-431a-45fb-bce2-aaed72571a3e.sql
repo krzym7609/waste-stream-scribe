@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.notify_equipment_breakdown() FROM PUBLIC, anon, authenticated;
