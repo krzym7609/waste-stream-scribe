@@ -862,6 +862,25 @@ function EquipmentTimeline({
                     {ev.description && (
                       <div className="text-sm whitespace-pre-wrap mt-1">{ev.description}</div>
                     )}
+                    {(eventAtts[ev.id]?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {eventAtts[ev.id]!.map((a) => {
+                          const isImg = (a.mime_type ?? "").startsWith("image/");
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              onClick={() => openFile(a)}
+                              className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-muted"
+                              title={a.original_name}
+                            >
+                              {isImg ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                              <span className="max-w-[160px] truncate">{a.original_name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   {(isManager || ev.created_by === userId) && (
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(ev)}>
