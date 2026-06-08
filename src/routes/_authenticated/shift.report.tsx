@@ -164,7 +164,10 @@ function ShiftReportPage() {
 
   const locked = !!existing?.report?.locked_at;
   const canEdit = !locked || isManager;
-  const needsReason = locked && isManager;
+  // Snapshot/historia wymagana, gdy kierownik edytuje istniejący raport (cudzy lub zamknięty)
+  const managerEditingExisting =
+    !!existing?.report && isManager && (locked || existing.report.submitted_by !== user?.id);
+  const needsReason = managerEditingExisting;
 
   const validate = (): { ok: boolean; payload?: Record<string, number | boolean | string | null> } => {
     const errs: Record<string, string> = {};
