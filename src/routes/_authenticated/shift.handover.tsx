@@ -422,10 +422,10 @@ function HandoverPage() {
         </div>
       </div>
 
-      {activeLocked && isManager && (
+      {managerEditingOutgoing && (
         <div className="border border-amber-500/50 bg-amber-500/10 rounded p-3 text-sm print:hidden">
-          <div className="font-medium mb-1">Edycja zamkniętego protokołu przez kierownika</div>
-          <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków)</Label>
+          <div className="font-medium mb-1">Edycja protokołu przez kierownika</div>
+          <Label className="text-xs">Powód edycji (wymagane, min. 5 znaków) — zostanie zapisany w historii</Label>
           <Input value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1" />
         </div>
       )}
