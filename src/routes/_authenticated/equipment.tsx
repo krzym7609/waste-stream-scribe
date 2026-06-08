@@ -300,6 +300,48 @@ function EquipmentPage() {
           onSaved={load}
         />
       )}
+
+      {breakdownFor && (
+        <EquipmentEventDialog
+          equipment={breakdownFor}
+          userId={user?.id ?? null}
+          fixedKind="awaria"
+          title="Zgłoś awarię"
+          description="Opisz objawy awarii. Powiadomienie zostanie wysłane do kierownika."
+          afterSave={async (eqId) => {
+            const { error } = await supabase
+              .from("equipment")
+              .update({ status: "awaria" })
+              .eq("id", eqId);
+            if (error) toast.error(error.message);
+            else toast.success("Zgłoszono awarię");
+            setBreakdownFor(null);
+            load();
+          }}
+          onClose={() => setBreakdownFor(null)}
+        />
+      )}
+
+      {repairFor && (
+        <EquipmentEventDialog
+          equipment={repairFor}
+          userId={user?.id ?? null}
+          fixedKind="naprawa"
+          title="Oznacz jako sprawne"
+          description="Opisz wykonaną naprawę. Wpis trafi do historii urządzenia."
+          afterSave={async (eqId) => {
+            const { error } = await supabase
+              .from("equipment")
+              .update({ status: "sprawne" })
+              .eq("id", eqId);
+            if (error) toast.error(error.message);
+            else toast.success("Oznaczono jako sprawne");
+            setRepairFor(null);
+            load();
+          }}
+          onClose={() => setRepairFor(null)}
+        />
+      )}
     </div>
   );
 }
