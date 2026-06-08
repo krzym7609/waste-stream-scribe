@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
+import { Route as AuthenticatedEquipmentRouteImport } from './routes/_authenticated/equipment'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedChangePasswordRouteImport } from './routes/_authenticated/change-password'
 import { Route as AuthenticatedShiftReportRouteImport } from './routes/_authenticated/shift.report'
@@ -50,6 +51,11 @@ const AuthenticatedShiftsRoute = AuthenticatedShiftsRouteImport.update({
 const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedEquipmentRoute = AuthenticatedEquipmentRouteImport.update({
+  id: '/equipment',
+  path: '/equipment',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/equipment': typeof AuthenticatedEquipmentRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/team': typeof AuthenticatedTeamRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/change-password': typeof AuthenticatedChangePasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/equipment': typeof AuthenticatedEquipmentRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/team': typeof AuthenticatedTeamRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/change-password': typeof AuthenticatedChangePasswordRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/equipment': typeof AuthenticatedEquipmentRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/dashboard'
+    | '/equipment'
     | '/schedule'
     | '/shifts'
     | '/team'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/dashboard'
+    | '/equipment'
     | '/schedule'
     | '/shifts'
     | '/team'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/change-password'
     | '/_authenticated/dashboard'
+    | '/_authenticated/equipment'
     | '/_authenticated/schedule'
     | '/_authenticated/shifts'
     | '/_authenticated/team'
@@ -234,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedScheduleRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/equipment': {
+      id: '/_authenticated/equipment'
+      path: '/equipment'
+      fullPath: '/equipment'
+      preLoaderRoute: typeof AuthenticatedEquipmentRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -289,6 +308,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteChildren {
   AuthenticatedChangePasswordRoute: typeof AuthenticatedChangePasswordRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedEquipmentRoute: typeof AuthenticatedEquipmentRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
@@ -302,6 +322,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChangePasswordRoute: AuthenticatedChangePasswordRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedEquipmentRoute: AuthenticatedEquipmentRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
