@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Clock, UserCheck, UserX, AlertTriangle, FileText, ArrowRightLeft, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 export function DutyBar() {
   const { user } = useAuth();
