@@ -53,6 +53,130 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          code: string | null
+          created_at: string
+          id: string
+          installed_at: string | null
+          location: string | null
+          manufacturer: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          serial_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          installed_at?: string | null
+          location?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          installed_at?: string | null
+          location?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          serial_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_attachments: {
+        Row: {
+          equipment_id: string
+          file_path: string
+          id: string
+          kind: Database["public"]["Enums"]["equipment_attachment_kind"]
+          mime_type: string | null
+          original_name: string
+          size_bytes: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          equipment_id: string
+          file_path: string
+          id?: string
+          kind: Database["public"]["Enums"]["equipment_attachment_kind"]
+          mime_type?: string | null
+          original_name: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          equipment_id?: string
+          file_path?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["equipment_attachment_kind"]
+          mime_type?: string | null
+          original_name?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_attachments_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       handover_objects: {
         Row: {
           active: boolean
@@ -798,6 +922,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "kierownik" | "operator"
+      equipment_attachment_kind:
+        | "documentation"
+        | "photo"
+        | "schema"
+        | "service"
       shift_status: "zaplanowana" | "w_trakcie" | "zakonczona"
       shift_type: "rano" | "popoludnie" | "noc"
     }
@@ -928,6 +1057,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "kierownik", "operator"],
+      equipment_attachment_kind: [
+        "documentation",
+        "photo",
+        "schema",
+        "service",
+      ],
       shift_status: ["zaplanowana", "w_trakcie", "zakonczona"],
       shift_type: ["rano", "popoludnie", "noc"],
     },
