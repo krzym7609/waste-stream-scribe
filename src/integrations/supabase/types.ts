@@ -67,6 +67,7 @@ export type Database = {
           name: string
           notes: string | null
           serial_number: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -82,6 +83,7 @@ export type Database = {
           name: string
           notes?: string | null
           serial_number?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -97,6 +99,7 @@ export type Database = {
           name?: string
           notes?: string | null
           serial_number?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -918,6 +921,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      notify_overdue_tasks: { Args: never; Returns: undefined }
       username_to_email: { Args: { _username: string }; Returns: string }
     }
     Enums: {
