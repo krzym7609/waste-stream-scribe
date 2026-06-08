@@ -237,37 +237,17 @@ function EquipmentPage() {
                               variant="ghost"
                               size="sm"
                               className="text-destructive"
-                              onClick={async () => {
-                                const { error } = await supabase
-                                  .from("equipment")
-                                  .update({ status: "awaria" })
-                                  .eq("id", e.id);
-                                if (error) toast.error(error.message);
-                                else {
-                                  toast.success("Zgłoszono awarię");
-                                  load();
-                                }
-                              }}
+                              onClick={() => setBreakdownFor(e)}
                             >
-                              Zgłoś awarię
+                              <AlertTriangle className="w-3.5 h-3.5" /> Zgłoś awarię
                             </Button>
                           ) : (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={async () => {
-                                const { error } = await supabase
-                                  .from("equipment")
-                                  .update({ status: "sprawne" })
-                                  .eq("id", e.id);
-                                if (error) toast.error(error.message);
-                                else {
-                                  toast.success("Oznaczono jako sprawne");
-                                  load();
-                                }
-                              }}
+                              onClick={() => setRepairFor(e)}
                             >
-                              Oznacz sprawne
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Oznacz sprawne
                             </Button>
                           )}
                           <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
