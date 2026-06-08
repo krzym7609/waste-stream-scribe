@@ -100,6 +100,8 @@ function EquipmentPage() {
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [showNewEq, setShowNewEq] = useState(false);
   const [showNewCat, setShowNewCat] = useState(false);
+  const [breakdownFor, setBreakdownFor] = useState<Equipment | null>(null);
+  const [repairFor, setRepairFor] = useState<Equipment | null>(null);
 
   async function load() {
     setLoading(true);
