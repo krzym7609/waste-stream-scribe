@@ -1,49 +1,68 @@
-# Plan zmian
+# Plan wdrożenia
 
-## 1. Harmonogram czynności eksploatacyjnych
+Realizujemy w 4 etapach, w kolejności którą wybrałeś. FEKO+ pomijamy do czasu doprecyzowania źródła danych.
 
-### 1a. Dane zadań (seed)
-- Wyczyścić `schedule_tasks` i wstawić 35 zadań z listy użytkownika w dokładnej kolejności i z dokładnymi nazwami.
-- Dodać kolumnę `requires_service_report boolean default false` (oznacza „niebieska czcionka" — wymaga raportu serwisowego).
-- Dodać kolumnę `frequency_note text` (np. `*) — raz na 3 m-ce`, `**) — raz na 6 m-cy`, `***) — raz na miesiąc, tylko w sezonie`) wyciągniętą z `[...]` w nazwie. Sama nazwa zostaje z `[...*)]` tak jak chce użytkownik (tak jest w oryginale).
-- Renderować zadania „serwisowe" niebieską czcionką w tabeli oraz dodać pod tabelą legendę:
-  > UWAGA! Czynności wypisane niebieską czcionką wymagają wypełnienia wewnętrznych raportów serwisowych.
-  > [*)] — raz na trzy miesiące, [**)] — raz na sześć miesięcy, [***)] — raz na miesiąc, ale tylko w sezonie.
+## Etap 1 — Baza urządzeń + załączniki
 
-### 1b. Wybór roku i miesiąca
-- Aktualny `schedule_template_entries` (szablon „dzień miesiąca → zmiany") zostawiamy jako bazę domyślną.
-- Dodać tabelę `schedule_month_overrides(task_id, year, month, day_of_month, shifts text[])` — przypisanie zmian dla konkretnego miesiąca/roku.
-- W UI `/schedule`: dodać selektor **rok + miesiąc** (domyślnie bieżące). Komórki tabeli czytane są z `month_overrides` jeżeli istnieją, w przeciwnym razie z szablonu (z indykatorem „z szablonu" — wyszarzone). Edycja zapisuje override dla wybranego miesiąca.
-- Liczba dni dynamicznie z wybranego miesiąca (28–31).
+### Schemat bazy
+- `equipment_categories(id, name, sort_order)` — np. „Pompy", „Dmuchawy", „Krata", „Piaskownik", „Aparatura elektryczna" itd.
+- `equipment(id, category_id, name, code, location, manufacturer, model, serial_number, installed_at, notes, active)`
+- `equipment_attachments(id, equipment_id, kind enum('documentation','photo','schema','service'), file_path, original_name, mime_type, size_bytes, uploaded_by, uploaded_at)`
+- Storage bucket prywatny `equipment-files`, polityki RLS: odczyt dla zalogowanych, zapis tylko dla kierownika.
 
-### 1c. Edycja zadań (kierownik)
-- Strona `/schedule/tasks` już istnieje — rozszerzyć: edycja nazwy, dodawanie nowych, usuwanie (soft `active=false`), checkbox „wymaga raportu serwisowego", pole `frequency_note`.
+### UI
+- `/equipment` — lista urządzeń (filtr po kategorii, wyszukiwarka po nazwie/kodzie/lokalizacji). Karta urządzenia z 4 zakładkami załączników (Dokumentacja PDF, Zdjęcia, Schematy, Inne pliki serwisowe).
+- `/equipment/$id` — szczegóły + upload/usuwanie załączników (kierownik), przegląd (operator).
+- `/equipment/manage` — CRUD urządzeń i kategorii (tylko kierownik).
+- W sidebarze nowa pozycja „Urządzenia" dla wszystkich, „Zarządzaj urządzeniami" dla kierownika.
 
-## 2. Edycja raportów przez kierownika + historia zmian
+## Etap 2 — Powiadomienia w aplikacji dla administratora
 
-### 2a. Tabela historii
-- `report_edit_history(id, report_kind enum('shift','handover'), report_id uuid, edited_by uuid, edited_at, reason text not null, diff jsonb)`.
+### Schemat
+- `admin_notifications(id, kind enum('shift_report_submitted','handover_submitted','handover_accepted','report_edited','equipment_added','service_report_submitted'), title, body, ref_table, ref_id, created_for_user_id, read_at, created_at)`
+- Trigger po insert w `shift_reports`, `handover_reports`, `report_edit_history` → wstawia powiadomienie dla każdego użytkownika z rolą `manager`.
 
-### 2b. UI dla kierownika
-- W `/manager/reports`: na każdym raporcie przycisk **Edytuj**. Otwiera formularz w trybie edycji (identyczny z formularzem operatora). Po `Zapisz` wymaga modala **„Powód zmiany"** (textarea, min 5 znaków) — dopiero potem zapisuje + tworzy wpis w `report_edit_history` z diffem (stare vs nowe pola/itemy).
-- Pod każdym raportem sekcja **„Historia zmian"** z listą edycji: kto, kiedy, powód, lista zmienionych pól.
+### UI
+- Dzwoneczek w topbarze (`DutyBar`) z badge ilości nieprzeczytanych — tylko dla kierownika.
+- Popover z listą ostatnich 20 powiadomień, klik → przejście do raportu, oznaczenie jako przeczytane.
+- `/notifications` — pełna lista z filtrowaniem, „oznacz wszystkie jako przeczytane".
+- Realtime subskrypcja na `admin_notifications` przez `supabase_realtime` (toast „Nowy raport od X").
 
-### 2c. Naprawa istniejącej historii
-- Sprawdzić obecny mechanizm w `shift.report.tsx` / `shift.handover.tsx` — kierownik edytujący nie uruchamia wpisu historii. Podpiąć ten sam mechanizm (modal powodu + insert do `report_edit_history`) wszędzie, gdzie kierownik zapisuje cudzy raport.
+## Etap 3 — Szkielet „Raport utrzymania ruchu elektrycznego"
 
-## 3. Naprawa widoku „Przekazania zmiany" u kierownika
-- W `/manager/reports` zakładka Przekazania zmiany: obecnie błędnie pokazuje pary przekazujący/przejmujący. Zmienić zapytanie żeby ciągnęło `from_user_id` (przekazujący = autor `uwagi_przekazujacego`) i `to_user_id` (przejmujący = autor `uwagi_przejmujacego` / ten kto zaakceptował). Wyświetlać oba imiona + nazwiska z `profiles`.
+### Schemat
+- `electrical_maintenance_reports(id, author_id, report_date, shift, status enum('draft','submitted'), notes, created_at, updated_at)`
+- `electrical_maintenance_items(id, report_id, label, value text, ok boolean, notes)` — generyczne pole klucz/wartość, wypełnimy listę pozycji gdy dostarczysz wzór.
 
-## Pliki do edycji / utworzenia
-- Migracje:
-  - `schedule_tasks` + kolumny `requires_service_report`, `frequency_note`
-  - tabela `schedule_month_overrides` + GRANT + RLS + polityki
-  - tabela `report_edit_history` + GRANT + RLS + polityki
-  - czyszczenie i seed 35 zadań
-- `src/routes/_authenticated/schedule.tsx` — selektor rok/miesiąc, czytanie overrides, kolorowanie, legenda
-- `src/routes/_authenticated/schedule.tasks.tsx` — pełna edycja
-- `src/routes/_authenticated/manager.reports.tsx` — edycja + historia + fix par przekazań
-- `src/lib/report-history.ts` — helper diff + insert
+### UI
+- `/reports/electrical/new` — pusty formularz: data, zmiana, lista pozycji (na razie 5 placeholderów), notatki, „Zapisz/Wyślij".
+- `/reports/electrical` — lista raportów (operator widzi swoje, kierownik wszystkie).
+- Wpięte w „Raporty" w sidebarze kierownika jako nowa zakładka.
+- Komentarz w kodzie: `// TODO: podmienić listę pozycji wg wzoru kierownika`.
 
-## Pytania
-Czy potwierdzasz zakres? Czy override miesięczny ma być **kopią szablonu przy pierwszej edycji** (kopiuje cały miesiąc, potem edytujesz), czy **per komórka** (zostawia resztę „z szablonu")? Proponuję **per komórka** — mniej śmieci w bazie.
+## Etap 4 — Szkielet raportu serwisowego per urządzenie
+
+### Schemat
+- `service_reports(id, equipment_id, author_id, performed_at, kind text (np. 'wymiana oleju', 'przegląd', 'naprawa'), description, parts_used text, hours_worked numeric, status enum('draft','submitted'), created_at, updated_at)`
+- `service_report_attachments(id, report_id, file_path, original_name, mime_type, size_bytes)` — protokoły, faktury.
+- Sekcja „Historia serwisu" na karcie urządzenia (`/equipment/$id`) — lista wszystkich `service_reports`.
+
+### UI
+- Z karty urządzenia przycisk „Nowy raport serwisowy" → `/equipment/$id/service/new`.
+- `/reports/service` — pełna lista (kierownik), filtr po urządzeniu.
+- Pusty szablon pól (typowe pola: rodzaj czynności, opis, użyte części, czas, załączniki). Konkretne listy zadań serwisowych dodamy gdy dostarczysz wzór.
+
+## FEKO+ — odłożone
+Wracamy gdy określisz źródło (API/eksport/SQL). Plan zostawiam pusty.
+
+## Etapy migracji bazy (kolejność)
+1. `equipment_categories`, `equipment`, `equipment_attachments` + bucket + RLS + GRANT.
+2. `admin_notifications` + triggery + realtime publication.
+3. `electrical_maintenance_reports` + items + RLS + GRANT.
+4. `service_reports` + attachments + RLS + GRANT.
+
+## Pytania kontrolne
+1. Czy operator może **tylko czytać** bazę urządzeń, czy także dodawać zdjęcia z telefonu (np. zdjęcie awarii)?
+2. Powiadomienia: tylko in-app czy także e-mail do kierownika? (e-mail wymaga konfiguracji Resend)
+3. Czy raport utrzymania ruchu elektrycznego jest **dzienny / na zmianę / tygodniowy**?
+4. Czy chcesz żebym zaczął od **całego Etapu 1** w jednym kroku (baza + UI + upload), czy najpierw sam schemat i UI listy, a upload w kolejnej iteracji?
