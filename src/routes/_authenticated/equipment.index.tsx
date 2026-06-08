@@ -230,7 +230,9 @@ function EquipmentPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedEq(e)}>Szczegóły</Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
+                      </Button>
                       {isManager && (
                         <>
                           {e.status !== "awaria" ? (
