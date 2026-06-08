@@ -356,6 +356,47 @@ export type Database = {
           },
         ]
       }
+      schedule_month_overrides: {
+        Row: {
+          created_at: string
+          day_of_month: number
+          id: string
+          month: number
+          shifts: Database["public"]["Enums"]["shift_type"][]
+          task_id: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          day_of_month: number
+          id?: string
+          month: number
+          shifts?: Database["public"]["Enums"]["shift_type"][]
+          task_id: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          day_of_month?: number
+          id?: string
+          month?: number
+          shifts?: Database["public"]["Enums"]["shift_type"][]
+          task_id?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_month_overrides_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schedule_overrides: {
         Row: {
           created_at: string
@@ -401,24 +442,30 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          frequency_note: string | null
           id: string
           name: string
+          requires_service_report: boolean
           task_number: number
           updated_at: string
         }
         Insert: {
           active?: boolean
           created_at?: string
+          frequency_note?: string | null
           id?: string
           name: string
+          requires_service_report?: boolean
           task_number: number
           updated_at?: string
         }
         Update: {
           active?: boolean
           created_at?: string
+          frequency_note?: string | null
           id?: string
           name?: string
+          requires_service_report?: boolean
           task_number?: number
           updated_at?: string
         }
