@@ -235,12 +235,12 @@ function HandoverPage() {
     mutationFn: async () => {
       if (!sessionId || !user) throw new Error("Brak otwartej zmiany");
       if (!validateFrom()) throw new Error("Formularz zawiera błędy");
-      if (outgoingLocked && isManager && reason.trim().length < 5) {
-        throw new Error("Edycja zamkniętego protokołu wymaga powodu (min. 5 znaków)");
+      if (managerEditingOutgoing && reason.trim().length < 5) {
+        throw new Error("Edycja przez kierownika wymaga powodu (min. 5 znaków)");
       }
 
       // Snapshot przed edycją kierownika
-      if (outgoingLocked && isManager && outgoingHandover) {
+      if (managerEditingOutgoing && outgoingHandover) {
         const { error: snapErr } = await supabase.from("handover_report_snapshots").insert({
           handover_id: outgoingHandover.id,
           snapshot: JSON.parse(JSON.stringify(outgoingHandover)),
