@@ -37,18 +37,28 @@ function ChecklistPage() {
 
   const isMine = duty?.session && duty.session.user_id === user?.id;
 
-  // 1. Pobierz zadania zaplanowane na dziś + bieżącą zmianę (z szablonu + nadpisania)
+  // 1. Pobierz zadania zaplanowane na dziś + bieżącą zmianę
+  // Precedencja: schedule_overrides (per-data) > schedule_month_overrides (per-miesiąc) > schedule_template_entries (szablon)
   const { data: scheduled } = useQuery({
     queryKey: ["scheduled", today, currentShift],
     queryFn: async () => {
       const dayOfMonth = now.getDate();
-      const [{ data: tasks }, { data: templates }, { data: overrides }] = await Promise.all([
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const [{ data: tasks }, { data: templates }, { data: monthOvr }, { data: overrides }] = await Promise.all([
         supabase.from("schedule_tasks").select("id, task_number, name").eq("active", true).order("task_number"),
         supabase.from("schedule_template_entries").select("task_id, shifts, note").eq("day_of_month", dayOfMonth),
+        supabase
+          .from("schedule_month_overrides")
+          .select("task_id, shifts")
+          .eq("year", year)
+          .eq("month", month)
+          .eq("day_of_month", dayOfMonth),
         supabase.from("schedule_overrides").select("task_id, shifts, skip, note").eq("override_date", today),
       ]);
       const tasksList = tasks ?? [];
       const tplMap = new Map((templates ?? []).map((t) => [t.task_id, t]));
+      const monthMap = new Map((monthOvr ?? []).map((m) => [m.task_id, m]));
       const ovrMap = new Map((overrides ?? []).map((o) => [o.task_id, o]));
       const result: { task_id: string; task_number: number; name: string; note: string | null }[] = [];
       for (const t of tasksList) {
@@ -59,6 +69,8 @@ function ChecklistPage() {
           if (ovr.skip) continue;
           shifts = ovr.shifts;
           note = ovr.note;
+        } else if (monthMap.has(t.id)) {
+          shifts = monthMap.get(t.id)!.shifts;
         } else if (tplMap.has(t.id)) {
           shifts = tplMap.get(t.id)!.shifts;
           note = tplMap.get(t.id)!.note;
