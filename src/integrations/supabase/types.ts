@@ -115,6 +115,7 @@ export type Database = {
       equipment_attachments: {
         Row: {
           equipment_id: string
+          event_id: string | null
           file_path: string
           id: string
           kind: Database["public"]["Enums"]["equipment_attachment_kind"]
@@ -126,6 +127,7 @@ export type Database = {
         }
         Insert: {
           equipment_id: string
+          event_id?: string | null
           file_path: string
           id?: string
           kind: Database["public"]["Enums"]["equipment_attachment_kind"]
@@ -137,6 +139,7 @@ export type Database = {
         }
         Update: {
           equipment_id?: string
+          event_id?: string | null
           file_path?: string
           id?: string
           kind?: Database["public"]["Enums"]["equipment_attachment_kind"]
@@ -152,6 +155,13 @@ export type Database = {
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_attachments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_events"
             referencedColumns: ["id"]
           },
         ]
