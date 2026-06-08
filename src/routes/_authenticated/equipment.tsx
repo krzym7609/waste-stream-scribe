@@ -189,14 +189,62 @@ function EquipmentPage() {
                       {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
                     </TableCell>
                     <TableCell>
-                      {e.active ? <Badge variant="secondary">Aktywne</Badge> : <Badge variant="outline">Wyłączone</Badge>}
+                      {e.status === "awaria" ? (
+                        <Badge variant="destructive">Awaria</Badge>
+                      ) : e.status === "serwis" ? (
+                        <Badge className="bg-amber-600">Serwis</Badge>
+                      ) : e.active ? (
+                        <Badge variant="secondary">Sprawne</Badge>
+                      ) : (
+                        <Badge variant="outline">Wyłączone</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => setSelectedEq(e)}>Szczegóły</Button>
                       {isManager && (
-                        <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
+                        <>
+                          {e.status !== "awaria" ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={async () => {
+                                const { error } = await supabase
+                                  .from("equipment")
+                                  .update({ status: "awaria" })
+                                  .eq("id", e.id);
+                                if (error) toast.error(error.message);
+                                else {
+                                  toast.success("Zgłoszono awarię");
+                                  load();
+                                }
+                              }}
+                            >
+                              Zgłoś awarię
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                const { error } = await supabase
+                                  .from("equipment")
+                                  .update({ status: "sprawne" })
+                                  .eq("id", e.id);
+                                if (error) toast.error(error.message);
+                                else {
+                                  toast.success("Oznaczono jako sprawne");
+                                  load();
+                                }
+                              }}
+                            >
+                              Oznacz sprawne
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
                       )}
                     </TableCell>
                   </TableRow>
