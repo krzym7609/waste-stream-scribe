@@ -200,6 +200,9 @@ function HandoverPage() {
   const incomingLocked = !!incomingHandover?.locked_at;
   const outgoingLocked = !!outgoingHandover?.locked_at;
   const activeLocked = !!activeHandover?.locked_at;
+  // Kierownik edytujący cudzy/zamknięty protokół musi podać powód → zapis w historii
+  const managerEditingOutgoing =
+    !!outgoingHandover && isManager && (outgoingLocked || outgoingHandover.from_user_id !== user?.id);
   const mode: "incoming" | "outgoing" | "history" = pendingForMe
     ? "incoming"
     : isMine && !outgoingLocked
