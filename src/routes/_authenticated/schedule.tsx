@@ -198,14 +198,15 @@ function SchedulePage() {
               <tbody>
                 {tasks?.map((t) => (
                   <tr key={t.id} className="hover:bg-muted/30">
-                    <td className="sticky left-0 z-10 bg-card border-r border-b p-2 font-mono text-center">
+                    <td className="sticky left-0 z-20 bg-card border-r border-b p-2 font-mono text-center">
                       {t.task_number}
                     </td>
                     <td
                       className={cn(
-                        "sticky left-12 z-10 bg-card border-r border-b p-2",
+                        "sticky z-20 bg-card border-r border-b p-2",
                         t.requires_service_report && "text-blue-600 dark:text-blue-400 font-medium",
                       )}
+                      style={{ left: 48 }}
                       title={t.frequency_note ?? undefined}
                     >
                       {t.name}
