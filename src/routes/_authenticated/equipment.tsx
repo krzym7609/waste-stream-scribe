@@ -770,24 +770,51 @@ function EquipmentTimeline({
   isManager: boolean;
 }) {
   const [events, setEvents] = useState<EquipmentEvent[]>([]);
+  const [eventAtts, setEventAtts] = useState<Record<string, Attachment[]>>({});
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase
-      .from("equipment_events")
-      .select("*")
-      .eq("equipment_id", equipmentId)
-      .order("performed_at", { ascending: false });
-    setEvents((data ?? []) as EquipmentEvent[]);
+    const [{ data: evs }, { data: atts }] = await Promise.all([
+      supabase
+        .from("equipment_events")
+        .select("*")
+        .eq("equipment_id", equipmentId)
+        .order("performed_at", { ascending: false }),
+      supabase
+        .from("equipment_attachments")
+        .select("*")
+        .eq("equipment_id", equipmentId)
+        .not("event_id", "is", null),
+    ]);
+    setEvents((evs ?? []) as EquipmentEvent[]);
+    const grouped: Record<string, Attachment[]> = {};
+    ((atts ?? []) as Attachment[]).forEach((a) => {
+      const k = (a as Attachment & { event_id: string | null }).event_id;
+      if (!k) return;
+      (grouped[k] ||= []).push(a);
+    });
+    setEventAtts(grouped);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, [equipmentId]);
 
+  async function openFile(att: Attachment) {
+    const { data, error } = await supabase.storage
+      .from("equipment-files")
+      .createSignedUrl(att.file_path, 60);
+    if (error || !data) toast.error(error?.message ?? "Błąd");
+    else window.open(data.signedUrl, "_blank");
+  }
+
   async function handleDelete(ev: EquipmentEvent) {
-    if (!confirm("Usunąć wpis z historii?")) return;
+    if (!confirm("Usunąć wpis z historii? (Załączniki zostaną usunięte)")) return;
+    const atts = eventAtts[ev.id] ?? [];
+    if (atts.length) {
+      await supabase.storage.from("equipment-files").remove(atts.map((a) => a.file_path));
+    }
     const { error } = await supabase.from("equipment_events").delete().eq("id", ev.id);
     if (error) toast.error(error.message);
     else { toast.success("Usunięto"); load(); }
