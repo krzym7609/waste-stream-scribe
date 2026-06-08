@@ -992,6 +992,19 @@ function EquipmentEventDialog({
               required
             />
           </div>
+          <div>
+            <Label>Zdjęcia / pliki (opcjonalnie)</Label>
+            <Input
+              type="file"
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            />
+            {files.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Wybrano: {files.map((f) => f.name).join(", ")}
+              </div>
+            )}
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Anuluj</Button>
             <Button type="submit" disabled={busy}>{busy ? "Zapisywanie…" : "Zapisz"}</Button>
