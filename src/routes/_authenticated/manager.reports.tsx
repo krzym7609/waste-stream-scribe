@@ -229,24 +229,29 @@ function DailyView() {
             <div className="text-sm text-muted-foreground">Brak przekazań.</div>
           ) : (
             <ul className="space-y-2 text-sm">
-              {data.handovers.map((h: any) => (
-                <li key={h.id} className="border rounded p-2">
-                  <div className="flex justify-between text-xs">
-                    <span>
-                      <strong>{data.profMap.get(h.from_user_id) ?? "—"}</strong>
-                      {" → "}
-                      <strong>{h.to_user_id ? data.profMap.get(h.to_user_id) ?? "—" : "—"}</strong>
-                    </span>
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      {new Date(h.submitted_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
-                      {h.accepted_at ? " · przyjęte" : " · oczekuje"}
-                      <HandoverActions handover={h} />
-                    </span>
-                  </div>
-                  {h.uwagi_ogolne && <div className="mt-1 italic text-xs">„{h.uwagi_ogolne}"</div>}
-                </li>
-
-              ))}
+              {data.handovers.map((h: any) => {
+                const fromName = data.profMap.get(h.from_user_id) ?? "—";
+                const toName = h.to_user_id ? data.profMap.get(h.to_user_id) ?? "—" : null;
+                return (
+                  <li key={h.id} className="border rounded p-2">
+                    <div className="flex justify-between text-xs gap-2 flex-wrap">
+                      <span>
+                        <span className="text-muted-foreground">Przekazujący:</span>{" "}
+                        <strong>{fromName}</strong>
+                        <span className="mx-1 text-muted-foreground">→</span>
+                        <span className="text-muted-foreground">Przejmujący:</span>{" "}
+                        <strong>{toName ?? <em className="font-normal text-muted-foreground">oczekuje na przyjęcie</em>}</strong>
+                      </span>
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        {new Date(h.submitted_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
+                        {h.accepted_at ? " · przyjęte" : " · oczekuje"}
+                        <HandoverActions handover={h} />
+                      </span>
+                    </div>
+                    {h.uwagi_ogolne && <div className="mt-1 italic text-xs">„{h.uwagi_ogolne}"</div>}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
