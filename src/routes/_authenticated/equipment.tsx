@@ -750,9 +750,226 @@ function EquipmentDetailsDialog({
           ))}
         </Tabs>
 
+        <EquipmentTimeline equipmentId={equipment.id} userId={userId} isManager={isManager} />
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Zamknij</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EquipmentTimeline({
+  equipmentId,
+  userId,
+  isManager,
+}: {
+  equipmentId: string;
+  userId: string | null;
+  isManager: boolean;
+}) {
+  const [events, setEvents] = useState<EquipmentEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabase
+      .from("equipment_events")
+      .select("*")
+      .eq("equipment_id", equipmentId)
+      .order("performed_at", { ascending: false });
+    setEvents((data ?? []) as EquipmentEvent[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, [equipmentId]);
+
+  async function handleDelete(ev: EquipmentEvent) {
+    if (!confirm("Usunąć wpis z historii?")) return;
+    const { error } = await supabase.from("equipment_events").delete().eq("id", ev.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Usunięto"); load(); }
+  }
+
+  return (
+    <div className="border-t pt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="font-medium text-sm flex items-center gap-2">
+          <History className="w-4 h-4" /> Historia serwisowa ({events.length})
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+          <Plus className="w-3.5 h-3.5" /> Dodaj wpis
+        </Button>
+      </div>
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Ładowanie…</div>
+      ) : events.length === 0 ? (
+        <div className="text-sm text-muted-foreground border rounded p-4 text-center">
+          Brak wpisów. Dodaj wymianę oleju, przegląd lub naprawę.
+        </div>
+      ) : (
+        <ol className="relative border-l ml-2 space-y-3">
+          {events.map((ev) => {
+            const Icon = EVENT_ICONS[ev.kind];
+            const color =
+              ev.kind === "awaria" ? "bg-destructive text-destructive-foreground" :
+              ev.kind === "naprawa" ? "bg-emerald-600 text-white" :
+              ev.kind === "serwis" ? "bg-blue-600 text-white" :
+              ev.kind === "przeglad" ? "bg-amber-600 text-white" :
+              "bg-muted text-foreground";
+            return (
+              <li key={ev.id} className="ml-4">
+                <span className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ${color}`}>
+                  <Icon className="w-3 h-3" />
+                </span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">
+                      {EVENT_LABELS[ev.kind]}{ev.title ? ` — ${ev.title}` : ""}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(ev.performed_at).toLocaleString("pl-PL")}
+                    </div>
+                    {ev.description && (
+                      <div className="text-sm whitespace-pre-wrap mt-1">{ev.description}</div>
+                    )}
+                  </div>
+                  {(isManager || ev.created_by === userId) && (
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(ev)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {adding && (
+        <EquipmentEventDialog
+          equipment={{ id: equipmentId, name: "" } as Equipment}
+          userId={userId}
+          title="Dodaj wpis serwisowy"
+          description="Wymiana oleju, przegląd, naprawa itp."
+          afterSave={() => { setAdding(false); load(); }}
+          onClose={() => setAdding(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function EquipmentEventDialog({
+  equipment,
+  userId,
+  fixedKind,
+  title,
+  description,
+  afterSave,
+  onClose,
+}: {
+  equipment: Equipment;
+  userId: string | null;
+  fixedKind?: EventKind;
+  title: string;
+  description?: string;
+  afterSave: (equipmentId: string) => void | Promise<void>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState<EventKind>(fixedKind ?? "serwis");
+  const [titleVal, setTitleVal] = useState("");
+  const [desc, setDesc] = useState("");
+  const [performedAt, setPerformedAt] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("equipment_events").insert({
+        equipment_id: equipment.id,
+        kind,
+        title: titleVal.trim() || null,
+        description: desc.trim() || null,
+        performed_at: new Date(performedAt).toISOString(),
+        created_by: userId,
+      });
+      if (error) throw error;
+      toast.success("Dodano wpis");
+      await afterSave(equipment.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Błąd zapisu");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description && <DialogDescription>{description}</DialogDescription>}
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {!fixedKind && (
+            <div>
+              <Label>Rodzaj wpisu</Label>
+              <Select value={kind} onValueChange={(v) => setKind(v as EventKind)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(EVENT_LABELS) as EventKind[]).map((k) => (
+                    <SelectItem key={k} value={k}>{EVENT_LABELS[k]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div>
+            <Label>Tytuł (opcjonalnie)</Label>
+            <Input
+              value={titleVal}
+              onChange={(e) => setTitleVal(e.target.value)}
+              placeholder={kind === "serwis" ? "np. Wymiana oleju" : "Krótki nagłówek"}
+            />
+          </div>
+          <div>
+            <Label>Opis {fixedKind === "awaria" ? "awarii" : ""}</Label>
+            <Textarea
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              rows={4}
+              placeholder={
+                fixedKind === "awaria"
+                  ? "Objawy, okoliczności wystąpienia awarii…"
+                  : fixedKind === "naprawa"
+                  ? "Co zostało wykonane, użyte części…"
+                  : "Szczegóły wykonanej czynności"
+              }
+              required={fixedKind === "awaria"}
+            />
+          </div>
+          <div>
+            <Label>Data i czas</Label>
+            <Input
+              type="datetime-local"
+              value={performedAt}
+              onChange={(e) => setPerformedAt(e.target.value)}
+              required
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Anuluj</Button>
+            <Button type="submit" disabled={busy}>{busy ? "Zapisywanie…" : "Zapisz"}</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
