@@ -33,6 +33,7 @@ type Equipment = {
   installed_at: string | null;
   notes: string | null;
   active: boolean;
+  status: "sprawne" | "awaria" | "serwis";
 };
 type AttachmentKind = "documentation" | "photo" | "schema" | "service";
 type Attachment = {
