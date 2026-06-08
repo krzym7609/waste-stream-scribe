@@ -96,7 +96,7 @@ function EquipmentPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<string>("all");
-  const [selectedEq, setSelectedEq] = useState<Equipment | null>(null);
+  
   const [editEq, setEditEq] = useState<Equipment | null>(null);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [showNewEq, setShowNewEq] = useState(false);
