@@ -225,11 +225,11 @@ function ShiftReportPage() {
       const v = validate();
       if (!v.ok || !v.payload) throw new Error("Formularz zawiera błędy");
       if (needsReason && reason.trim().length < 5) {
-        throw new Error("Kierownik edytujący zamknięty raport musi podać powód (min. 5 znaków)");
+        throw new Error("Kierownik edytujący cudzy/zamknięty raport musi podać powód (min. 5 znaków)");
       }
 
-      // Snapshot before manager edit on locked report
-      if (locked && isManager && existing?.report) {
+      // Snapshot przed edycją kierownika (zachowanie historii zmian)
+      if (managerEditingExisting && existing?.report) {
         const { error: snapErr } = await supabase.from("shift_report_snapshots").insert({
           report_id: existing.report.id,
           snapshot: JSON.parse(JSON.stringify(existing.report)),
