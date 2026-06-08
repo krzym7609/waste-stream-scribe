@@ -176,13 +176,20 @@ function SchedulePage() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-auto max-h-[calc(100vh-320px)]">
-            <table className="border-collapse text-xs w-full">
-              <thead className="sticky top-0 z-10 bg-card">
+            <table className="border-collapse text-xs" style={{ tableLayout: "fixed", width: 48 + 280 + days.length * 36 }}>
+              <colgroup>
+                <col style={{ width: 48 }} />
+                <col style={{ width: 280 }} />
+                {days.map((d) => (
+                  <col key={d} style={{ width: 36 }} />
+                ))}
+              </colgroup>
+              <thead className="sticky top-0 z-30 bg-card">
                 <tr>
-                  <th className="sticky left-0 z-20 bg-card border-r border-b p-2 text-left w-12">Nr</th>
-                  <th className="sticky left-12 z-20 bg-card border-r border-b p-2 text-left min-w-[280px]">Zadanie</th>
+                  <th className="sticky left-0 z-40 bg-card border-r border-b p-2 text-left">Nr</th>
+                  <th className="sticky z-40 bg-card border-r border-b p-2 text-left" style={{ left: 48 }}>Zadanie</th>
                   {days.map((d) => (
-                    <th key={d} className="border-b border-r p-1 w-9 text-center font-medium">
+                    <th key={d} className="border-b border-r p-1 text-center font-medium bg-card">
                       {d}
                     </th>
                   ))}
