@@ -770,24 +770,51 @@ function EquipmentTimeline({
   isManager: boolean;
 }) {
   const [events, setEvents] = useState<EquipmentEvent[]>([]);
+  const [eventAtts, setEventAtts] = useState<Record<string, Attachment[]>>({});
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase
-      .from("equipment_events")
-      .select("*")
-      .eq("equipment_id", equipmentId)
-      .order("performed_at", { ascending: false });
-    setEvents((data ?? []) as EquipmentEvent[]);
+    const [{ data: evs }, { data: atts }] = await Promise.all([
+      supabase
+        .from("equipment_events")
+        .select("*")
+        .eq("equipment_id", equipmentId)
+        .order("performed_at", { ascending: false }),
+      supabase
+        .from("equipment_attachments")
+        .select("*")
+        .eq("equipment_id", equipmentId)
+        .not("event_id", "is", null),
+    ]);
+    setEvents((evs ?? []) as EquipmentEvent[]);
+    const grouped: Record<string, Attachment[]> = {};
+    ((atts ?? []) as Attachment[]).forEach((a) => {
+      const k = (a as Attachment & { event_id: string | null }).event_id;
+      if (!k) return;
+      (grouped[k] ||= []).push(a);
+    });
+    setEventAtts(grouped);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, [equipmentId]);
 
+  async function openFile(att: Attachment) {
+    const { data, error } = await supabase.storage
+      .from("equipment-files")
+      .createSignedUrl(att.file_path, 60);
+    if (error || !data) toast.error(error?.message ?? "Błąd");
+    else window.open(data.signedUrl, "_blank");
+  }
+
   async function handleDelete(ev: EquipmentEvent) {
-    if (!confirm("Usunąć wpis z historii?")) return;
+    if (!confirm("Usunąć wpis z historii? (Załączniki zostaną usunięte)")) return;
+    const atts = eventAtts[ev.id] ?? [];
+    if (atts.length) {
+      await supabase.storage.from("equipment-files").remove(atts.map((a) => a.file_path));
+    }
     const { error } = await supabase.from("equipment_events").delete().eq("id", ev.id);
     if (error) toast.error(error.message);
     else { toast.success("Usunięto"); load(); }
@@ -834,6 +861,25 @@ function EquipmentTimeline({
                     </div>
                     {ev.description && (
                       <div className="text-sm whitespace-pre-wrap mt-1">{ev.description}</div>
+                    )}
+                    {(eventAtts[ev.id]?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {eventAtts[ev.id]!.map((a) => {
+                          const isImg = (a.mime_type ?? "").startsWith("image/");
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              onClick={() => openFile(a)}
+                              className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-muted"
+                              title={a.original_name}
+                            >
+                              {isImg ? <ImageIcon className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                              <span className="max-w-[160px] truncate">{a.original_name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                   {(isManager || ev.created_by === userId) && (
@@ -883,6 +929,7 @@ function EquipmentEventDialog({
   const [kind, setKind] = useState<EventKind>(fixedKind ?? "serwis");
   const [titleVal, setTitleVal] = useState("");
   const [desc, setDesc] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [performedAt, setPerformedAt] = useState(() => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -893,15 +940,41 @@ function EquipmentEventDialog({
     e.preventDefault();
     setBusy(true);
     try {
-      const { error } = await supabase.from("equipment_events").insert({
-        equipment_id: equipment.id,
-        kind,
-        title: titleVal.trim() || null,
-        description: desc.trim() || null,
-        performed_at: new Date(performedAt).toISOString(),
-        created_by: userId,
-      });
+      const { data: inserted, error } = await supabase
+        .from("equipment_events")
+        .insert({
+          equipment_id: equipment.id,
+          kind,
+          title: titleVal.trim() || null,
+          description: desc.trim() || null,
+          performed_at: new Date(performedAt).toISOString(),
+          created_by: userId,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (files.length > 0 && inserted) {
+        for (const file of files) {
+          const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+          const path = `${equipment.id}/event/${inserted.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+          const { error: upErr } = await supabase.storage.from("equipment-files").upload(path, file);
+          if (upErr) throw upErr;
+          const isImage = (file.type || "").startsWith("image/");
+          const { error: dbErr } = await supabase.from("equipment_attachments").insert({
+            equipment_id: equipment.id,
+            event_id: inserted.id,
+            kind: isImage ? "photo" : "service",
+            file_path: path,
+            original_name: file.name,
+            mime_type: file.type || null,
+            size_bytes: file.size,
+            uploaded_by: userId,
+          });
+          if (dbErr) throw dbErr;
+        }
+      }
+
       toast.success("Dodano wpis");
       await afterSave(equipment.id);
     } catch (err) {
@@ -964,6 +1037,19 @@ function EquipmentEventDialog({
               onChange={(e) => setPerformedAt(e.target.value)}
               required
             />
+          </div>
+          <div>
+            <Label>Zdjęcia / pliki (opcjonalnie)</Label>
+            <Input
+              type="file"
+              multiple
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            />
+            {files.length > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Wybrano: {files.map((f) => f.name).join(", ")}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Anuluj</Button>
