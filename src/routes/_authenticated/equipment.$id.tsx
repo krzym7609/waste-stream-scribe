@@ -79,7 +79,6 @@ const KIND_ICONS: Record<AttachmentKind, React.ComponentType<{ className?: strin
 
 function EquipmentDetailsPage() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
   const { isManager, user } = useAuth();
   const [equipment, setEquipment] = useState<Equipment | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
