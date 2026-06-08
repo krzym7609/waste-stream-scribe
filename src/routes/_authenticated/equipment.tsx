@@ -774,6 +774,9 @@ function EquipmentTimeline({
   const [eventAtts, setEventAtts] = useState<Record<string, Attachment[]>>({});
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const ALL_KINDS: EventKind[] = ["awaria", "naprawa", "serwis", "przeglad", "inne"];
+  const [selectedKinds, setSelectedKinds] = useState<EventKind[]>([...ALL_KINDS]);
+  const [groupByStatus, setGroupByStatus] = useState(false);
 
   async function load() {
     setLoading(true);
