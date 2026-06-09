@@ -183,22 +183,17 @@ Get-ChildItem supabase\migrations\*.sql | Sort-Object Name | ForEach-Object {
 }
 ```
 
-### Opcja B — przez kontener bazy (bez lokalnego `psql`)
+### Opcja B — przez kontener bazy (zalecana, nie wymaga lokalnego `psql`)
 
 ```powershell
 cd C:\apps\oczyszczalnia
 docker cp supabase\migrations supabase-db:/tmp/migrations
-docker exec supabase-db sh -c 'for f in /tmp/migrations/*.sql; do echo "== $f =="; psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f" || exit 1; done'
+docker exec supabase-db bash -c 'cat /tmp/migrations/*.sql | psql -U postgres -d postgres -v ON_ERROR_STOP=1'
 ```
 
-> **WAŻNE:** użyj **pojedynczych cudzysłowów** wokół `sh -c '...'`. PowerShell interpretuje `$f` wewnątrz podwójnych cudzysłowów jako swoją zmienną (pustą) i polecenie się sypie z `Unterminated quoted string`.
->
-> Wariant bez pętli (jeszcze prostszy, wszystko jednym strumieniem):
-> ```powershell
-> docker exec supabase-db bash -c 'cat /tmp/migrations/*.sql | psql -U postgres -d postgres -v ON_ERROR_STOP=1'
-> ```
+> **WAŻNE:** użyj **pojedynczych cudzysłowów** wokół `bash -c '...'`. PowerShell interpretuje `$` wewnątrz podwójnych cudzysłowów jako swoje zmienne i polecenie się sypie z `Unterminated quoted string` lub pustymi wartościami.
 
-Obie metody wgrywają **wszystkie migracje z `supabase/migrations/`** — czyli całą strukturę bazy zbudowaną w Lovable.
+Powyższe polecenie łączy wszystkie pliki `.sql` w jeden strumień i przekazuje je bezpośrednio do `psql` wewnątrz kontenera — w ten sposób wgrasz **cały schemat bazy z `supabase/migrations/`**.
 
 > Komendy `supabase db push` używaj tylko do baz zdalnych (chmurowych Supabase), nie do lokalnego Dockera.
 
