@@ -212,19 +212,70 @@ VALUES ('<id-użytkownika-z-tabeli-auth.users>', 'admin');
 
 ## 8. Zbuduj i uruchom aplikację
 
+> ⚠️ **WAŻNE:** projekt domyślnie buduje się pod **Cloudflare Workers** (taki jest preset Nitro w `@lovable.dev/vite-tanstack-config`). Dla wdrożenia lokalnego (PM2 / usługa Windows) musimy wymusić preset **`node-server`** — wtedy powstanie standardowy `.output\server\index.mjs`, który PM2 potrafi odpalić. Bez tego dostaniesz błąd `[PM2][ERROR] Script not found`.
+
 ```powershell
-cd C:\apps\oczyszczalnia
+cd C:\apps\biokrapp
+
+# 1) Wymuś preset Node dla Nitro (jednorazowo w tej sesji PowerShell)
+$env:NITRO_PRESET = "node-server"
+
+# 2) Zbuduj aplikację
 bun run build
-pm2 start ".output\server\index.mjs" --name oczyszczalnia
+
+# 3) Sprawdź czy plik powstał
+Test-Path ".output\server\index.mjs"   # powinno zwrócić True
+
+# 4) Uruchom przez PM2 na porcie 3001
+$env:PORT = "3001"
+pm2 start ".output\server\index.mjs" --name biokrapp --update-env
 pm2 save
 ```
 
 Aplikacja działa na `http://<ip-serwera>:3001`. Wejdź, zaloguj się kontem z kroku 7.
 
+> **Trwałe ustawienie zmiennych** (żeby po reboocie PM2 dostał poprawny `PORT`) — dodaj je w **System Properties → Environment Variables → System variables**:
+> - `PORT=3001`
+> - `NODE_ENV=production`
+
 Sprawdzenie statusu:
 ```powershell
 pm2 status
-pm2 logs oczyszczalnia
+pm2 logs biokrapp
+```
+
+### Alternatywa: ecosystem.config.cjs (zalecane na produkcji)
+
+Stwórz plik `C:\apps\biokrapp\ecosystem.config.cjs`:
+
+```javascript
+module.exports = {
+  apps: [{
+    name: "biokrapp",
+    script: ".output/server/index.mjs",
+    cwd: "C:/apps/biokrapp",
+    env: {
+      NODE_ENV: "production",
+      PORT: "3001",
+      // SUPABASE_URL: "http://localhost:8000",
+      // SUPABASE_PUBLISHABLE_KEY: "...",
+      // SUPABASE_SERVICE_ROLE_KEY: "...",
+    }
+  }]
+};
+```
+
+I uruchom:
+```powershell
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+Przy każdym kolejnym deployu wystarczy:
+```powershell
+$env:NITRO_PRESET = "node-server"
+bun run build
+pm2 restart biokrapp
 ```
 
 ---
