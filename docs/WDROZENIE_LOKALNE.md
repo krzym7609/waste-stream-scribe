@@ -212,7 +212,7 @@ VALUES ('<id-użytkownika-z-tabeli-auth.users>', 'admin');
 
 ## 8. Zbuduj i uruchom aplikację
 
-> ⚠️ **WAŻNE:** projekt domyślnie buduje się pod **Cloudflare Workers** (taki jest preset Nitro w `@lovable.dev/vite-tanstack-config`). Dla wdrożenia lokalnego (PM2 / usługa Windows) musimy wymusić preset **`node-server`** — wtedy powstanie standardowy `.output\server\index.mjs`, który PM2 potrafi odpalić. Bez tego dostaniesz błąd `[PM2][ERROR] Script not found`.
+> ⚠️ **WAŻNE:** projekt domyślnie buduje się pod środowisko chmurowe. Dla wdrożenia lokalnego (PM2 / usługa Windows) musimy wymusić preset **`node-server`** przez zmienną `NITRO_PRESET` — konfiguracja `vite.config.ts` odczytuje ją i wtedy powstaje standardowy `.output\server\index.mjs`, który PM2 potrafi odpalić. Bez tego dostaniesz błąd `[PM2][ERROR] Script not found`.
 
 ```powershell
 cd C:\apps\biokrapp
@@ -225,6 +225,9 @@ bun run build
 
 # 3) Sprawdź czy plik powstał
 Test-Path ".output\server\index.mjs"   # powinno zwrócić True
+
+# Jeśli nadal jest False, sprawdź czy masz najnowszy kod z repo/Lovable
+# i czy w vite.config.ts istnieje sekcja: nitro: process.env.NITRO_PRESET ? { preset: process.env.NITRO_PRESET } : undefined
 
 # 4) Uruchom przez PM2 na porcie 3001
 $env:PORT = "3001"
