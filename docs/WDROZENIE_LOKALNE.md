@@ -188,8 +188,15 @@ Get-ChildItem supabase\migrations\*.sql | Sort-Object Name | ForEach-Object {
 ```powershell
 cd C:\apps\oczyszczalnia
 docker cp supabase\migrations supabase-db:/tmp/migrations
-docker exec supabase-db sh -c "for f in /tmp/migrations/*.sql; do echo \"== $f ==\"; psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $f || exit 1; done"
+docker exec supabase-db sh -c 'for f in /tmp/migrations/*.sql; do echo "== $f =="; psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f" || exit 1; done'
 ```
+
+> **WAŻNE:** użyj **pojedynczych cudzysłowów** wokół `sh -c '...'`. PowerShell interpretuje `$f` wewnątrz podwójnych cudzysłowów jako swoją zmienną (pustą) i polecenie się sypie z `Unterminated quoted string`.
+>
+> Wariant bez pętli (jeszcze prostszy, wszystko jednym strumieniem):
+> ```powershell
+> docker exec supabase-db bash -c 'cat /tmp/migrations/*.sql | psql -U postgres -d postgres -v ON_ERROR_STOP=1'
+> ```
 
 Obie metody wgrywają **wszystkie migracje z `supabase/migrations/`** — czyli całą strukturę bazy zbudowaną w Lovable.
 
