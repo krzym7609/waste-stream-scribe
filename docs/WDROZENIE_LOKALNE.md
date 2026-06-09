@@ -92,6 +92,22 @@ API_EXTERNAL_URL=http://<ip-serwera>:8000
 
 Wygenerowanie kluczy JWT (ANON_KEY i SERVICE_ROLE_KEY) — najprościej na stronie z linku w komentarzu w `.env`. Każdy klucz musi być podpisany tym samym `JWT_SECRET`.
 
+**WAŻNE (Windows): zmień bind mount bazy na named volume.** Postgres 15+ wymaga uprawnień katalogu danych `0700/0750`, a NTFS przez bind mount mapuje się jako `0777` — kontener `db` nie wystartuje (`data directory has invalid permissions`).
+
+W `docker-compose.yml` znajdź serwis `db:` → sekcja `volumes:` → linia:
+```yaml
+- ./volumes/db/data:/var/lib/postgresql/data:Z
+```
+Zamień na:
+```yaml
+- db-data:/var/lib/postgresql/data
+```
+Na samym dole pliku (poziom główny, obok `services:`) dodaj:
+```yaml
+volumes:
+  db-data:
+```
+
 Uruchom stack:
 ```powershell
 docker compose up -d
@@ -100,8 +116,17 @@ docker compose up -d
 Pierwsze uruchomienie pobiera ~3 GB obrazów (10–15 min). Sprawdź:
 ```powershell
 docker compose ps
+docker compose logs db --tail 30
 ```
 Wszystkie kontenery powinny mieć status `running` / `healthy`.
+
+> Jeśli kontener `db` był już raz uruchomiony ze starym bind mountem i pokazuje `invalid permissions`, wykonaj reset:
+> ```powershell
+> docker compose down -v
+> Remove-Item -Recurse -Force .\volumes\db\data -ErrorAction SilentlyContinue
+> docker compose up -d
+> ```
+> Backup robimy przez `pg_dump` (skrypt `backup-local.bat`), więc trzymanie danych w named volume nie utrudnia kopii zapasowych.
 
 Otwórz w przeglądarce `http://localhost:3000` — powinno wyskoczyć logowanie do Studio.
 
