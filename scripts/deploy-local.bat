@@ -21,7 +21,7 @@ if errorlevel 1 goto :fail
 
 echo [3/5] Wgrywam migracje bazy...
 REM Ustaw zmienna LOCAL_DB_URL np. w zmiennych systemowych Windows
-REM postgresql://postgres:HASLO@localhost:5432/postgres
+REM postgresql://postgres:HASLO@localhost:5432/postgres?sslmode=disable
 call supabase db push --db-url "%LOCAL_DB_URL%"
 if errorlevel 1 goto :fail
 
