@@ -167,27 +167,33 @@ SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
 
 ## 6. Wgraj schemat bazy (tabele, RLS, triggery)
 
-Zainstaluj Supabase CLI:
-```powershell
-scoop install supabase
-# lub pobierz .exe z https://github.com/supabase/cli/releases
-```
+> **UWAGA:** `supabase db push` ma znany bug — **ignoruje `?sslmode=disable`** i zawsze wymusza TLS. Lokalny Postgres w Dockerze nie ma certyfikatu, więc dostaniesz `tls error (server refused TLS connection)`. Dlatego migracje wgrywamy **bezpośrednio przez `psql`** — wybierz jedną z dwóch opcji poniżej.
 
-W folderze aplikacji:
+### Opcja A — przez lokalnie zainstalowany `psql` (PostgreSQL 17)
+
+Wcześniej zainstalowałeś `choco install postgresql17`, więc `psql.exe` masz w `C:\Program Files\PostgreSQL\17\bin\`.
+
 ```powershell
 cd C:\apps\oczyszczalnia
-supabase db push --db-url "postgresql://postgres:<haslo-z-kroku-3>@localhost:5432/postgres?sslmode=disable"
+$env:PGPASSWORD="<haslo-z-kroku-3>"
+Get-ChildItem supabase\migrations\*.sql | Sort-Object Name | ForEach-Object {
+  Write-Host "== $($_.Name) =="
+  & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h localhost -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -f $_.FullName
+  if ($LASTEXITCODE -ne 0) { throw "Migracja $($_.Name) nie powiodla sie" }
+}
 ```
 
-> **Ważne:** `?sslmode=disable` na końcu jest konieczne — lokalny Postgres w Dockerze nie ma certyfikatu TLS, a Supabase CLI domyślnie wymusza szyfrowane połączenie. Bez tego dostaniesz błąd `tls error / connection forcibly closed`.
->
-> **Alternatywa**, jeśli `supabase db push` nadal nie działa — wgraj migracje przez kontener bazy (nie potrzeba instalować `psql`):
-> ```powershell
-> docker cp supabase\migrations supabase-db:/tmp/migrations
-> docker exec supabase-db sh -c "for f in /tmp/migrations/*.sql; do echo \"== $f ==\"; psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $f || exit 1; done"
-> ```
+### Opcja B — przez kontener bazy (bez lokalnego `psql`)
 
-To wgra **wszystkie migracje z `supabase/migrations/`** — czyli całą strukturę bazy zbudowaną w Lovable.
+```powershell
+cd C:\apps\oczyszczalnia
+docker cp supabase\migrations supabase-db:/tmp/migrations
+docker exec supabase-db sh -c "for f in /tmp/migrations/*.sql; do echo \"== $f ==\"; psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f $f || exit 1; done"
+```
+
+Obie metody wgrywają **wszystkie migracje z `supabase/migrations/`** — czyli całą strukturę bazy zbudowaną w Lovable.
+
+> Komendy `supabase db push` używaj tylko do baz zdalnych (chmurowych Supabase), nie do lokalnego Dockera.
 
 ---
 
