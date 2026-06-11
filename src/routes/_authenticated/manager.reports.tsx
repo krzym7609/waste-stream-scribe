@@ -90,7 +90,7 @@ function DailyView() {
     queryFn: async () => {
       const start = `${date}T00:00:00`;
       const end = `${date}T23:59:59`;
-      const [reports, handovers, execs, profiles] = await Promise.all([
+      const [reports, handovers, execs, profiles, sessions] = await Promise.all([
         supabase
           .from("shift_reports")
           .select("*, items:shift_report_items(*, object:report_objects(name, code))")
@@ -107,6 +107,12 @@ function DailyView() {
           .select("*, task:schedule_tasks(task_number, name)")
           .eq("scheduled_date", date),
         supabase.from("profiles").select("id, first_name, last_name, username"),
+        supabase
+          .from("duty_sessions")
+          .select("id, user_id, started_at, ended_at")
+          .gte("started_at", start)
+          .lte("started_at", `${date}T23:59:59`)
+          .order("started_at"),
       ]);
       const profMap = new Map(
         (profiles.data ?? []).map((p) => [
@@ -119,6 +125,7 @@ function DailyView() {
         handovers: handovers.data ?? [],
         execs: execs.data ?? [],
         profMap,
+        sessions: sessions.data ?? [],
       };
     },
   });
