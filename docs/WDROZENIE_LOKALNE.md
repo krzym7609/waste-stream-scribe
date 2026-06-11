@@ -1,397 +1,246 @@
-# Wdrożenie lokalne na Windows Server — instrukcja krok po kroku
+# Instrukcja wdrożenia aplikacji od zera — Windows Server + WSL2 + Docker CE
 
-Cały system (aplikacja + baza danych + pliki + logowanie) stawiamy na jednym Windows Server. **Nic nie wychodzi poza serwer.** Internet potrzebny tylko do pierwszej instalacji i do pobierania aktualizacji kodu (można też przez pendrive).
+Cel: aplikacja (frontend + Supabase self-hosted) startuje **automatycznie po restarcie serwera, bez logowania użytkownika**. Wszystko żyje w WSL2, zarządzane przez `systemd`, a Windows tylko podnosi WSL jako usługę systemową przez NSSM.
+Założenia:
 
----
-
-## 0. Co stawiamy
-
-| Warstwa | Technologia | Gdzie |
-|---|---|---|
-| Baza danych | PostgreSQL (Supabase self-hosted) | Docker, port 5432 |
-| Logowanie / sesje | GoTrue (Supabase) | Docker, port 9999 |
-| API + Storage (pliki) | PostgREST + Storage API | Docker, port 8000 |
-| Studio (panel bazy) | Supabase Studio | Docker, port 3000 |
-| Aplikacja (UI) | TanStack Start (Node.js) | PM2, port 3001 |
-| Reverse proxy + HTTPS | IIS lub Caddy | port 80/443 |
+- Serwer Windows, IP `10.0.0.108`
+- Aplikacja frontend na porcie `3001`
+- Supabase self-hosted (Kong `8000`, Studio `3000`, DB `5432`)
+- Brak Docker Desktop. Brak autologonu. Brak PM2 w sesji usera.
 
 ---
 
-## 1. Wymagania sprzętowe
+## KROK 1 — Instalacja WSL2 + Ubuntu
 
-- Windows Server 2019 / 2022
-- **8 GB RAM** minimum (rekomendowane 16 GB)
-- 100 GB wolnego miejsca na dysku (baza + załączniki + backupy)
-- Konto z uprawnieniami administratora
-- (Opcjonalnie) WSL2 włączone — Docker Desktop go używa
-
----
-
-## 2. Instalacja narzędzi bazowych
-
-PowerShell **jako Administrator**:
+PowerShell jako Administrator:
 
 ```powershell
-# 1. Chocolatey (menedżer pakietów do Windows)
-Set-ExecutionPolicy Bypass -Scope Process -Force
-iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-
-# 2. Git, Node.js LTS
-choco install -y git nodejs-lts
-
-# 3. Bun (szybszy npm)
-powershell -c "irm bun.sh/install.ps1 | iex"
-
-# 4. Docker Desktop
-choco install -y docker-desktop
-# Po instalacji: restart serwera. Po restarcie uruchom Docker Desktop ręcznie raz,
-# zaakceptuj licencję, włącz "Start on login".
-
-# 5. PM2 (do uruchamiania aplikacji jako usługa Windows)
-npm install -g pm2 pm2-windows-startup
-pm2-startup install
+wsl --install -d Ubuntu-22.04
+wsl --set-default-version 2
+wsl --update
+shutdown /r /t 0
 ```
 
-Sprawdzenie:
+## Po restarcie zaloguj się **ostatni raz**, otwórz Ubuntu, ustaw użytkownika (np. `admin`) i hasło.
+
+## KROK 2 — Włącz systemd w WSL
+
+W Ubuntu:
+
+```bash
+sudo tee /etc/wsl.conf > /dev/null <<'EOF'
+[boot]
+systemd=true
+[network]
+generateResolvConf=true
+EOF
+```
+
+W PowerShell (admin):
+
 ```powershell
-git --version
-node --version
-bun --version
-docker --version
+wsl --shutdown
+```
+
+Otwórz Ubuntu ponownie, sprawdź:
+
+```bash
+systemctl is-system-running
+```
+
+## Powinno być `running` lub `degraded` (OK).
+
+## KROK 3 — Instalacja Docker CE w Ubuntu
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y ca-certificates curl gnupg lsb-release
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+
+Zamknij i otwórz Ubuntu ponownie. Test:
+
+```bash
+docker run --rm hello-world
 ```
 
 ---
 
-## 3. Postaw lokalną bazę (Supabase self-hosted)
+## KROK 4 — Supabase self-hosted
 
-```powershell
-# Folder na infrastrukturę
-mkdir C:\supabase
-cd C:\supabase
-
-# Klonujemy oficjalne repo Supabase (tylko folder docker)
+```bash
+cd ~
 git clone --depth 1 https://github.com/supabase/supabase
-cd supabase\docker
-
-# Kopiujemy szablon konfiguracji
-copy .env.example .env
+mkdir -p ~/supabase-project
+cp -rf supabase/docker/* ~/supabase-project/
+cp supabase/docker/.env.example ~/supabase-project/.env
+cd ~/supabase-project
 ```
 
-Edytuj `C:\supabase\supabase\docker\.env` (np. Notepad++). **Koniecznie zmień:**
+Edytuj `.env` — **WSZĘDZIE** zmień `localhost` / `127.0.0.1` na `10.0.0.108`. W szczególności:
 
 ```
-POSTGRES_PASSWORD=<wymyśl mocne hasło>
-JWT_SECRET=<wygeneruj 40+ losowych znaków>
-ANON_KEY=<wygeneruj na https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys>
-SERVICE_ROLE_KEY=<jak wyżej>
-DASHBOARD_USERNAME=admin
-DASHBOARD_PASSWORD=<hasło do panelu Studio>
-SITE_URL=http://<ip-serwera>
-API_EXTERNAL_URL=http://<ip-serwera>:8000
+SITE_URL=http://10.0.0.108:3000
+API_EXTERNAL_URL=http://10.0.0.108:8000
+SUPABASE_PUBLIC_URL=http://10.0.0.108:8000
 ```
 
-Wygenerowanie kluczy JWT (ANON_KEY i SERVICE_ROLE_KEY) — najprościej na stronie z linku w komentarzu w `.env`. Każdy klucz musi być podpisany tym samym `JWT_SECRET`.
+Wygeneruj nowe sekrety (`POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`, `DASHBOARD_PASSWORD`) — generator: https://supabase.com/docs/guides/self-hosting/docker
+Start:
 
-**WAŻNE (Windows): zmień bind mount bazy na named volume.** Postgres 15+ wymaga uprawnień katalogu danych `0700/0750`, a NTFS przez bind mount mapuje się jako `0777` — kontener `db` nie wystartuje (`data directory has invalid permissions`).
-
-W `docker-compose.yml` znajdź serwis `db:` → sekcja `volumes:` → linia:
-```yaml
-- ./volumes/db/data:/var/lib/postgresql/data:Z
-```
-Zamień na:
-```yaml
-- db-data:/var/lib/postgresql/data
-```
-Na samym dole pliku (poziom główny, obok `services:`) dodaj:
-```yaml
-volumes:
-  db-data:
-```
-
-Uruchom stack:
-```powershell
+```bash
+docker compose pull
 docker compose up -d
-```
-
-Pierwsze uruchomienie pobiera ~3 GB obrazów (10–15 min). Sprawdź:
-```powershell
 docker compose ps
-docker compose logs db --tail 30
-```
-Wszystkie kontenery powinny mieć status `running` / `healthy`.
-
-> Jeśli kontener `db` był już raz uruchomiony ze starym bind mountem i pokazuje `invalid permissions`, wykonaj reset:
-> ```powershell
-> docker compose down -v
-> Remove-Item -Recurse -Force .\volumes\db\data -ErrorAction SilentlyContinue
-> docker compose up -d
-> ```
-> Backup robimy przez `pg_dump` (skrypt `backup-local.bat`), więc trzymanie danych w named volume nie utrudnia kopii zapasowych.
-
-Otwórz w przeglądarce `http://localhost:3000` — powinno wyskoczyć logowanie do Studio.
-
----
-
-## 4. Pobierz aplikację
-
-```powershell
-mkdir C:\apps
-cd C:\apps
-git clone https://github.com/<twoj-user>/<twoje-repo>.git oczyszczalnia
-cd oczyszczalnia
-bun install
 ```
 
 ---
 
-## 5. Skonfiguruj `.env` aplikacji
+## KROK 5 — Frontend aplikacji
 
-Skopiuj wzór z repo:
+```bash
+cd ~
+git clone <URL_TWOJEGO_REPO> app
+cd app
+```
+
+W `.env` (lub `.env.production`) ustaw:
+
+```
+VITE_SUPABASE_URL=http://10.0.0.108:8000
+VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY z supabase .env>
+```
+
+Dodaj `Dockerfile` (jeśli nie ma):
+
+```dockerfile
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+FROM node:20-alpine
+WORKDIR /app
+RUN npm i -g serve
+COPY --from=build /app/dist ./dist
+EXPOSE 3001
+CMD ["serve", "-s", "dist", "-l", "3001"]
+```
+
+`docker-compose.yml` obok:
+
+```yaml
+services:
+  app:
+    build: .
+    container_name: app-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+```
+
+Start:
+
+```bash
+docker compose up -d --build
+```
+
+## Test z Ubuntu: `curl http://localhost:3001`
+
+## KROK 6 — Restart policy (kluczowe dla autostartu)
+
+Upewnij się, że **wszystkie** kontenery mają `restart: unless-stopped` lub `always`. Sprawdź:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Status}}"
+docker inspect -f '{{.Name}} {{.HostConfig.RestartPolicy.Name}}' $(docker ps -aq)
+```
+
+## Jeśli któryś ma `no` → popraw w compose i `docker compose up -d`.
+
+## KROK 7 — Port forwarding Windows → WSL
+
+WSL ma własne IP, trzeba przerzucić porty z `10.0.0.108` na WSL. PowerShell jako admin, plik `C:\Scripts\wsl-ports.ps1`:
+
 ```powershell
-copy .env.local.example .env
-```
-
-Edytuj `C:\apps\oczyszczalnia\.env` i wklej wartości z **kroku 3** (te same `ANON_KEY` i `SERVICE_ROLE_KEY` co w Supabase):
-
-```
-VITE_SUPABASE_URL=http://<ip-serwera>:8000
-VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
-SUPABASE_URL=http://<ip-serwera>:8000
-SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
-SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
-```
-
-> `<ip-serwera>` to lokalny IP serwera (np. `192.168.1.50`) albo nazwa hosta w sieci wewnętrznej. Klienci (przeglądarki operatorów) muszą móc się pod ten adres dostać.
-
----
-
-## 6. Wgraj schemat bazy (tabele, RLS, triggery)
-
-> **UWAGA:** `supabase db push` ma znany bug — **ignoruje `?sslmode=disable`** i zawsze wymusza TLS. Lokalny Postgres w Dockerze nie ma certyfikatu, więc dostaniesz `tls error (server refused TLS connection)`. Dlatego migracje wgrywamy **bezpośrednio przez `psql`** — wybierz jedną z dwóch opcji poniżej.
-
-### Opcja A — przez lokalnie zainstalowany `psql` (PostgreSQL 17)
-
-Wcześniej zainstalowałeś `choco install postgresql17`, więc `psql.exe` masz w `C:\Program Files\PostgreSQL\17\bin\`.
-
-```powershell
-cd C:\apps\oczyszczalnia
-$env:PGPASSWORD="<haslo-z-kroku-3>"
-Get-ChildItem supabase\migrations\*.sql | Sort-Object Name | ForEach-Object {
-  Write-Host "== $($_.Name) =="
-  & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h localhost -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -f $_.FullName
-  if ($LASTEXITCODE -ne 0) { throw "Migracja $($_.Name) nie powiodla sie" }
+$ports = @(3001, 8000, 3000, 5432)
+$wslIp = (wsl -d Ubuntu-22.04 hostname -I).Trim().Split(' ')[0]
+foreach ($p in $ports) {
+  netsh interface portproxy delete v4tov4 listenport=$p listenaddress=0.0.0.0 | Out-Null
+  netsh interface portproxy add v4tov4 listenport=$p listenaddress=0.0.0.0 connectport=$p connectaddress=$wslIp
+  New-NetFirewallRule -DisplayName "WSL Port $p" -Direction Inbound -LocalPort $p -Protocol TCP -Action Allow -ErrorAction SilentlyContinue | Out-Null
 }
+netsh interface portproxy show v4tov4
 ```
 
-### Opcja B — przez kontener bazy (zalecana, nie wymaga lokalnego `psql`)
+Uruchom raz ręcznie i sprawdź z innego komputera:
 
 ```powershell
-cd C:\apps\oczyszczalnia
-docker cp supabase\migrations supabase-db:/tmp/migrations
-docker exec supabase-db bash -c 'cat /tmp/migrations/*.sql | psql -U postgres -d postgres -v ON_ERROR_STOP=1'
-```
-
-> **WAŻNE:** użyj **pojedynczych cudzysłowów** wokół `bash -c '...'`. PowerShell interpretuje `$` wewnątrz podwójnych cudzysłowów jako swoje zmienne i polecenie się sypie z `Unterminated quoted string` lub pustymi wartościami.
-
-Powyższe polecenie łączy wszystkie pliki `.sql` w jeden strumień i przekazuje je bezpośrednio do `psql` wewnątrz kontenera — w ten sposób wgrasz **cały schemat bazy z `supabase/migrations/`**.
-
-> Komendy `supabase db push` używaj tylko do baz zdalnych (chmurowych Supabase), nie do lokalnego Dockera.
-
----
-
-## 7. Stwórz pierwszego użytkownika (admin/kierownik)
-
-W Studio (`http://localhost:3000`) → Authentication → Users → **Add user** → wpisz email w formacie `admin@oczyszczalnia.local` i hasło. Potem w Studio → SQL Editor:
-
-```sql
-INSERT INTO public.user_roles (user_id, role)
-VALUES ('<id-użytkownika-z-tabeli-auth.users>', 'admin');
+Test-NetConnection 10.0.0.108 -Port 3001
 ```
 
 ---
 
-## 8. Zbuduj i uruchom aplikację
+## KROK 8 — NSSM: WSL jako usługa Windows (autostart bez logowania)
 
-> ⚠️ **WAŻNE:** projekt domyślnie buduje się pod środowisko chmurowe. Dla wdrożenia lokalnego (PM2 / usługa Windows) musimy wymusić preset **`node-server`** przez zmienną `NITRO_PRESET` — konfiguracja `vite.config.ts` odczytuje ją i wtedy powstaje standardowy `.output\server\index.mjs`, który PM2 potrafi odpalić. Bez tego dostaniesz błąd `[PM2][ERROR] Script not found`.
-
-```powershell
-cd C:\apps\biokrapp
-
-# 1) Wymuś preset Node dla Nitro (jednorazowo w tej sesji PowerShell)
-$env:NITRO_PRESET = "node-server"
-
-# 2) Zbuduj aplikację
-bun run build
-
-# 3) Sprawdź czy plik powstał
-Test-Path ".output\server\index.mjs"   # powinno zwrócić True
-
-# Jeśli nadal jest False, sprawdź czy masz najnowszy kod z repo/Lovable
-# i czy w vite.config.ts istnieje sekcja: nitro: process.env.NITRO_PRESET ? { preset: process.env.NITRO_PRESET } : undefined
-
-# 4) Uruchom przez PM2 na porcie 3001
-$env:PORT = "3001"
-pm2 start ".output\server\index.mjs" --name biokrapp --update-env
-pm2 save
-```
-
-Aplikacja działa na `http://<ip-serwera>:3001`. Wejdź, zaloguj się kontem z kroku 7.
-
-> **Trwałe ustawienie zmiennych** (żeby po reboocie PM2 dostał poprawny `PORT`) — dodaj je w **System Properties → Environment Variables → System variables**:
-> - `PORT=3001`
-> - `NODE_ENV=production`
-
-Sprawdzenie statusu:
-```powershell
-pm2 status
-pm2 logs biokrapp
-```
-
-### Alternatywa: ecosystem.config.cjs (zalecane na produkcji)
-
-Stwórz plik `C:\apps\biokrapp\ecosystem.config.cjs`:
-
-```javascript
-module.exports = {
-  apps: [{
-    name: "biokrapp",
-    script: ".output/server/index.mjs",
-    cwd: "C:/apps/biokrapp",
-    env: {
-      NODE_ENV: "production",
-      PORT: "3001",
-      // SUPABASE_URL: "http://localhost:8000",
-      // SUPABASE_PUBLISHABLE_KEY: "...",
-      // SUPABASE_SERVICE_ROLE_KEY: "...",
-    }
-  }]
-};
-```
-
-I uruchom:
-```powershell
-pm2 start ecosystem.config.cjs
-pm2 save
-```
-
-Przy każdym kolejnym deployu wystarczy:
-```powershell
-$env:NITRO_PRESET = "node-server"
-bun run build
-pm2 restart biokrapp
-```
-
----
-
-## 9. Reverse proxy + HTTPS (port 80/443)
-
-**Opcja A: Caddy (najprostsze, automatyczne HTTPS w sieci wewnętrznej)**
+Pobierz NSSM: https://nssm.cc/download → rozpakuj `nssm.exe` do `C:\Scripts\`.
+PowerShell jako admin:
 
 ```powershell
-choco install -y caddy
+# Usługa 1: trzyma WSL podniesiony non-stop
+C:\Scripts\nssm.exe install WSL-Keepalive "C:\Windows\System32\wsl.exe" "-d Ubuntu-22.04 -u root -- tail -f /dev/null"
+C:\Scripts\nssm.exe set WSL-Keepalive Start SERVICE_AUTO_START
+C:\Scripts\nssm.exe set WSL-Keepalive ObjectName LocalSystem
+C:\Scripts\nssm.exe set WSL-Keepalive AppExit Default Restart
+# Usługa 2: port forwarding po starcie WSL
+C:\Scripts\nssm.exe install WSL-PortProxy "powershell.exe" "-ExecutionPolicy Bypass -File C:\Scripts\wsl-ports.ps1"
+C:\Scripts\nssm.exe set WSL-PortProxy Start SERVICE_AUTO_START
+C:\Scripts\nssm.exe set WSL-PortProxy ObjectName LocalSystem
+C:\Scripts\nssm.exe set WSL-PortProxy DependOnService WSL-Keepalive
+C:\Scripts\nssm.exe set WSL-PortProxy AppExit Default Exit
+Start-Service WSL-Keepalive
+Start-Sleep -Seconds 10
+Start-Service WSL-PortProxy
 ```
 
-Plik `C:\caddy\Caddyfile`:
-```
-oczyszczalnia.local {
-    tls internal
-    reverse_proxy localhost:3001
-}
-```
-Dodaj `oczyszczalnia.local` do DNS sieci wewnętrznej (lub `hosts` na komputerach klientów). Uruchom:
+## `WSL-Keepalive` trzyma dystrybucję uruchomioną cały czas (bez tego WSL gasi się po ~8s bezczynności). Docker w środku startuje przez systemd → kontenery z `restart: unless-stopped` wstają same.
+
+## KROK 9 — Test finalny (moment prawdy)
+
 ```powershell
-caddy run --config C:\caddy\Caddyfile
+shutdown /r /t 0
 ```
 
-**Opcja B: IIS** — zainstaluj IIS + moduł **URL Rewrite** + **Application Request Routing**, stwórz stronę → reverse proxy na `http://localhost:3001`.
+**NIE LOGUJ SIĘ.** Poczekaj 2-3 minuty. Z innego komputera w sieci:
 
----
-
-## 10. Automatyczne backupy
-
-Skrypt `C:\apps\oczyszczalnia\scripts\backup-local.bat` (jest w repo) wykonuje pełny backup bazy + plików storage. Dodaj do **Harmonogramu zadań Windows**:
-
-- Wyzwalacz: codziennie 02:00
-- Akcja: `C:\apps\oczyszczalnia\scripts\backup-local.bat`
-- Backupy lądują w `D:\backups\YYYY-MM-DD\`
-
-Trzymaj backupy na **innym dysku** niż baza (najlepiej NAS).
-
----
-
-## 11. Aktualizacje z Lovable
-
-**Wariant 1: ręcznie** (wystarczający dla małych zespołów)
-
-Po zmianach w Lovable uruchom na serwerze:
 ```powershell
-C:\apps\oczyszczalnia\scripts\deploy-local.bat
+Test-NetConnection 10.0.0.108 -Port 3001
+Test-NetConnection 10.0.0.108 -Port 8000
 ```
-Skrypt robi: `git pull` → `bun install` → `bun run build` → `supabase db push` → `pm2 restart`.
 
-**Wariant 2: w pełni automatycznie** (GitHub Actions self-hosted runner)
+## Oba muszą zwrócić `TcpTestSucceeded : True`. Otwórz w przeglądarce: `http://10.0.0.108:3001`.
 
-1. Połącz projekt Lovable z GitHub (Lovable: `+` → GitHub → Connect).
-2. Na serwerze zainstaluj self-hosted runner:
-   ```powershell
-   mkdir C:\actions-runner; cd C:\actions-runner
-   # pobierz runner z: GitHub repo → Settings → Actions → Runners → New self-hosted runner (Windows)
-   .\config.cmd --url https://github.com/<user>/<repo> --token <TOKEN>
-   .\svc.cmd install
-   .\svc.cmd start
-   ```
-3. W repo dodaj `.github/workflows/deploy.yml`:
-   ```yaml
-   name: Deploy Local
-   on:
-     push:
-       branches: [main]
-   jobs:
-     deploy:
-       runs-on: self-hosted
-       steps:
-         - uses: actions/checkout@v4
-         - run: bun install
-         - run: bun run build
-         - run: supabase db push --db-url ${{ secrets.LOCAL_DB_URL }}
-         - run: pm2 restart oczyszczalnia
-   ```
+## Diagnostyka jeśli coś nie wstaje
 
-Od teraz: **zmiana w Lovable → push do GitHub → 1–2 min → działa na serwerze**.
+Zaloguj się i sprawdź po kolei:
 
-**Wariant 3: offline (bez internetu)** — kopiujesz repo na pendrive, na serwerze odpalasz `deploy-local.bat`.
+```powershell
+Get-Service WSL-Keepalive, WSL-PortProxy
+wsl -d Ubuntu-22.04 -u root -- systemctl status docker
+wsl -d Ubuntu-22.04 -u root -- docker ps
+netsh interface portproxy show v4tov4
+```
 
----
-
-## 12. Co jeśli serwer ma być 100% odcięty od internetu
-
-- Aktualizacje: pendrive + `deploy-local.bat`
-- Maile (reset hasła, powiadomienia mailowe): **wyłącz** w Supabase Studio → Auth → Settings, albo skonfiguruj lokalny SMTP relay (Postfix w Docker, hMailServer)
-- Certyfikat HTTPS: Caddy `tls internal` (samopodpisany) lub własne CA firmowe
-- AI (gdyby było używane): lokalny model przez **Ollama**, klucz `LOVABLE_API_KEY` przestaje działać
-
----
-
-## 13. Checklista po wdrożeniu
-
-- [ ] `docker compose ps` — wszystko `healthy`
-- [ ] `pm2 status` — `oczyszczalnia` `online`
-- [ ] Logowanie z komputera klienckiego działa
-- [ ] Test: utworzenie raportu zmianowego + sprawdzenie w Studio czy zapisał się w bazie
-- [ ] Test: upload zdjęcia urządzenia + sprawdzenie czy plik jest w `C:\supabase\supabase\docker\volumes\storage\`
-- [ ] Backup ręcznie raz uruchomiony — sprawdź `D:\backups\`
-- [ ] Harmonogram zadań pokazuje "ostatni wynik 0x0"
-- [ ] HTTPS działa, certyfikat zaakceptowany przez przeglądarki klientów
-
----
-
-## 14. Rozwiązywanie problemów
-
-| Objaw | Co sprawdzić |
-|---|---|
-| Aplikacja nie startuje | `pm2 logs oczyszczalnia` |
-| Logowanie nie działa | Czy `JWT_SECRET` w `.env` aplikacji = `JWT_SECRET` w Supabase `.env` |
-| 401 / „Invalid API key" | Czy `ANON_KEY` w obu `.env` jest identyczny |
-| Storage nie zapisuje plików | Czy folder `volumes/storage` ma uprawnienia zapisu dla Docker |
-| Brak połączenia z bazą | `docker compose ps` — czy `db` jest `healthy` |
-| Klient nie otwiera strony | Firewall Windows: otworzyć porty 80/443 (lub 3001) |
+- `docker ps` puste → kontener nie ma restart policy.
+- Portproxy puste → uruchom ręcznie `WSL-PortProxy`.
+- WSL IP się zmieniło → re-run `wsl-ports.ps1` (dlatego jest osobna usługa).
