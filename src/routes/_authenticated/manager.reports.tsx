@@ -238,7 +238,18 @@ function DailyView() {
             <ul className="space-y-2 text-sm">
               {data.handovers.map((h: any) => {
                 const fromName = data.profMap.get(h.from_user_id) ?? "—";
-                const toName = h.to_user_id ? data.profMap.get(h.to_user_id) ?? "—" : null;
+                let toName: string | null = h.to_user_id ? data.profMap.get(h.to_user_id) ?? "—" : null;
+                let inferred = false;
+                if (!toName) {
+                  const submittedTs = new Date(h.submitted_at).getTime();
+                  const nextSession = (data.sessions as any[])
+                    .filter((s) => s.user_id !== h.from_user_id && new Date(s.started_at).getTime() >= submittedTs - 60_000)
+                    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())[0];
+                  if (nextSession) {
+                    toName = (data.profMap.get(nextSession.user_id) ?? "—") + " (rozpoczął zmianę)";
+                    inferred = true;
+                  }
+                }
                 return (
                   <li key={h.id} className="border rounded p-2">
                     <div className="flex justify-between text-xs gap-2 flex-wrap">
@@ -251,7 +262,7 @@ function DailyView() {
                       </span>
                       <span className="text-muted-foreground flex items-center gap-2">
                         {new Date(h.submitted_at).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
-                        {h.accepted_at ? " · przyjęte" : " · oczekuje"}
+                        {h.accepted_at ? " · przyjęte" : inferred ? " · nie potwierdzone" : " · oczekuje"}
                         <HandoverActions handover={h} />
                       </span>
                     </div>
