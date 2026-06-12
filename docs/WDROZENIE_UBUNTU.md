@@ -104,9 +104,43 @@ echo "DASHBOARD_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)"
 
 Skopiuj każdą linię — wkleisz je za chwilę do `.env`.
 
-### 4b. Wygeneruj ANON_KEY i SERVICE_ROLE_KEY
+### 4b. Wygeneruj ANON_KEY i SERVICE_ROLE_KEY lokalnie (bez internetu)
 
-Wejdź na https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys, wklej swój `JWT_SECRET`, skopiuj wygenerowane `ANON_KEY` i `SERVICE_ROLE_KEY`.
+Generujemy JWT z **bardzo długim czasem życia (100 lat)** prosto w Linuksie — żeby klucze nie wygasały i aplikacja działała latami bez ingerencji. Sesje użytkowników (access/refresh tokeny) to zupełnie inna sprawa — nimi steruje Supabase Auth na podstawie ustawień w `.env` (patrz niżej).
+
+> ℹ️ ANON_KEY i SERVICE_ROLE_KEY to JWT podpisane Twoim `JWT_SECRET`. Generujemy je raz, lokalnie, w czystym Pythonie (jest w Ubuntu domyślnie). Brak Pythona? `sudo apt install -y python3`.
+
+```bash
+# WKLEJ tu swój JWT_SECRET z kroku 4a (ten sam, który pójdzie do .env):
+export JWT_SECRET='<wklej_JWT_SECRET>'
+
+# 100 lat ważności (3 155 760 000 sekund)
+export EXP=$(( $(date +%s) + 3155760000 ))
+export IAT=$(date +%s)
+
+gen_jwt () {
+  local role="$1"
+  python3 - <<PY
+import base64, hmac, hashlib, json, os
+def b64(b): return base64.urlsafe_b64encode(b).rstrip(b'=').decode()
+header  = b64(json.dumps({"alg":"HS256","typ":"JWT"},separators=(',',':')).encode())
+payload = b64(json.dumps({"role":"${role}","iss":"supabase","iat":int(os.environ["IAT"]),"exp":int(os.environ["EXP"])},separators=(',',':')).encode())
+sig     = b64(hmac.new(os.environ["JWT_SECRET"].encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest())
+print(f"{header}.{payload}.{sig}")
+PY
+}
+
+echo "ANON_KEY=$(gen_jwt anon)"
+echo "SERVICE_ROLE_KEY=$(gen_jwt service_role)"
+```
+
+Skopiuj obie linie — wkleisz je do `.env` w kroku 4c.
+
+**Weryfikacja** (powinno wypisać `role`, `exp` daleko w przyszłości):
+
+```bash
+echo "<ANON_KEY>" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool
+```
 
 ### 4c. Edycja `.env`
 
