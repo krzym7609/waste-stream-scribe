@@ -168,11 +168,29 @@ source /etc/profile.d/supabase.sh
 
 ### 5b. Repo + migracje
 
+`supabase db push` wymusza TLS, którego self-hosted Postgres na porcie 5432 nie obsługuje. Migracje wgrywamy bezpośrednio przez `psql` z kontenera bazy:
+
 ```bash
+sudo apt install -y postgresql-client
 cd ~
 git clone <URL_TWOJEGO_REPO> app
 cd app
-supabase db push --db-url "postgresql://postgres:<POSTGRES_PASSWORD>@localhost:5432/postgres?sslmode=disable"
+
+export PGPASSWORD='<POSTGRES_PASSWORD>'
+for f in supabase/migrations/*.sql; do
+  echo ">>> $f"
+  psql -h 10.0.0.108 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f"
+done
+unset PGPASSWORD
+```
+
+Jeśli wolisz przez kontener (bez instalacji `psql` na hoście):
+
+```bash
+for f in supabase/migrations/*.sql; do
+  echo ">>> $f"
+  docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 < "$f"
+done
 ```
 
 ---
