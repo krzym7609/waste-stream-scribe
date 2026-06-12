@@ -166,6 +166,13 @@ SUPABASE_PUBLIC_URL=http://10.0.0.108:8000
 DISABLE_SIGNUP=true
 ENABLE_EMAIL_SIGNUP=true
 ENABLE_EMAIL_AUTOCONFIRM=true
+
+# === Długie sesje użytkowników (logowanie trzyma się "wiecznie") ===
+# Access token (JWT z sesji) — 1 tydzień (max wspierany)
+JWT_EXPIRY=604800
+# Refresh token rotuje, ale jeśli aplikacja się odzywa to sesja trwa bez końca.
+# Wyłączenie reuse-detection = brak wymuszonego wylogowania przy drobnych problemach sieciowych:
+SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=10
 ```
 
 `Ctrl+O`, Enter, `Ctrl+X` żeby zapisać.
