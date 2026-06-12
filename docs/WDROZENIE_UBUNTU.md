@@ -94,37 +94,107 @@ cp supabase/docker/.env.example ~/supabase-project/.env
 cd ~/supabase-project
 ```
 
-### 4a. Generuj sekrety
+> ⚠️ **Ważne — nowy format kluczy Supabase (2025+).**
+> Jeśli w `.env.example` widzisz pola `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `JWT_KEYS`, `JWT_JWKS` (zamiast starych `ANON_KEY`/`SERVICE_ROLE_KEY`/`JWT_SECRET`) — masz nową wersję self-hosted z **asymetrycznym ES256 + opaque API keys**.
+> W tej wersji **nie generujesz JWT ręcznie w Pythonie**. Jest gotowy skrypt w repo: `supabase/docker/utils/add-new-auth-keys.sh`. Idź do **4a-NEW**.
+> Stara wersja (ANON_KEY/SERVICE_ROLE_KEY podpisane HS256 jednym `JWT_SECRET`) — patrz **4a-LEGACY** na końcu sekcji.
+
+---
+
+### 4a-NEW. Generuj sekrety (nowy format — ES256 + opaque keys)
+
+```bash
+cd ~/supabase-project
+
+export POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)
+export DASHBOARD_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
+
+echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+echo "DASHBOARD_PASSWORD=$DASHBOARD_PASSWORD"
+```
+
+### 4b-NEW. Wygeneruj klucze auth oficjalnym skryptem
+
+Skrypt w repo Supabase robi wszystko sam: para kluczy EC P-256 (ES256), JWKS publiczny, opaque `sb_publishable_*` (klient) i `sb_secret_*` (serwer). Wszystko **lokalnie**, bez internetu. Wymaga `openssl` + `jq` (są domyślnie w Ubuntu; jak nie: `sudo apt install -y jq`).
+
+```bash
+cd ~/supabase-project
+bash utils/add-new-auth-keys.sh
+```
+
+Skrypt wypisze 4 linie — **skopiuj je w całości**:
+
+```
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SECRET_KEY=sb_secret_...
+JWT_KEYS=[{...EC private key...},{...legacy HS256...}]
+JWT_JWKS={"keys":[{...EC public...},{...legacy...}]}
+```
+
+> 🔐 **Te klucze nie wygasają.** Opaque keys (`sb_publishable_*`, `sb_secret_*`) są ważne dopóki nie zrotujesz ich tym samym skryptem. Para ES256 też nie ma `exp`. Aplikacja działa latami bez odnawiania.
+> Sesje użytkowników (login → access/refresh token) to osobna rzecz — sterowane przez `JWT_EXPIRY` w `.env` (patrz 4c).
+
+### 4c-NEW. Edycja `.env`
+
+```bash
+nano .env
+```
+
+Ustaw / zmień (wklej wartości z 4a + 4b):
+
+```
+POSTGRES_PASSWORD=<wklej>
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=<wklej>
+
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SECRET_KEY=sb_secret_...
+JWT_KEYS=[{...}]
+JWT_JWKS={"keys":[...]}
+
+SITE_URL=http://10.0.0.108:3001
+API_EXTERNAL_URL=http://10.0.0.108:8000
+SUPABASE_PUBLIC_URL=http://10.0.0.108:8000
+
+# Wyłącz publiczną rejestrację (zamknięte konta)
+DISABLE_SIGNUP=true
+ENABLE_EMAIL_SIGNUP=true
+ENABLE_EMAIL_AUTOCONFIRM=true
+
+# === Długie sesje użytkowników (logowanie trzyma się „wiecznie") ===
+# Access token (JWT z sesji) — 1 tydzień
+JWT_EXPIRY=604800
+# Refresh token rotuje, ale dopóki klient się odzywa, sesja trwa bez końca
+SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=10
+```
+
+`Ctrl+O`, Enter, `Ctrl+X` żeby zapisać.
+
+> 📝 W tej wersji **w `.env` projektu aplikacji** (`~/app/.env.production`, KROK 6a) jako `VITE_SUPABASE_PUBLISHABLE_KEY` wklejasz `sb_publishable_...` (nie JWT). `SUPABASE_SECRET_KEY` zostaje **tylko na serwerze**, nigdy w `VITE_*`.
+
+---
+
+### 4a-LEGACY. Stary format (HS256, jeden JWT_SECRET) — tylko jeśli Twój `.env.example` ma `ANON_KEY`/`SERVICE_ROLE_KEY`
 
 ```bash
 export POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)
 export JWT_SECRET=$(openssl rand -base64 48 | tr -d '/+=' | cut -c1-64)
 export DASHBOARD_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
-
 echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
 echo "JWT_SECRET=$JWT_SECRET"
 echo "DASHBOARD_PASSWORD=$DASHBOARD_PASSWORD"
 ```
 
-Zapisz te trzy wartości (np. w notatniku) — wkleisz je do `.env` w kroku 4c. Zmienne są też dostępne w tej sesji terminala dla kroku 4b.
-
-### 4b. Wygeneruj ANON_KEY i SERVICE_ROLE_KEY lokalnie (bez internetu)
-
-Generujemy JWT z **bardzo długim czasem życia (100 lat)** prosto w Linuksie — żeby klucze nie wygasały i aplikacja działała latami bez ingerencji. Sesje użytkowników (access/refresh tokeny) to zupełnie inna sprawa — nimi steruje Supabase Auth na podstawie ustawień w `.env` (patrz niżej).
-
-> ℹ️ ANON_KEY i SERVICE_ROLE_KEY to JWT podpisane Twoim `JWT_SECRET`. Generujemy je raz, lokalnie, w czystym Pythonie (jest w Ubuntu domyślnie). Brak Pythona? `sudo apt install -y python3`.
+### 4b-LEGACY. ANON_KEY + SERVICE_ROLE_KEY (HS256, 100 lat)
 
 ```bash
-# Wczytaj JWT_SECRET — najpierw z .env (jeśli już go tam wkleiłeś), w przeciwnym
-# razie z eksportu w kroku 4a. Jeśli żadne nie zadziała — wklej ręcznie.
 if [ -z "${JWT_SECRET:-}" ] && [ -f ~/supabase-project/.env ]; then
   export JWT_SECRET=$(grep -E '^JWT_SECRET=' ~/supabase-project/.env | cut -d= -f2-)
 fi
-[ -z "${JWT_SECRET:-}" ] && { echo "BRAK JWT_SECRET — wklej: export JWT_SECRET='...'"; }
+[ -z "${JWT_SECRET:-}" ] && echo "BRAK JWT_SECRET — wklej: export JWT_SECRET='...'"
 echo "JWT_SECRET długość: ${#JWT_SECRET} znaków (powinno być ~64)"
 
-# 100 lat ważności (3 155 760 000 sekund)
-export EXP=$(( $(date +%s) + 3155760000 ))
+export EXP=$(( $(date +%s) + 3155760000 ))   # 100 lat
 export IAT=$(date +%s)
 
 gen_jwt () {
@@ -137,54 +207,11 @@ sig     = b64(hmac.new(os.environ["JWT_SECRET"].encode(), f"{header}.{payload}".
 print(f"{header}.{payload}.{sig}")
 PY
 }
-
 echo "ANON_KEY=$(gen_jwt anon)"
 echo "SERVICE_ROLE_KEY=$(gen_jwt service_role)"
 ```
 
-
-Skopiuj obie linie — wkleisz je do `.env` w kroku 4c.
-
-**Weryfikacja** (powinno wypisać `role`, `exp` daleko w przyszłości):
-
-```bash
-echo "<ANON_KEY>" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool
-```
-
-### 4c. Edycja `.env`
-
-```bash
-nano .env
-```
-
-Ustaw / zmień:
-
-```
-POSTGRES_PASSWORD=<wklej>
-JWT_SECRET=<wklej>
-ANON_KEY=<wklej>
-SERVICE_ROLE_KEY=<wklej>
-DASHBOARD_USERNAME=admin
-DASHBOARD_PASSWORD=<wklej>
-
-SITE_URL=http://10.0.0.108:3001
-API_EXTERNAL_URL=http://10.0.0.108:8000
-SUPABASE_PUBLIC_URL=http://10.0.0.108:8000
-
-# Wyłącz publiczną rejestrację jeśli aplikacja ma zamknięte konta
-DISABLE_SIGNUP=true
-ENABLE_EMAIL_SIGNUP=true
-ENABLE_EMAIL_AUTOCONFIRM=true
-
-# === Długie sesje użytkowników (logowanie trzyma się "wiecznie") ===
-# Access token (JWT z sesji) — 1 tydzień (max wspierany)
-JWT_EXPIRY=604800
-# Refresh token rotuje, ale jeśli aplikacja się odzywa to sesja trwa bez końca.
-# Wyłączenie reuse-detection = brak wymuszonego wylogowania przy drobnych problemach sieciowych:
-SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=10
-```
-
-`Ctrl+O`, Enter, `Ctrl+X` żeby zapisać.
+W `.env` wklej `POSTGRES_PASSWORD`, `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`, `DASHBOARD_PASSWORD` + sekcję `SITE_URL/API_EXTERNAL_URL/...` jak w 4c-NEW.
 
 ### 4d. Start Supabase
 
@@ -197,7 +224,9 @@ docker compose ps
 Wszystkie kontenery muszą być `running` / `healthy` (pierwszy start ~5 min). Test:
 
 ```bash
-curl http://localhost:8000/rest/v1/ -H "apikey: <ANON_KEY>"
+# NEW: użyj SUPABASE_PUBLISHABLE_KEY (sb_publishable_...)
+curl http://localhost:8000/rest/v1/ -H "apikey: <SUPABASE_PUBLISHABLE_KEY>"
+# LEGACY: -H "apikey: <ANON_KEY>"
 ```
 
 Studio dostępne pod `http://10.0.0.108:3000` (login: `admin` / hasło z `DASHBOARD_PASSWORD`).
@@ -241,7 +270,8 @@ nano .env.production
 
 ```
 VITE_SUPABASE_URL=http://10.0.0.108:8000
-VITE_SUPABASE_PUBLISHABLE_KEY=<ANON_KEY>
+# NEW: wklej sb_publishable_... z 4b-NEW   |   LEGACY: wklej ANON_KEY (JWT) z 4b-LEGACY
+VITE_SUPABASE_PUBLISHABLE_KEY=<SUPABASE_PUBLISHABLE_KEY lub ANON_KEY>
 VITE_SUPABASE_PROJECT_ID=local
 ```
 
