@@ -15,7 +15,7 @@
 
 ## KROK 0 — Instalacja Ubuntu Server (jeśli nie masz)
 
-1. Pobierz Ubuntu Server 22.04 LTS: https://ubuntu.com/download/server
+1. Pobierz Ubuntu Server 26.04 LTS: https://ubuntu.com/download/server (jeśli 26.04 nie jest jeszcze GA — weź 24.04 LTS, wszystkie komendy są identyczne).
 2. Zainstaluj (w VM lub na blachę). W kreatorze:
    - **OpenSSH server**: zaznacz (będzie potrzebny do zdalnej pracy)
    - **Statyczny IP**: ustaw `10.0.0.108/24`, gateway `10.0.0.1`, DNS `1.1.1.1, 8.8.8.8`
