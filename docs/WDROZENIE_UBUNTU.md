@@ -197,10 +197,12 @@ done
 
 ## KROK 6 — Frontend w Dockerze
 
+> Folder aplikacji na hoście może mieć dowolną nazwę (np. `~/biokrap`). W całej instrukcji `~/app` to tylko przykład — wszędzie podstaw swoją ścieżkę. `WORKDIR /app` w Dockerfile to ścieżka WEWNĄTRZ kontenera i ZAWSZE zostaje `/app` — nie zmieniaj jej na nazwę folderu hosta.
+
 ### 6a. `.env.production`
 
 ```bash
-cd ~/app
+cd ~/biokrap   # lub Twój folder aplikacji
 nano .env.production
 ```
 
@@ -210,7 +212,8 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 VITE_SUPABASE_PROJECT_ID=local
 ```
 
-### 6b. `Dockerfile` (jeśli brak w repo)
+### 6b. `Dockerfile` (w folderze aplikacji, jeśli brak w repo)
+
 
 ```dockerfile
 FROM oven/bun:1 AS build
