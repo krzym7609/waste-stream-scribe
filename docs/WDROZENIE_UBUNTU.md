@@ -3,7 +3,7 @@
 **Cel:** aplikacja (frontend) + Supabase self-hosted działają na jednym serwerze Ubuntu, startują automatycznie po restarcie, dostępne w sieci lokalnej pod IP serwera. Bez WSL, bez Windows, bez Docker Desktop.
 
 **Założenia:**
-- Świeży **Ubuntu Server 22.04 LTS** (lub 24.04), zainstalowany na maszynie fizycznej / VM (Proxmox, Hyper-V, bare metal)
+- Świeży **Ubuntu Server 26.04 LTS** (instrukcja działa też 1:1 na 24.04 / 22.04), zainstalowany na maszynie fizycznej / VM (Proxmox, Hyper-V, bare metal)
 - Serwer ma stały IP `10.0.0.108` (przykład — wstaw swój)
 - Konto z `sudo`
 - Porty: frontend `3001`, Supabase Kong API `8000`, Studio `3000`, Postgres `5432`
