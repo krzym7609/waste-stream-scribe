@@ -253,6 +253,20 @@ docker compose up -d --build
 
 Test: `http://10.0.0.108:3001` w przeglądarce.
 
+**Jeśli build wywali `no space left on device`** — masz pełny dysk. Sprzątanie:
+
+```bash
+df -h /                         # sprawdź ile zostało
+docker system prune -af --volumes   # usuwa nieużywane obrazy/kontenery/cache (UWAGA: kasuje też nieużywane wolumeny)
+docker builder prune -af        # czyści cache buildera
+sudo journalctl --vacuum-time=3d
+sudo apt clean
+df -h /
+```
+
+Jeśli dalej brakuje miejsca — zwiększ dysk VM/serwera. Build frontu + obrazy Supabase potrzebują min. **20 GB wolnego**.
+
+
 ---
 
 ## KROK 7 — Autostart
