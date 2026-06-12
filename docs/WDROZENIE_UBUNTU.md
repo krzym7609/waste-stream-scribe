@@ -517,6 +517,92 @@ gunzip -c ~/backups/db_<TIMESTAMP>.sql.gz | docker exec -i supabase-db psql -U p
 
 ---
 
+# KROK 10 — Utworzenie pierwszego kierownika (przez SQL)
+
+W self-hosted Supabase przycisk **Add user** w Studio nie zawsze działa (walidacja domeny `.local` w GoTrue + nasz tryb HS256). Najpewniejszy sposób: SQL.
+
+## 10a. Uruchomienie SQL z terminala
+
+Każdy `psql` przepuszczamy przez kontener bazy — nic nie instalujesz na hoście:
+
+```bash
+docker exec -i supabase-db psql -U postgres -d postgres
+```
+
+Otworzy się prompt `postgres=#`. Wklejasz SQL, na końcu `Ctrl+D` żeby wyjść.
+
+Alternatywa — jednorazowo z pliku:
+
+```bash
+nano ~/create-kierownik.sql
+# wklej cały SQL z 10b + 10c, zapisz
+docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 < ~/create-kierownik.sql
+```
+
+## 10b. Utworzenie użytkownika w `auth.users`
+
+```sql
+INSERT INTO auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, email_change, email_change_token_new, recovery_token
+) VALUES (
+  '00000000-0000-0000-0000-000000000000',
+  gen_random_uuid(),
+  'authenticated', 'authenticated',
+  'kierownik@oczyszczalnia.local',
+  crypt('Kierownik123!', gen_salt('bf')),
+  now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  jsonb_build_object(
+    'first_name','Jan','last_name','Kowalski',
+    'username','kierownik','role','kierownik',
+    'must_change_password', true
+  ),
+  now(), now(), '', '', '', ''
+);
+```
+
+Trigger `handle_new_user` automatycznie utworzy wpis w `public.profiles` i `public.user_roles` z rolą `kierownik`.
+
+## 10c. (Opcjonalnie) Poprawka profilu i roli
+
+Jeśli użytkownik już istnieje, albo chcesz nadpisać dane:
+
+```sql
+WITH u AS (SELECT id FROM auth.users WHERE email = 'kierownik@oczyszczalnia.local')
+UPDATE public.profiles
+SET first_name = 'Jan',
+    last_name  = 'Kowalski',
+    username   = 'kierownik',
+    must_change_password = true
+WHERE id = (SELECT id FROM u);
+
+WITH u AS (SELECT id FROM auth.users WHERE email = 'kierownik@oczyszczalnia.local')
+DELETE FROM public.user_roles WHERE user_id = (SELECT id FROM u);
+
+WITH u AS (SELECT id FROM auth.users WHERE email = 'kierownik@oczyszczalnia.local')
+INSERT INTO public.user_roles (user_id, role)
+VALUES ((SELECT id FROM u), 'kierownik');
+```
+
+## 10d. Weryfikacja
+
+```sql
+SELECT p.username, p.first_name, p.last_name, ur.role
+FROM public.profiles p
+JOIN public.user_roles ur ON ur.user_id = p.id
+WHERE p.username = 'kierownik';
+```
+
+## 10e. Logowanie
+
+W aplikacji (`http://<IP>:3001`) → login: `kierownik`, hasło: `Kierownik123!`. Przy pierwszym logowaniu aplikacja wymusi zmianę hasła (flaga `must_change_password`).
+
+> Tym samym schematem (zmień `email`, `username`, `role`) tworzysz `admin` lub kolejnych operatorów. Dostępne role: `admin`, `kierownik`, `operator`.
+
+---
+
 # Diagnostyka — co sprawdzić, gdy coś nie działa
 
 **Sprawdź czy kontenery żyją:**
