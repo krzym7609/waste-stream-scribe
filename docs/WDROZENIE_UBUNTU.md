@@ -406,7 +406,7 @@ sudo ss -tlnp | grep -E '3001|8000|3000|5432'
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Ubuntu Server 22.04  (10.0.0.108)              │
+│  Ubuntu Server 26.04  (10.0.0.108)              │
 │                                                  │
 │  systemd ──► dockerd (enabled, autostart)        │
 │              │                                    │
