@@ -295,12 +295,15 @@ cd ~/biokrap
 nano .env.production
 ```
 
-Wklej (podstaw swoje wartości):
+Wklej (podstaw swoje wartości — **wszystkie 6 linii**, część bez `VITE_` jest potrzebna serwerowi SSR w czasie działania):
 
 ```
 VITE_SUPABASE_URL=http://<IP>:8000
 VITE_SUPABASE_PUBLISHABLE_KEY=<wklej_ANON_KEY_z_4c>
 VITE_SUPABASE_PROJECT_ID=local
+SUPABASE_URL=http://<IP>:8000
+SUPABASE_PUBLISHABLE_KEY=<wklej_ANON_KEY_z_4c>
+SUPABASE_SERVICE_ROLE_KEY=<wklej_SERVICE_ROLE_KEY_z_4c>
 ```
 
 Zapisz (`Ctrl+O`, Enter, `Ctrl+X`).
@@ -324,10 +327,10 @@ COPY package.json bun.lockb* ./
 RUN bun install
 COPY . .
 # KLUCZOWE: repo zawiera plik .env z adresem chmury Lovable.
-# Usuwamy go, żeby Vite użył WYŁĄCZNIE .env.production (lokalny serwer).
+# Nadpisujemy go Twoim .env.production — wtedy Vite NIE MA SKĄD wziąć adresu chmury.
 RUN rm -f .env .env.local
-# Sprawdzenie: build padnie od razu, jeśli zapomniałeś o .env.production
 RUN test -f .env.production || (echo "BRAK PLIKU .env.production!" && exit 1)
+RUN cp .env.production .env
 ENV NITRO_PRESET=node-server
 RUN bun run build
 
