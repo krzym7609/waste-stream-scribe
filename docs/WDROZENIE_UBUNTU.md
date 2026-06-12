@@ -224,7 +224,9 @@ docker compose ps
 Wszystkie kontenery muszą być `running` / `healthy` (pierwszy start ~5 min). Test:
 
 ```bash
-curl http://localhost:8000/rest/v1/ -H "apikey: <ANON_KEY>"
+# NEW: użyj SUPABASE_PUBLISHABLE_KEY (sb_publishable_...)
+curl http://localhost:8000/rest/v1/ -H "apikey: <SUPABASE_PUBLISHABLE_KEY>"
+# LEGACY: -H "apikey: <ANON_KEY>"
 ```
 
 Studio dostępne pod `http://10.0.0.108:3000` (login: `admin` / hasło z `DASHBOARD_PASSWORD`).
