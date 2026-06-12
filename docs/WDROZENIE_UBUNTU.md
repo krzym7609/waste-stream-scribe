@@ -262,6 +262,34 @@ cd biokrap
 
 Jeśli repo jest prywatne i pyta o login — użyj **Personal Access Token** zamiast hasła (GitHub → Settings → Developer settings → Tokens).
 
+### 5a.1. ⚠️ KRYTYCZNE: nadpisanie pliku `.env` z repo
+
+Repo zawiera plik `.env` z adresem chmurowego Supabase (Lovable). Jeśli go nie nadpiszesz **przed buildem**, Vite wpieka adres chmury do bundla i aplikacja po zalogowaniu próbuje się łączyć z chmurą zamiast z Twoim serwerem.
+
+Nadpisz `.env` **od razu** po `git clone` (podstaw swój IP i klucze z kroku 4c):
+
+```bash
+cd ~/biokrap
+cat > .env <<'EOF'
+VITE_SUPABASE_URL=http://<IP>:8000
+VITE_SUPABASE_PUBLISHABLE_KEY=<wklej_ANON_KEY_z_4c>
+VITE_SUPABASE_PROJECT_ID=local
+SUPABASE_URL=http://<IP>:8000
+SUPABASE_PUBLISHABLE_KEY=<wklej_ANON_KEY_z_4c>
+SUPABASE_SERVICE_ROLE_KEY=<wklej_SERVICE_ROLE_KEY_z_4c>
+EOF
+```
+
+Sprawdź, czy nigdzie nie został adres chmury:
+
+```bash
+grep -E 'supabase\.co|lovable' .env || echo "OK — .env czysty"
+```
+
+Musisz zobaczyć `OK — .env czysty`. Jeśli grep coś znalazł — popraw plik ręcznie (`nano .env`).
+
+> Po każdym kolejnym `git pull` **sprawdź ponownie** czy `.env` nie wrócił do wersji z repo. Najbezpieczniej trzymać kopię `.env.production` (krok 6a) i przed buildem zawsze robić `cp .env.production .env`.
+
 ## 5b. Wgranie migracji do bazy
 
 **Nie używamy `supabase db push`** — wymusza TLS, którego self-hosted nie ma na porcie 5432. Wgrywamy bezpośrednio przez kontener bazy (najprościej, nic nie instalujemy na hoście):
