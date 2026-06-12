@@ -218,9 +218,8 @@ VITE_SUPABASE_PROJECT_ID=local
 ```dockerfile
 FROM oven/bun:1 AS build
 WORKDIR /app
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
 COPY . .
+RUN bun install
 RUN bun run build
 
 FROM node:20-alpine
