@@ -273,7 +273,7 @@ Zapisz (`Ctrl+O`, Enter, `Ctrl+X`).
 
 ## 6b. `Dockerfile`
 
-> ⚠️ **WAŻNE:** BiokrApp to aplikacja **TanStack Start (SSR)**, nie zwykłe Vite SPA. Build leci do folderu `.output/`, a nie `dist/`. Aplikację uruchamia **Node.js** (handler SSR), nie statyczny `serve`. Nie używaj `serve -s dist` — dostaniesz listing folderów zamiast aplikacji.
+> ⚠️ **WAŻNE:** BiokrApp to aplikacja **TanStack Start (SSR)** zbudowana na **Nitro**. Domyślny preset Nitro w tym projekcie to `cloudflare` (Cloudflare Workers) — żeby uruchomić aplikację na własnym serwerze pod Node.js, **musisz** ustawić `NITRO_PRESET=node-server` przed buildem. Inaczej `.output/server/index.mjs` nie powstanie w formacie node'owym i build Dockera padnie na `COPY --from=build /app/.output ... not found`.
 
 Jeśli plik nie istnieje w repo:
 
@@ -289,12 +289,12 @@ WORKDIR /app
 COPY package.json bun.lockb* ./
 RUN bun install
 COPY . .
+ENV NITRO_PRESET=node-server
 RUN bun run build
 
 FROM node:20-alpine
 WORKDIR /app
 COPY --from=build /app/.output ./.output
-COPY --from=build /app/package.json ./package.json
 ENV PORT=3001
 ENV HOST=0.0.0.0
 EXPOSE 3001
@@ -302,6 +302,7 @@ CMD ["node", ".output/server/index.mjs"]
 ```
 
 Zapisz, wyjdź.
+
 
 ## 6c. `docker-compose.yml`
 
