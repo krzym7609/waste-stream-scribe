@@ -115,21 +115,24 @@ Generujemy JWT z **bardzo długim czasem życia (100 lat)** prosto w Linuksie �
 > ℹ️ ANON_KEY i SERVICE_ROLE_KEY to JWT podpisane Twoim `JWT_SECRET`. Generujemy je raz, lokalnie, w czystym Pythonie (jest w Ubuntu domyślnie). Brak Pythona? `sudo apt install -y python3`.
 
 ```bash
-# Używa JWT_SECRET wyeksportowanego w kroku 4a. Jeśli otworzyłeś nowy terminal:
-# export JWT_SECRET='<wklej_JWT_SECRET>'
+# Wczytaj JWT_SECRET — najpierw z .env (jeśli już go tam wkleiłeś), w przeciwnym
+# razie z eksportu w kroku 4a. Jeśli żadne nie zadziała — wklej ręcznie.
+if [ -z "${JWT_SECRET:-}" ] && [ -f ~/supabase-project/.env ]; then
+  export JWT_SECRET=$(grep -E '^JWT_SECRET=' ~/supabase-project/.env | cut -d= -f2-)
+fi
+[ -z "${JWT_SECRET:-}" ] && { echo "BRAK JWT_SECRET — wklej: export JWT_SECRET='...'"; }
+echo "JWT_SECRET długość: ${#JWT_SECRET} znaków (powinno być ~64)"
 
 # 100 lat ważności (3 155 760 000 sekund)
 export EXP=$(( $(date +%s) + 3155760000 ))
 export IAT=$(date +%s)
 
-
 gen_jwt () {
-  local role="$1"
-  python3 - <<PY
+  JWT_SECRET="$JWT_SECRET" IAT="$IAT" EXP="$EXP" ROLE="$1" python3 <<'PY'
 import base64, hmac, hashlib, json, os
 def b64(b): return base64.urlsafe_b64encode(b).rstrip(b'=').decode()
 header  = b64(json.dumps({"alg":"HS256","typ":"JWT"},separators=(',',':')).encode())
-payload = b64(json.dumps({"role":"${role}","iss":"supabase","iat":int(os.environ["IAT"]),"exp":int(os.environ["EXP"])},separators=(',',':')).encode())
+payload = b64(json.dumps({"role":os.environ["ROLE"],"iss":"supabase","iat":int(os.environ["IAT"]),"exp":int(os.environ["EXP"])},separators=(',',':')).encode())
 sig     = b64(hmac.new(os.environ["JWT_SECRET"].encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest())
 print(f"{header}.{payload}.{sig}")
 PY
@@ -138,6 +141,7 @@ PY
 echo "ANON_KEY=$(gen_jwt anon)"
 echo "SERVICE_ROLE_KEY=$(gen_jwt service_role)"
 ```
+
 
 Skopiuj obie linie — wkleisz je do `.env` w kroku 4c.
 
