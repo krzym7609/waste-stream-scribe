@@ -278,7 +278,9 @@ nano ~/deploy.sh
 set -euo pipefail
 cd ~/app
 git pull --ff-only
-supabase db push --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@localhost:5432/postgres?sslmode=disable"
+for f in supabase/migrations/*.sql; do
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$f"
+done
 docker compose up -d --build
 echo "=== Deploy OK: $(date) ==="
 ```
