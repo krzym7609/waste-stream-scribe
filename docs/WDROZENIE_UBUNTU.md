@@ -3,7 +3,7 @@
 **Cel:** aplikacja (frontend) + Supabase self-hosted działają na jednym serwerze Ubuntu, startują automatycznie po restarcie, dostępne w sieci lokalnej pod IP serwera. Bez WSL, bez Windows, bez Docker Desktop.
 
 **Założenia:**
-- Świeży **Ubuntu Server 22.04 LTS** (lub 24.04), zainstalowany na maszynie fizycznej / VM (Proxmox, Hyper-V, bare metal)
+- Świeży **Ubuntu Server 26.04 LTS** (instrukcja działa też 1:1 na 24.04 / 22.04), zainstalowany na maszynie fizycznej / VM (Proxmox, Hyper-V, bare metal)
 - Serwer ma stały IP `10.0.0.108` (przykład — wstaw swój)
 - Konto z `sudo`
 - Porty: frontend `3001`, Supabase Kong API `8000`, Studio `3000`, Postgres `5432`
@@ -15,7 +15,7 @@
 
 ## KROK 0 — Instalacja Ubuntu Server (jeśli nie masz)
 
-1. Pobierz Ubuntu Server 22.04 LTS: https://ubuntu.com/download/server
+1. Pobierz Ubuntu Server 26.04 LTS: https://ubuntu.com/download/server (jeśli 26.04 nie jest jeszcze GA — weź 24.04 LTS, wszystkie komendy są identyczne).
 2. Zainstaluj (w VM lub na blachę). W kreatorze:
    - **OpenSSH server**: zaznacz (będzie potrzebny do zdalnej pracy)
    - **Statyczny IP**: ustaw `10.0.0.108/24`, gateway `10.0.0.1`, DNS `1.1.1.1, 8.8.8.8`
@@ -406,7 +406,7 @@ sudo ss -tlnp | grep -E '3001|8000|3000|5432'
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Ubuntu Server 22.04  (10.0.0.108)              │
+│  Ubuntu Server 26.04  (10.0.0.108)              │
 │                                                  │
 │  systemd ──► dockerd (enabled, autostart)        │
 │              │                                    │
