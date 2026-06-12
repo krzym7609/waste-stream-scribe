@@ -130,24 +130,62 @@ echo "=========================================="
 
 **Skopiuj oba hasła w bezpieczne miejsce** (menedżer haseł). Będą Ci potrzebne kilka razy.
 
-## 4c. Wygenerowanie kluczy API (publishable + secret + JWT)
+## 4c. Wygenerowanie kluczy API (JWT_SECRET + ANON_KEY + SERVICE_ROLE_KEY)
 
-Supabase ma do tego gotowy skrypt:
+Używamy klasycznego, spójnego zestawu kluczy HS256 — Studio, GoTrue i PostgREST muszą podpisywać tym samym `JWT_SECRET`.
+
+> ⚠️ **NIE używaj** `bash utils/add-new-auth-keys.sh` z repo Supabase. Generuje on nowy asymetryczny system (`sb_publishable_/sb_secret_` + `JWT_KEYS`/`JWT_JWKS`), przez co Studio nie potrafi dodawać użytkowników (błąd `bad_jwt` / `403`).
+
+Generator lokalny (10 lat ważności, tylko `openssl`):
 
 ```bash
-cd ~/supabase-project
-bash utils/add-new-auth-keys.sh
+nano ~/gen-supabase-keys.sh
 ```
 
-Skrypt wypisze 4 linie zaczynające się od:
-```
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-SUPABASE_SECRET_KEY=sb_secret_...
-JWT_KEYS=[...]
-JWT_JWKS={"keys":[...]}
+Wklej:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+
+JWT_SECRET=$(openssl rand -base64 64 | tr -d '\n=+/' | cut -c1-64)
+IAT=$(date +%s)
+EXP=$((IAT + 60*60*24*365*10))   # 10 lat
+
+HEADER=$(printf '{"alg":"HS256","typ":"JWT"}' | b64url)
+
+sign() {
+  local role="$1"
+  local payload
+  payload=$(printf '{"iss":"supabase","role":"%s","iat":%s,"exp":%s}' "$role" "$IAT" "$EXP" | b64url)
+  local sig
+  sig=$(printf '%s.%s' "$HEADER" "$payload" \
+    | openssl dgst -sha256 -hmac "$JWT_SECRET" -binary | b64url)
+  printf '%s.%s.%s\n' "$HEADER" "$payload" "$sig"
+}
+
+ANON_KEY=$(sign anon)
+SERVICE_ROLE_KEY=$(sign service_role)
+
+cat <<EOF
+==========================================
+JWT_SECRET=$JWT_SECRET
+ANON_KEY=$ANON_KEY
+SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
+==========================================
+EOF
 ```
 
-**Skopiuj całość** (zaznacz myszką w terminalu, prawym klikiem). Też zapisz w bezpiecznym miejscu — te klucze nie wygasają.
+Uruchom:
+
+```bash
+chmod +x ~/gen-supabase-keys.sh
+~/gen-supabase-keys.sh
+```
+
+**Zapisz wszystkie 3 wartości** w menedżerze haseł. Ważne 10 lat.
 
 ## 4d. Edycja pliku `.env` Supabase
 
@@ -157,7 +195,7 @@ nano ~/supabase-project/.env
 
 **Skróty nano:** `Ctrl+W` = szukaj, strzałki = ruch, `Ctrl+O` Enter = zapisz, `Ctrl+X` = wyjdź.
 
-Znajdź i ustaw każdą z tych linii (`Ctrl+W` → wpisz nazwę → Enter). Jeśli linia istnieje — zmień wartość. Jeśli nie ma — dopisz na końcu pliku:
+Znajdź i ustaw (`Ctrl+W` → wpisz nazwę). Jeśli linii brak — dopisz na końcu:
 
 ```
 POSTGRES_PASSWORD=<wklej_POSTGRES_PASSWORD_z_4b>
@@ -165,10 +203,9 @@ POSTGRES_PASSWORD=<wklej_POSTGRES_PASSWORD_z_4b>
 DASHBOARD_USERNAME=admin
 DASHBOARD_PASSWORD=<wklej_DASHBOARD_PASSWORD_z_4b>
 
-SUPABASE_PUBLISHABLE_KEY=<wklej_z_4c>
-SUPABASE_SECRET_KEY=<wklej_z_4c>
-JWT_KEYS=<wklej_z_4c>
-JWT_JWKS=<wklej_z_4c>
+JWT_SECRET=<wklej_JWT_SECRET_z_4c>
+ANON_KEY=<wklej_ANON_KEY_z_4c>
+SERVICE_ROLE_KEY=<wklej_SERVICE_ROLE_KEY_z_4c>
 
 SITE_URL=http://<IP>:3001
 API_EXTERNAL_URL=http://<IP>:8000
@@ -181,6 +218,8 @@ ENABLE_EMAIL_AUTOCONFIRM=true
 JWT_EXPIRY=604800
 ```
 
+> Jeśli po wcześniejszych próbach zostały w `.env` linie `SUPABASE_PUBLISHABLE_KEY=`, `SUPABASE_SECRET_KEY=`, `JWT_KEYS=`, `JWT_JWKS=` — **usuń je**. Zostawienie miesza dwa systemy kluczy i psuje Studio (`bad_jwt`).
+
 Zapisz: `Ctrl+O`, Enter, `Ctrl+X`.
 
 ## 4e. Pierwszy start Supabase
@@ -189,15 +228,10 @@ Zapisz: `Ctrl+O`, Enter, `Ctrl+X`.
 cd ~/supabase-project
 docker compose pull
 docker compose up -d
-```
-
-Pobieranie ~5 minut przy pierwszym razie. Sprawdź status:
-
-```bash
 docker compose ps
 ```
 
-Wszystkie kontenery muszą być `running` lub `healthy`. Jeśli któryś jest `restarting` lub `unhealthy` — daj 2 minuty, sprawdź jeszcze raz. Jeśli dalej źle:
+Wszystkie kontenery muszą być `running` lub `healthy`. Jeśli któryś `restarting`/`unhealthy` — daj 2 minuty, potem:
 
 ```bash
 docker compose logs <nazwa_kontenera> | tail -50
@@ -205,12 +239,12 @@ docker compose logs <nazwa_kontenera> | tail -50
 
 ## 4f. Test
 
-- **Studio (panel bazy) w przeglądarce:** `http://<IP>:3000` — login `admin`, hasło `DASHBOARD_PASSWORD`. Musisz zobaczyć interfejs Supabase Studio.
-- **API z terminala:**
+- **Studio:** `http://<IP>:3000` — login `admin`, hasło `DASHBOARD_PASSWORD`.
+- **API:**
   ```bash
-  curl http://localhost:8000/rest/v1/ -H "apikey: <wklej_SUPABASE_PUBLISHABLE_KEY>"
+  curl http://localhost:8000/rest/v1/ -H "apikey: <ANON_KEY>"
   ```
-  Zwróci JSON (pusty albo z listą tabel). Jeśli `connection refused` — Supabase nie wstał.
+  Zwróci JSON. `connection refused` = Supabase nie wstał.
 
 ---
 
