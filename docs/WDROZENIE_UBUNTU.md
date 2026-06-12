@@ -147,10 +147,23 @@ Studio: `http://10.0.0.108:3000` (login: `admin` / `DASHBOARD_PASSWORD`).
 
 ### 5a. Supabase CLI
 
+CLI ma dwa pliki (`supabase` + `supabase-go`) — muszą leżeć w tym samym katalogu w PATH.
+
 ```bash
-curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz \
-  | sudo tar -xz -C /usr/local/bin supabase
+SUPABASE_VERSION=2.106.0
+sudo mkdir -p /opt/supabase-cli
+curl -sL https://github.com/supabase/cli/releases/download/v${SUPABASE_VERSION}/supabase_${SUPABASE_VERSION}_linux_amd64.tar.gz \
+  | sudo tar -xzf - -C /opt/supabase-cli
+sudo ln -sf /opt/supabase-cli/supabase /usr/local/bin/supabase
+sudo ln -sf /opt/supabase-cli/supabase-go /usr/local/bin/supabase-go 2>/dev/null || true
 supabase --version
+```
+
+Jeśli `supabase --version` zwraca błąd o `supabase-go`, ustaw zmienną:
+
+```bash
+echo 'export SUPABASE_GO_BINARY=/opt/supabase-cli/supabase-go' | sudo tee /etc/profile.d/supabase.sh
+source /etc/profile.d/supabase.sh
 ```
 
 ### 5b. Repo + migracje
