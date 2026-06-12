@@ -323,6 +323,11 @@ WORKDIR /app
 COPY package.json bun.lockb* ./
 RUN bun install
 COPY . .
+# KLUCZOWE: repo zawiera plik .env z adresem chmury Lovable.
+# Usuwamy go, żeby Vite użył WYŁĄCZNIE .env.production (lokalny serwer).
+RUN rm -f .env .env.local
+# Sprawdzenie: build padnie od razu, jeśli zapomniałeś o .env.production
+RUN test -f .env.production || (echo "BRAK PLIKU .env.production!" && exit 1)
 ENV NITRO_PRESET=node-server
 RUN bun run build
 
@@ -410,6 +415,24 @@ curl -I http://localhost:3001
 ```
 
 Powinno zwrócić `HTTP/1.1 200 OK`. W przeglądarce z innego komputera w sieci: `http://<IP>:3001` — aplikacja musi się załadować.
+
+## 6g. Weryfikacja: czy build używa LOKALNEGO serwera?
+
+```bash
+docker exec biokrap-app sh -c 'grep -ro "supabase\.co" .output 2>/dev/null | head -3'
+```
+
+- **Brak wyniku** = OK, build używa lokalnego adresu z `.env.production`. ✅
+- **Coś się wyświetla** (`...supabase.co`) = build wpiekł adres chmury. Napraw: upewnij się, że `~/biokrap/.env.production` istnieje i ma poprawny `VITE_SUPABASE_URL`, potem przebuduj bez cache:
+
+```bash
+cd ~/biokrap
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+Potem testuj logowanie w **trybie incognito** (stary build może siedzieć w cache przeglądarki).
 
 ---
 
