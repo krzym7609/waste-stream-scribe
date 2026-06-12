@@ -273,6 +273,8 @@ Zapisz (`Ctrl+O`, Enter, `Ctrl+X`).
 
 ## 6b. `Dockerfile`
 
+> ⚠️ **WAŻNE:** BiokrApp to aplikacja **TanStack Start (SSR)**, nie zwykłe Vite SPA. Build leci do folderu `.output/`, a nie `dist/`. Aplikację uruchamia **Node.js** (handler SSR), nie statyczny `serve`. Nie używaj `serve -s dist` — dostaniesz listing folderów zamiast aplikacji.
+
 Jeśli plik nie istnieje w repo:
 
 ```bash
@@ -284,16 +286,19 @@ Wklej **dokładnie** (uwaga: `WORKDIR /app` to ścieżka **wewnątrz kontenera**
 ```dockerfile
 FROM oven/bun:1 AS build
 WORKDIR /app
-COPY . .
+COPY package.json bun.lockb* ./
 RUN bun install
+COPY . .
 RUN bun run build
 
 FROM node:20-alpine
 WORKDIR /app
-RUN npm i -g serve
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/.output ./.output
+COPY --from=build /app/package.json ./package.json
+ENV PORT=3001
+ENV HOST=0.0.0.0
 EXPOSE 3001
-CMD ["serve", "-s", "dist", "-l", "3001"]
+CMD ["node", ".output/server/index.mjs"]
 ```
 
 Zapisz, wyjdź.
@@ -312,11 +317,16 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"
+    environment:
+      - PORT=3001
+      - HOST=0.0.0.0
     env_file:
       - .env.production
 ```
 
 Zapisz, wyjdź.
+
+> Zmienne `VITE_SUPABASE_URL` i `VITE_SUPABASE_PUBLISHABLE_KEY` muszą istnieć w `.env.production` **w momencie builda** — Vite wpieka je do bundla. Jeśli zmienisz `.env.production`, zrób `docker compose up -d --build` (sam restart kontenera nie wystarczy).
 
 ## 6d. `.dockerignore` (przyspiesza build)
 
@@ -326,6 +336,7 @@ nano ~/biokrap/.dockerignore
 
 ```
 node_modules
+.output
 dist
 .git
 .env
@@ -334,6 +345,7 @@ dist
 ```
 
 Zapisz, wyjdź.
+
 
 ## 6e. Build i start
 
