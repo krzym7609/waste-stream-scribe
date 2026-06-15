@@ -221,6 +221,7 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<AttachmentKind>("documentation");
   const [uploading, setUploading] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<PreviewAttachment | null>(null);
 
   async function load() {
     setLoading(true);
