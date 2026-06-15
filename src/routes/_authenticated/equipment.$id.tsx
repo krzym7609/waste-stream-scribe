@@ -377,9 +377,8 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
     repaired: filteredEvents.filter((e) => e.kind !== "awaria"),
   }), [filteredEvents]);
 
-  async function openFile(att: Attachment) {
-    const { data, error } = await supabase.storage.from("equipment-files").createSignedUrl(att.file_path, 60);
-    if (error || !data) toast.error(error?.message ?? "Błąd"); else window.open(data.signedUrl, "_blank");
+  function openFile(att: Attachment) {
+    setPreviewAtt(att);
   }
   async function handleDelete(ev: EquipmentEvent) {
     if (!confirm("Usunąć wpis z historii? (Załączniki zostaną usunięte)")) return;
