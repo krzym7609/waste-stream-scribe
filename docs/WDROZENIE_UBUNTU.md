@@ -488,43 +488,38 @@ Powinieneś zobaczyć **wszystkie** kontenery z `STATUS: Up ...`. Otwórz `http:
 
 ---
 
-# KROK 8 — Skrypt deploy (aktualizacja aplikacji)
+# KROK 8 — Aktualizacja aplikacji (`scripts/update.sh`)
 
-Wygodny skrypt do aktualizacji po `git push` z developmentu:
+W repo znajduje się gotowy skrypt `scripts/update.sh`. Robi wszystko — `git pull`, backup bazy, migracje, rebuild, weryfikację — i chroni `.env` oraz `docker-compose.yml` przed nadpisaniem przez `git pull`.
+
+## 8a. Jednorazowe przygotowanie
 
 ```bash
-nano ~/deploy.sh
+cd ~/biokrap
+chmod +x scripts/update.sh
 ```
 
-Wklej (podstaw swoje hasło Postgresa):
+## 8b. Aktualizacja
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-APP_DIR="$HOME/biokrap"
-cd "$APP_DIR"
-
-echo "=== git pull ==="
-git pull --ff-only
-
-echo "=== migracje ==="
-for f in supabase/migrations/*.sql; do
-  echo ">>> $f"
-  docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 < "$f" || true
-done
-
-echo "=== rebuild frontend ==="
-docker compose up -d --build
-
-echo "=== Deploy OK: $(date) ==="
+cd ~/biokrap
+./scripts/update.sh
 ```
 
-> `|| true` przy migracjach pozwala pominąć już wykonane (np. `CREATE TABLE` rzuca błąd, jeśli tabela istnieje). Jeśli używasz `CREATE TABLE IF NOT EXISTS` w migracjach — usuń to `|| true`.
+Skrypt wykonuje kolejno:
+1. **Zabezpiecza** `.env` i `docker-compose.yml` (`git update-index --skip-worktree`).
+2. **Backup** bazy do `~/backups/biokrap-YYYYMMDD-HHMM.sql`.
+3. **Git pull** (`--ff-only`).
+4. **Migracje SQL** z `supabase/migrations/` (idempotentne — `ON_ERROR_STOP=0`).
+5. **Rebuild** frontendu z `--no-cache`.
+6. **Weryfikacja:** czy kontenery wstały, czy IP w zbudowanych plikach JS pasuje do serwera.
+
+## 8c. Jeśli serwer ma inne IP niż `10.0.0.142`
+
+Skrypt ma domyślnie `EXPECTED_IP=10.0.0.142`. Jeśli Twój serwer ma inny adres:
 
 ```bash
-chmod +x ~/deploy.sh
-~/deploy.sh
+EXPECTED_IP=10.0.0.XYZ ./scripts/update.sh
 ```
 
 ---
