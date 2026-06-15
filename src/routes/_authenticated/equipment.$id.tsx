@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { AttachmentPreviewDialog, type PreviewAttachment } from "@/components/attachment-preview";
 import {
-  Plus, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download,
+  Plus, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Eye,
   AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter,
   ArrowLeft,
 } from "lucide-react";
