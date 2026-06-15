@@ -397,6 +397,43 @@ function MonthlyView() {
             <Stat label="Przeniesione" value={agg.deferred} />
             <Stat label="Przekazania" value={`${agg.handoversAccepted}/${agg.handovers}`} />
           </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Zużycie energii i chemii (dziennie)</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={dailyChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="energia" fill="#3b82f6" name="Energia [kWh]" />
+                  <Bar dataKey="flokProszk" fill="#10b981" name="Flok. proszk. [kg]" />
+                  <Bar dataKey="flokEmul" fill="#f59e0b" name="Flok. emul. [l]" />
+                  <Bar dataKey="wapno" fill="#8b5cf6" name="Wapno [kg]" />
+                  <Bar dataKey="fecl" fill="#ef4444" name="FeCl₃ [l]" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Wykonanie zadań (dziennie)</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={dailyChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="done" fill="#10b981" name="Wykonane" />
+                  <Bar dataKey="pending" fill="#ef4444" name="Niewykonane" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
