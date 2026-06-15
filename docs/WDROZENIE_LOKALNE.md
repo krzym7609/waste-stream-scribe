@@ -498,3 +498,116 @@ netsh interface portproxy show v4tov4
 
 - Pusto → uruchom ręcznie `Restart-Service WSL-PortProxy`.
 - IP WSL inny niż w portproxy → restart WSL-PortProxy aktualizuje mapowanie.
+
+---
+
+## KROK 10 — Aktualizacja aplikacji z gita (po zmianach w Lovable)
+
+Procedura odświeżania aplikacji bez psucia lokalnej konfiguracji (`.env`, `docker-compose.yml`).
+
+### 10a. Jednorazowo: zabezpiecz pliki konfiguracyjne przed `git pull`
+
+W Ubuntu, w folderze projektu (np. `~/biokrap`):
+
+```bash
+cd ~/biokrap
+
+# .env trzymamy lokalnie — git nie ma prawa go nadpisać
+git update-index --skip-worktree .env 2>/dev/null || true
+
+# To samo dla docker-compose.yml jeśli był modyfikowany lokalnie (np. zmiana IP)
+git update-index --skip-worktree docker-compose.yml 2>/dev/null || true
+
+# Weryfikacja — "zamrożone" pliki mają literę S
+git ls-files -v | grep '^S'
+```
+
+Od tej pory `git pull` nigdy nie ruszy tych plików. Żeby cofnąć: `git update-index --no-skip-worktree <plik>`.
+
+### 10b. Backup bazy przed aktualizacją (zalecane przy migracjach)
+
+```bash
+cd ~/supabase-project
+docker exec supabase-db pg_dump -U postgres postgres > ~/backup-$(date +%Y%m%d-%H%M).sql
+ls -lh ~/backup-*.sql
+```
+
+### 10c. Pobranie zmian z gita
+
+```bash
+cd ~/biokrap
+git fetch origin
+git pull --ff-only
+```
+
+Jeśli `git pull` zgłasza konflikt na `.env` lub `docker-compose.yml` — krok 10a nie został wykonany. Wróć i go zrób.
+
+### 10d. Migracje bazy (jeśli w `supabase/migrations/` przybyły nowe pliki SQL)
+
+Sprawdź czy są nowe migracje:
+
+```bash
+git log --name-only --since="ostatnia aktualizacja" -- supabase/migrations/
+```
+
+Jeśli są nowe pliki — wykonaj je po kolei na lokalnej bazie:
+
+```bash
+for f in supabase/migrations/*.sql; do
+  echo "=== $f ==="
+  docker exec -i supabase-db psql -U postgres -d postgres < "$f"
+done
+```
+
+Migracje są idempotentne (`IF NOT EXISTS`, `CREATE OR REPLACE`) — bezpiecznie można puścić wszystkie ponownie. Jeśli któraś rzuci błąd o duplikacie — można pominąć.
+
+### 10e. Rebuild aplikacji
+
+```bash
+cd ~/biokrap
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+`--no-cache` jest ważne, bo `VITE_SUPABASE_URL` i `VITE_SUPABASE_PUBLISHABLE_KEY` są wbijane do plików JS w `/app/dist` w trakcie buildu. Bez `--no-cache` Docker może użyć starej warstwy z poprzednimi wartościami.
+
+### 10f. Weryfikacja
+
+```bash
+docker compose ps
+docker compose logs app --tail=50
+docker exec biokrap-app sh -lc 'env | grep -E "SUPABASE_URL"'
+docker exec biokrap-app sh -lc 'grep -roE "10\.0\.0\.[0-9]+" /app/dist | sort -u'
+```
+
+Wszystko musi pokazać `10.0.0.108` (lub aktualny IP serwera) — nigdy starego.
+
+### 10g. Test w przeglądarce
+
+Otwórz **tryb incognito** (Ctrl+Shift+N w Chrome / Ctrl+Shift+P w Firefox) → `http://10.0.0.108:3001`.
+
+Tryb incognito jest kluczowy — w normalnej przeglądarce zalega stary token JWT w `localStorage`. Po podmianie kluczy Supabase stary token rzuca "Invalid token" przy każdej akcji. W incognito storage jest pusty, login generuje świeży token podpisany aktualnym `JWT_SECRET`.
+
+Jeśli wszystko działa w incognito — w normalnej przeglądarce wystarczy:
+- F12 → Application → Local Storage → prawym → Clear
+- albo Ctrl+Shift+Delete → wyczyść dane strony
+
+### 10h. Co zrobić, gdy coś się posypie
+
+| Objaw | Przyczyna | Rozwiązanie |
+|-------|-----------|-------------|
+| `git pull` nadpisał `.env` | nie wykonano kroku 10a | przywróć z backupu (`~/backup-*.sql` nie pomoże — `.env` trzeba odtworzyć ręcznie z kroku 5a) |
+| "Invalid token" po loginie | stary JWT w cache przeglądarki | tryb incognito albo wyczyść localStorage |
+| `/app/dist` ma stary IP po rebuild | Docker użył cache | `docker compose build --no-cache` jeszcze raz, ewentualnie `docker builder prune -af` |
+| Migracja rzuca błąd | konflikt z istniejącym schematem | zrób backup (10b), sprawdź `psql` ręcznie co przeszkadza, ewentualnie pomiń konkretny plik SQL |
+| Apka nie wstaje po `up -d` | błąd kompilacji TS lub brak zależności | `docker compose logs app` — pokaże dokładny błąd |
+
+### 10i. Skrócony schemat (do skopiowania jako pojedyncza komenda)
+
+Kiedy już raz wszystko działa i ufasz, że nie ma migracji:
+
+```bash
+cd ~/biokrap && git pull --ff-only && docker compose down && docker compose build --no-cache && docker compose up -d && docker compose logs app --tail=30
+```
+
