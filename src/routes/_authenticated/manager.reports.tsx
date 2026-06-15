@@ -293,13 +293,14 @@ function MonthlyView() {
       const end = `${year}-${String(month).padStart(2, "0")}-${String(endDate).padStart(2, "0")}`;
       const [reports, execs, handovers] = await Promise.all([
         supabase.from("shift_reports").select("*").gte("submitted_at", `${start}T00:00:00`).lte("submitted_at", `${end}T23:59:59`),
-        supabase.from("schedule_executions").select("status").gte("scheduled_date", start).lte("scheduled_date", end),
+        supabase.from("schedule_executions").select("scheduled_date, status").gte("scheduled_date", start).lte("scheduled_date", end),
         supabase.from("handover_reports").select("id, accepted_at").gte("submitted_at", `${start}T00:00:00`).lte("submitted_at", `${end}T23:59:59`),
       ]);
       return {
         reports: reports.data ?? [],
         execs: execs.data ?? [],
         handovers: handovers.data ?? [],
+        daysInMonth: endDate,
       };
     },
   });
