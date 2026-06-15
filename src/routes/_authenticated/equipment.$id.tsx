@@ -493,6 +493,11 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
           onClose={() => setAdding(false)}
         />
       )}
+      <AttachmentPreviewDialog
+        attachment={previewAtt}
+        open={!!previewAtt}
+        onOpenChange={(v) => { if (!v) setPreviewAtt(null); }}
+      />
     </div>
   );
 }
