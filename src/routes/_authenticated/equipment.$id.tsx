@@ -352,6 +352,7 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
   const ALL_KINDS: EventKind[] = ["awaria", "naprawa", "serwis", "przeglad", "inne"];
   const [selectedKinds, setSelectedKinds] = useState<EventKind[]>([...ALL_KINDS]);
   const [groupByStatus, setGroupByStatus] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<PreviewAttachment | null>(null);
 
   async function load() {
     setLoading(true);
