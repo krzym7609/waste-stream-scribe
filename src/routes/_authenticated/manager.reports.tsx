@@ -334,6 +334,31 @@ function MonthlyView() {
     };
   }, [data]);
 
+  const dailyChart = useMemo(() => {
+    if (!data) return [];
+    const days = Array.from({ length: data.daysInMonth }, (_, i) => ({
+      day: String(i + 1).padStart(2, "0"),
+      energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0,
+      done: 0, pending: 0,
+    }));
+    for (const r of data.reports as any[]) {
+      const d = new Date(r.submitted_at).getDate() - 1;
+      if (d < 0 || d >= days.length) continue;
+      days[d].energia += Math.max(0, (Number(r.energia_end) || 0) - (Number(r.energia_start) || 0));
+      days[d].flokProszk += Number(r.flokulant_proszkowy_kg) || 0;
+      days[d].flokEmul += Number(r.flokulant_emulsyjny_l) || 0;
+      days[d].wapno += Number(r.wapno_kg) || 0;
+      days[d].fecl += Number(r.chlorek_zelaza_l) || 0;
+    }
+    for (const e of data.execs as any[]) {
+      const d = Number(String(e.scheduled_date).slice(8, 10)) - 1;
+      if (d < 0 || d >= days.length) continue;
+      if (e.status === "done") days[d].done++;
+      else if (e.status === "pending") days[d].pending++;
+    }
+    return days;
+  }, [data]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-end gap-3">
