@@ -277,6 +277,7 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
   }, [attachments]);
 
   return (
+    <>
     <Tabs value={tab} onValueChange={(v) => setTab(v as AttachmentKind)}>
       <TabsList className="grid grid-cols-4 w-full">
         {(Object.keys(KIND_LABELS) as AttachmentKind[]).map((k) => {
@@ -307,8 +308,8 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
             <div className="space-y-1">
               {grouped[k].map((a) => (
                 <div key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{a.original_name}</div>
+                  <div className="min-w-0 cursor-pointer" onClick={() => setPreviewAtt(a)}>
+                    <div className="font-medium truncate hover:underline">{a.original_name}</div>
                     <div className="text-xs text-muted-foreground">
                       {a.mime_type ?? "—"} · {a.size_bytes ? `${Math.round(a.size_bytes / 1024)} kB` : ""}
                       {" · "}{new Date(a.uploaded_at).toLocaleString("pl-PL")}
@@ -334,6 +335,12 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
         </TabsContent>
       ))}
     </Tabs>
+    <AttachmentPreviewDialog
+      attachment={previewAtt}
+      open={!!previewAtt}
+      onOpenChange={(v) => { if (!v) setPreviewAtt(null); }}
+    />
+    </>
   );
 }
 
