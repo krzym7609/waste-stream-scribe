@@ -315,11 +315,14 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleDownload(a)}>
+                    <Button variant="ghost" size="sm" onClick={() => setPreviewAtt(a)} title="Podgląd">
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDownload(a)} title="Pobierz">
                       <Download className="w-3.5 h-3.5" />
                     </Button>
                     {(isManager || a.uploaded_by === userId) && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(a)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(a)} title="Usuń">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}
