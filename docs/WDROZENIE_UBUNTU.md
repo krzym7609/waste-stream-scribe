@@ -15,7 +15,7 @@ Aplikacja (frontend) + Supabase self-hosted, wszystko w Dockerze, na jednym serw
 - **System:** Ubuntu Server 22.04 / 24.04 LTS (świeża instalacja)
 - **Dysk:** minimum **40 GB** wolnego miejsca (Supabase + obrazy + build to ~15 GB, reszta to zapas). `df -h /` musi pokazać min. 30 GB w kolumnie `Avail`.
 - **RAM:** min. 4 GB (zalecane 8 GB)
-- **IP:** stały adres w sieci lokalnej — w tej instrukcji używam `10.0.0.140`. **Wszędzie podstaw swój IP.**
+- **IP:** stały adres w sieci lokalnej — w tej instrukcji używam `10.0.0.142`. **Wszędzie podstaw swój IP.**
 - **Konto:** użytkownik z prawami `sudo` (np. `s4tech`). Logujesz się przez SSH lub konsolę.
 - **Repo aplikacji:** masz URL gita (HTTPS lub SSH) do BiokrApp.
 
