@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { AttachmentPreviewDialog, type PreviewAttachment } from "@/components/attachment-preview";
 import {
-  Plus, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download,
+  Plus, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Eye,
   AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter,
   ArrowLeft,
 } from "lucide-react";
@@ -220,6 +221,7 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<AttachmentKind>("documentation");
   const [uploading, setUploading] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<PreviewAttachment | null>(null);
 
   async function load() {
     setLoading(true);
@@ -275,6 +277,7 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
   }, [attachments]);
 
   return (
+    <>
     <Tabs value={tab} onValueChange={(v) => setTab(v as AttachmentKind)}>
       <TabsList className="grid grid-cols-4 w-full">
         {(Object.keys(KIND_LABELS) as AttachmentKind[]).map((k) => {
@@ -305,19 +308,22 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
             <div className="space-y-1">
               {grouped[k].map((a) => (
                 <div key={a.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{a.original_name}</div>
+                  <div className="min-w-0 cursor-pointer" onClick={() => setPreviewAtt(a)}>
+                    <div className="font-medium truncate hover:underline">{a.original_name}</div>
                     <div className="text-xs text-muted-foreground">
                       {a.mime_type ?? "—"} · {a.size_bytes ? `${Math.round(a.size_bytes / 1024)} kB` : ""}
                       {" · "}{new Date(a.uploaded_at).toLocaleString("pl-PL")}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleDownload(a)}>
+                    <Button variant="ghost" size="sm" onClick={() => setPreviewAtt(a)} title="Podgląd">
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDownload(a)} title="Pobierz">
                       <Download className="w-3.5 h-3.5" />
                     </Button>
                     {(isManager || a.uploaded_by === userId) && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(a)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(a)} title="Usuń">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}
@@ -329,6 +335,12 @@ function AttachmentsPanel({ equipmentId, userId, isManager }: { equipmentId: str
         </TabsContent>
       ))}
     </Tabs>
+    <AttachmentPreviewDialog
+      attachment={previewAtt}
+      open={!!previewAtt}
+      onOpenChange={(v) => { if (!v) setPreviewAtt(null); }}
+    />
+    </>
   );
 }
 
@@ -340,6 +352,7 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
   const ALL_KINDS: EventKind[] = ["awaria", "naprawa", "serwis", "przeglad", "inne"];
   const [selectedKinds, setSelectedKinds] = useState<EventKind[]>([...ALL_KINDS]);
   const [groupByStatus, setGroupByStatus] = useState(false);
+  const [previewAtt, setPreviewAtt] = useState<PreviewAttachment | null>(null);
 
   async function load() {
     setLoading(true);
@@ -364,9 +377,8 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
     repaired: filteredEvents.filter((e) => e.kind !== "awaria"),
   }), [filteredEvents]);
 
-  async function openFile(att: Attachment) {
-    const { data, error } = await supabase.storage.from("equipment-files").createSignedUrl(att.file_path, 60);
-    if (error || !data) toast.error(error?.message ?? "Błąd"); else window.open(data.signedUrl, "_blank");
+  function openFile(att: Attachment) {
+    setPreviewAtt(att);
   }
   async function handleDelete(ev: EquipmentEvent) {
     if (!confirm("Usunąć wpis z historii? (Załączniki zostaną usunięte)")) return;
@@ -481,6 +493,11 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
           onClose={() => setAdding(false)}
         />
       )}
+      <AttachmentPreviewDialog
+        attachment={previewAtt}
+        open={!!previewAtt}
+        onOpenChange={(v) => { if (!v) setPreviewAtt(null); }}
+      />
     </div>
   );
 }

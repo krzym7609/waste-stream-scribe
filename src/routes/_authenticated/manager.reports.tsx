@@ -293,13 +293,14 @@ function MonthlyView() {
       const end = `${year}-${String(month).padStart(2, "0")}-${String(endDate).padStart(2, "0")}`;
       const [reports, execs, handovers] = await Promise.all([
         supabase.from("shift_reports").select("*").gte("submitted_at", `${start}T00:00:00`).lte("submitted_at", `${end}T23:59:59`),
-        supabase.from("schedule_executions").select("status").gte("scheduled_date", start).lte("scheduled_date", end),
+        supabase.from("schedule_executions").select("scheduled_date, status").gte("scheduled_date", start).lte("scheduled_date", end),
         supabase.from("handover_reports").select("id, accepted_at").gte("submitted_at", `${start}T00:00:00`).lte("submitted_at", `${end}T23:59:59`),
       ]);
       return {
         reports: reports.data ?? [],
         execs: execs.data ?? [],
         handovers: handovers.data ?? [],
+        daysInMonth: endDate,
       };
     },
   });
@@ -331,6 +332,31 @@ function MonthlyView() {
       handovers: data.handovers.length,
       handoversAccepted: data.handovers.filter((h: any) => h.accepted_at).length,
     };
+  }, [data]);
+
+  const dailyChart = useMemo(() => {
+    if (!data) return [];
+    const days = Array.from({ length: data.daysInMonth }, (_, i) => ({
+      day: String(i + 1).padStart(2, "0"),
+      energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0,
+      done: 0, pending: 0,
+    }));
+    for (const r of data.reports as any[]) {
+      const d = new Date(r.submitted_at).getDate() - 1;
+      if (d < 0 || d >= days.length) continue;
+      days[d].energia += Math.max(0, (Number(r.energia_end) || 0) - (Number(r.energia_start) || 0));
+      days[d].flokProszk += Number(r.flokulant_proszkowy_kg) || 0;
+      days[d].flokEmul += Number(r.flokulant_emulsyjny_l) || 0;
+      days[d].wapno += Number(r.wapno_kg) || 0;
+      days[d].fecl += Number(r.chlorek_zelaza_l) || 0;
+    }
+    for (const e of data.execs as any[]) {
+      const d = Number(String(e.scheduled_date).slice(8, 10)) - 1;
+      if (d < 0 || d >= days.length) continue;
+      if (e.status === "done") days[d].done++;
+      else if (e.status === "pending") days[d].pending++;
+    }
+    return days;
   }, [data]);
 
   return (
@@ -371,6 +397,43 @@ function MonthlyView() {
             <Stat label="Przeniesione" value={agg.deferred} />
             <Stat label="Przekazania" value={`${agg.handoversAccepted}/${agg.handovers}`} />
           </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Zużycie energii i chemii (dziennie)</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={dailyChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="energia" fill="#3b82f6" name="Energia [kWh]" />
+                  <Bar dataKey="flokProszk" fill="#10b981" name="Flok. proszk. [kg]" />
+                  <Bar dataKey="flokEmul" fill="#f59e0b" name="Flok. emul. [l]" />
+                  <Bar dataKey="wapno" fill="#8b5cf6" name="Wapno [kg]" />
+                  <Bar dataKey="fecl" fill="#ef4444" name="FeCl₃ [l]" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Wykonanie zadań (dziennie)</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={dailyChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="done" fill="#10b981" name="Wykonane" />
+                  <Bar dataKey="pending" fill="#ef4444" name="Niewykonane" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
