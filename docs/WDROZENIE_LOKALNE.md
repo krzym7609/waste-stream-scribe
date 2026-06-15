@@ -603,11 +603,21 @@ Jeśli wszystko działa w incognito — w normalnej przeglądarce wystarczy:
 | Migracja rzuca błąd | konflikt z istniejącym schematem | zrób backup (10b), sprawdź `psql` ręcznie co przeszkadza, ewentualnie pomiń konkretny plik SQL |
 | Apka nie wstaje po `up -d` | błąd kompilacji TS lub brak zależności | `docker compose logs app` — pokaże dokładny błąd |
 
-### 10i. Skrócony schemat (do skopiowania jako pojedyncza komenda)
+### 10i. Skrót: gotowy skrypt `scripts/update.sh`
 
-Kiedy już raz wszystko działa i ufasz, że nie ma migracji:
+W repo jest gotowy skrypt, który robi wszystko z kroków 10a–10g automatycznie (zamrożenie configów, backup bazy do `~/backups/`, `git pull`, migracje SQL, rebuild `--no-cache`, weryfikacja IP w `/app/dist`).
 
 ```bash
-cd ~/biokrap && git pull --ff-only && docker compose down && docker compose build --no-cache && docker compose up -d && docker compose logs app --tail=30
+cd ~/biokrap
+chmod +x scripts/update.sh   # jednorazowo
+./scripts/update.sh
 ```
+
+Jeśli serwer ma inny IP niż `10.0.0.108`, uruchom tak:
+
+```bash
+EXPECTED_IP=10.0.0.142 ./scripts/update.sh
+```
+
+Po zakończeniu otwórz aplikację w **trybie incognito** żeby pominąć stary token JWT w cache.
 
