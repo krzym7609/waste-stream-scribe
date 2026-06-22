@@ -33,6 +33,7 @@ function routeForKind(kind: string): string {
 export function NotificationsBell() {
   const { user, isManager } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: items = [] } = useQuery({
     queryKey: ["notifications", user?.id],
