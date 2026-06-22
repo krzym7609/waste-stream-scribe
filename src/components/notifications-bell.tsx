@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,24 @@ const KIND_META: Record<string, { icon: typeof Bell; color: string }> = {
   deferred_tasks: { icon: Clock, color: "text-amber-600" },
 };
 
+function routeForKind(kind: string): string {
+  switch (kind) {
+    case "equipment_breakdown":
+      return "/equipment";
+    case "missing_shift_report":
+      return "/manager/reports";
+    case "overdue_tasks":
+    case "deferred_tasks":
+      return "/schedule/tasks";
+    default:
+      return "/dashboard";
+  }
+}
+
 export function NotificationsBell() {
   const { user, isManager } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: items = [] } = useQuery({
     queryKey: ["notifications", user?.id],
@@ -115,7 +130,10 @@ export function NotificationsBell() {
                       "p-3 flex gap-3 items-start cursor-pointer hover:bg-accent/50",
                       !n.read_at && "bg-primary/5",
                     )}
-                    onClick={() => !n.read_at && markRead.mutate(n.id)}
+                    onClick={() => {
+                      if (!n.read_at) markRead.mutate(n.id);
+                      navigate({ to: routeForKind(n.kind) });
+                    }}
                   >
                     <Icon className={cn("w-4 h-4 mt-0.5 shrink-0", meta.color)} />
                     <div className="flex-1 min-w-0">
