@@ -130,7 +130,10 @@ export function NotificationsBell() {
                       "p-3 flex gap-3 items-start cursor-pointer hover:bg-accent/50",
                       !n.read_at && "bg-primary/5",
                     )}
-                    onClick={() => !n.read_at && markRead.mutate(n.id)}
+                    onClick={() => {
+                      if (!n.read_at) markRead.mutate(n.id);
+                      navigate({ to: routeForKind(n.kind) });
+                    }}
                   >
                     <Icon className={cn("w-4 h-4 mt-0.5 shrink-0", meta.color)} />
                     <div className="flex-1 min-w-0">
