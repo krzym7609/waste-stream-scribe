@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,20 @@ const KIND_META: Record<string, { icon: typeof Bell; color: string }> = {
   overdue_tasks: { icon: Clock, color: "text-amber-600" },
   deferred_tasks: { icon: Clock, color: "text-amber-600" },
 };
+
+function routeForKind(kind: string): string {
+  switch (kind) {
+    case "equipment_breakdown":
+      return "/equipment";
+    case "missing_shift_report":
+      return "/manager/reports";
+    case "overdue_tasks":
+    case "deferred_tasks":
+      return "/schedule/tasks";
+    default:
+      return "/dashboard";
+  }
+}
 
 export function NotificationsBell() {
   const { user, isManager } = useAuth();
