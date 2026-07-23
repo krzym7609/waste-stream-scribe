@@ -976,7 +976,7 @@ export type Database = {
       username_to_email: { Args: { _username: string }; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "kierownik" | "operator"
+      app_role: "admin" | "kierownik" | "operator" | "zarzadca"
       equipment_attachment_kind:
         | "documentation"
         | "photo"
@@ -1117,7 +1117,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "kierownik", "operator"],
+      app_role: ["admin", "kierownik", "operator", "zarzadca"],
       equipment_attachment_kind: [
         "documentation",
         "photo",
