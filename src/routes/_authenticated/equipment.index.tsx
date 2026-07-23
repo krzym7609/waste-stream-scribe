@@ -195,6 +195,21 @@ function EquipmentPage() {
                 />
               </div>
             </div>
+            <div className="min-w-[220px]">
+              <Label className="text-xs">Obiekt</Label>
+              <Select value={filterObj} onValueChange={setFilterObj}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie</SelectItem>
+                  {objects.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                  <SelectItem value="none">— bez przypisania —</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="min-w-[200px]">
               <Label className="text-xs">Kategoria</Label>
               <Select value={filterCat} onValueChange={setFilterCat}>
@@ -219,76 +234,97 @@ function EquipmentPage() {
               Brak urządzeń. {isManager && "Kliknij Dodaj urządzenie, aby utworzyć pierwsze."}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nazwa</TableHead>
-                  <TableHead>Kod</TableHead>
-                  <TableHead>Kategoria</TableHead>
-                  <TableHead>Lokalizacja</TableHead>
-                  <TableHead>Producent / model</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[160px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="font-medium">{e.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{e.code ?? "—"}</TableCell>
-                    <TableCell>{catName(e.category_id)}</TableCell>
-                    <TableCell>{e.location ?? "—"}</TableCell>
-                    <TableCell className="text-sm">
-                      {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
-                    </TableCell>
-                    <TableCell>
-                      {e.status === "awaria" ? (
-                        <Badge variant="destructive">Awaria</Badge>
-                      ) : e.status === "serwis" ? (
-                        <Badge className="bg-amber-600">Serwis</Badge>
-                      ) : e.active ? (
-                        <Badge variant="secondary">Sprawne</Badge>
-                      ) : (
-                        <Badge variant="outline">Wyłączone</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
-                      </Button>
-                      {isManager && (
-                        <>
-                          {e.status !== "awaria" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() => setBreakdownFor(e)}
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" /> Zgłoś awarię
+            <div className="space-y-6">
+              {groups.map((g, idx) => (
+                <div key={g.obj?.id ?? `none-${idx}`} className="space-y-2">
+                  <div className="flex items-baseline gap-2 border-b pb-1">
+                    <h3 className="text-base font-semibold">
+                      {g.obj?.name ?? "Bez przypisanego obiektu"}
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {g.items.length} {g.items.length === 1 ? "urządzenie" : "urządzeń"}
+                    </span>
+                    {g.obj?.description && (
+                      <span className="text-xs text-muted-foreground italic">
+                        — {g.obj.description}
+                      </span>
+                    )}
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nazwa</TableHead>
+                        <TableHead>Kod</TableHead>
+                        <TableHead>Kategoria</TableHead>
+                        <TableHead>Lokalizacja</TableHead>
+                        <TableHead>Producent / model</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[160px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {g.items.map((e) => (
+                        <TableRow key={e.id}>
+                          <TableCell className="font-medium">{e.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{e.code ?? "—"}</TableCell>
+                          <TableCell>{catName(e.category_id)}</TableCell>
+                          <TableCell>{e.location ?? "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {e.status === "awaria" ? (
+                              <Badge variant="destructive">Awaria</Badge>
+                            ) : e.status === "serwis" ? (
+                              <Badge className="bg-amber-600">Serwis</Badge>
+                            ) : e.active ? (
+                              <Badge variant="secondary">Sprawne</Badge>
+                            ) : (
+                              <Badge variant="outline">Wyłączone</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
                             </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setRepairFor(e)}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Oznacz sprawne
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                            {isManager && (
+                              <>
+                                {e.status !== "awaria" ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive"
+                                    onClick={() => setBreakdownFor(e)}
+                                  >
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Zgłoś awarię
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setRepairFor(e)}
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Oznacz sprawne
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
+
+
 
 
       {(showNewEq || editEq) && (
