@@ -33,8 +33,16 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Download, Pencil, History, Lock } from "lucide-react";
+import { Download, Pencil, History, Lock, FileSpreadsheet, FileText } from "lucide-react";
 import { generateShiftReportPdf, generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
+import {
+  exportDailyExcel,
+  exportDailyPdf,
+  exportMonthlyExcel,
+  exportMonthlyPdf,
+  exportYearlyExcel,
+  exportYearlyPdf,
+} from "@/lib/reports/export-reports";
 
 export const Route = createFileRoute("/_authenticated/manager/reports")({
   head: () => ({ meta: [{ title: "Raporty — Oczyszczalnia" }] }),
@@ -134,10 +142,42 @@ function DailyView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-3 flex-wrap">
         <div>
           <Label className="text-xs">Data</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+        </div>
+        <div className="flex gap-2 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              exportDailyExcel({
+                date,
+                reports: data.reports,
+                handovers: data.handovers,
+                execs: data.execs,
+                profMap: data.profMap,
+              })
+            }
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              exportDailyPdf({
+                date,
+                reports: data.reports,
+                handovers: data.handovers,
+                execs: data.execs,
+                profMap: data.profMap,
+              })
+            }
+          >
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
         </div>
       </div>
 
@@ -361,7 +401,7 @@ function MonthlyView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-3 flex-wrap">
         <div>
           <Label className="text-xs">Rok</Label>
           <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-24" />
@@ -375,6 +415,24 @@ function MonthlyView() {
             </SelectContent>
           </Select>
         </div>
+        {agg && (
+          <div className="flex gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportMonthlyExcel({ year, month, agg, dailyChart })}
+            >
+              <FileSpreadsheet className="w-4 h-4" /> Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportMonthlyPdf({ year, month, agg, dailyChart })}
+            >
+              <FileText className="w-4 h-4" /> PDF
+            </Button>
+          </div>
+        )}
       </div>
 
       {!agg ? (
@@ -488,9 +546,27 @@ function YearlyView() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label className="text-xs">Rok</Label>
-        <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-24" />
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <Label className="text-xs">Rok</Label>
+          <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-24" />
+        </div>
+        <div className="flex gap-2 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportYearlyExcel({ year, months: chartData })}
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportYearlyPdf({ year, months: chartData })}
+          >
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+        </div>
       </div>
 
       <Card>
