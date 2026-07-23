@@ -98,13 +98,14 @@ function EquipmentPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterCat, setFilterCat] = useState<string>("all");
-  const [filterObj, setFilterObj] = useState<string>("all");
+  const [selectedObjectId, setSelectedObjectId] = useState<string | "__none__" | null>(null);
 
   const [editEq, setEditEq] = useState<Equipment | null>(null);
-  const [editCat, setEditCat] = useState<Category | null>(null);
+  const [editObj, setEditObj] = useState<PlantObject | null>(null);
   const [showNewEq, setShowNewEq] = useState(false);
+  const [showNewObj, setShowNewObj] = useState(false);
   const [showNewCat, setShowNewCat] = useState(false);
+  const [editCat] = useState<Category | null>(null);
   const [breakdownFor, setBreakdownFor] = useState<Equipment | null>(null);
   const [repairFor, setRepairFor] = useState<Equipment | null>(null);
 
@@ -121,51 +122,248 @@ function EquipmentPage() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return equipment.filter((e) => {
-      if (filterCat !== "all" && e.category_id !== filterCat) return false;
-      if (filterObj !== "all") {
-        if (filterObj === "none" && e.object_id) return false;
-        if (filterObj !== "none" && e.object_id !== filterObj) return false;
-      }
-      if (!q) return true;
-      return (
-        e.name.toLowerCase().includes(q) ||
-        (e.code ?? "").toLowerCase().includes(q) ||
-        (e.location ?? "").toLowerCase().includes(q) ||
-        (e.manufacturer ?? "").toLowerCase().includes(q) ||
-        (e.model ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [equipment, filterCat, filterObj, search]);
+  useEffect(() => { load(); }, []);
 
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
-  const objName = (id: string | null) => objects.find((o) => o.id === id)?.name ?? null;
 
-  // Grupowanie po obiektach dla widoku "Obiekty > urządzenia"
-  const groups = useMemo(() => {
-    const map = new Map<string, { obj: PlantObject | null; items: Equipment[] }>();
-    for (const o of objects) map.set(o.id, { obj: o, items: [] });
-    map.set("__none__", { obj: null, items: [] });
-    for (const e of filtered) {
-      const key = e.object_id && map.has(e.object_id) ? e.object_id : "__none__";
-      map.get(key)!.items.push(e);
+  // Statystyki per obiekt do kafelków
+  const objectStats = useMemo(() => {
+    const stats = new Map<string, { total: number; awaria: number; serwis: number }>();
+    for (const o of objects) stats.set(o.id, { total: 0, awaria: 0, serwis: 0 });
+    stats.set("__none__", { total: 0, awaria: 0, serwis: 0 });
+    for (const e of equipment) {
+      const key = e.object_id && stats.has(e.object_id) ? e.object_id : "__none__";
+      const s = stats.get(key)!;
+      s.total += 1;
+      if (e.status === "awaria") s.awaria += 1;
+      if (e.status === "serwis") s.serwis += 1;
     }
-    return Array.from(map.values()).filter((g) => g.items.length > 0);
-  }, [objects, filtered]);
+    return stats;
+  }, [objects, equipment]);
+
+  const unassignedCount = objectStats.get("__none__")?.total ?? 0;
+
+  // Widok listy urządzeń dla wybranego obiektu
+  const selectedObject = useMemo(() => {
+    if (!selectedObjectId || selectedObjectId === "__none__") return null;
+    return objects.find((o) => o.id === selectedObjectId) ?? null;
+  }, [selectedObjectId, objects]);
+
+  const objectEquipment = useMemo(() => {
+    if (!selectedObjectId) return [];
+    const q = search.trim().toLowerCase();
+    return equipment
+      .filter((e) => {
+        if (selectedObjectId === "__none__") return !e.object_id;
+        return e.object_id === selectedObjectId;
+      })
+      .filter((e) => {
+        if (!q) return true;
+        return (
+          e.name.toLowerCase().includes(q) ||
+          (e.code ?? "").toLowerCase().includes(q) ||
+          (e.manufacturer ?? "").toLowerCase().includes(q) ||
+          (e.model ?? "").toLowerCase().includes(q)
+        );
+      });
+  }, [selectedObjectId, equipment, search]);
+
+  // ==================== WIDOK: LISTA URZĄDZEŃ W OBIEKCIE ====================
+  if (selectedObjectId) {
+    const title = selectedObject?.name ?? "Bez przypisanego obiektu";
+    return (
+      <div className="p-6 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedObjectId(null)} className="mb-2 -ml-2">
+              <ArrowLeft className="w-4 h-4" /> Wróć do obiektów
+            </Button>
+            <h1 className="text-2xl font-semibold truncate">{title}</h1>
+            {selectedObject?.description && (
+              <p className="text-sm text-muted-foreground">{selectedObject.description}</p>
+            )}
+          </div>
+          {isManager && (
+            <div className="flex gap-2">
+              {selectedObject && (
+                <Button variant="outline" onClick={() => setEditObj(selectedObject)}>
+                  <Pencil className="w-4 h-4" /> Edytuj obiekt
+                </Button>
+              )}
+              <Button onClick={() => setShowNewEq(true)}>
+                <Plus className="w-4 h-4" /> Dodaj urządzenie
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-end gap-3">
+              <div className="flex-1 min-w-[240px]">
+                <Label className="text-xs">Szukaj w obiekcie</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Nazwa, kod, producent…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-muted-foreground text-sm">Ładowanie…</div>
+            ) : objectEquipment.length === 0 ? (
+              <div className="text-muted-foreground text-sm py-8 text-center">
+                Brak urządzeń w tym obiekcie. {isManager && "Kliknij Dodaj urządzenie, aby utworzyć pierwsze."}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nazwa</TableHead>
+                    <TableHead>Kod</TableHead>
+                    <TableHead>Kategoria</TableHead>
+                    <TableHead>Lokalizacja</TableHead>
+                    <TableHead>Producent / model</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[220px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {objectEquipment.map((e) => (
+                    <TableRow key={e.id}>
+                      <TableCell className="font-medium">{e.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{e.code ?? "—"}</TableCell>
+                      <TableCell>{catName(e.category_id)}</TableCell>
+                      <TableCell>{e.location ?? "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
+                      </TableCell>
+                      <TableCell>
+                        {e.status === "awaria" ? (
+                          <Badge variant="destructive">Awaria</Badge>
+                        ) : e.status === "serwis" ? (
+                          <Badge className="bg-amber-600">Serwis</Badge>
+                        ) : e.active ? (
+                          <Badge variant="secondary">Sprawne</Badge>
+                        ) : (
+                          <Badge variant="outline">Wyłączone</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
+                        </Button>
+                        {isManager && (
+                          <>
+                            {e.status !== "awaria" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive"
+                                onClick={() => setBreakdownFor(e)}
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" /> Awaria
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => setRepairFor(e)}>
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Sprawne
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {(showNewEq || editEq) && (
+          <EquipmentFormDialog
+            equipment={editEq}
+            categories={categories}
+            objects={objects}
+            defaultObjectId={selectedObjectId === "__none__" ? null : selectedObjectId}
+            onClose={() => { setShowNewEq(false); setEditEq(null); }}
+            onSaved={() => { setShowNewEq(false); setEditEq(null); load(); }}
+          />
+        )}
+
+        {editObj && (
+          <ObjectFormDialog
+            object={editObj}
+            onClose={() => setEditObj(null)}
+            onSaved={(deleted) => {
+              setEditObj(null);
+              if (deleted) setSelectedObjectId(null);
+              load();
+            }}
+          />
+        )}
+
+        {breakdownFor && (
+          <EquipmentEventDialog
+            equipment={breakdownFor}
+            userId={user?.id ?? null}
+            fixedKind="awaria"
+            title="Zgłoś awarię"
+            description="Opisz objawy awarii. Powiadomienie zostanie wysłane do kierownika."
+            afterSave={async (eqId) => {
+              const { error } = await supabase.from("equipment").update({ status: "awaria" }).eq("id", eqId);
+              if (error) toast.error(error.message); else toast.success("Zgłoszono awarię");
+              setBreakdownFor(null); load();
+            }}
+            onClose={() => setBreakdownFor(null)}
+          />
+        )}
+
+        {repairFor && (
+          <EquipmentEventDialog
+            equipment={repairFor}
+            userId={user?.id ?? null}
+            fixedKind="naprawa"
+            title="Oznacz jako sprawne"
+            description="Opisz wykonaną naprawę. Wpis trafi do historii urządzenia."
+            afterSave={async (eqId) => {
+              const { error } = await supabase.from("equipment").update({ status: "sprawne" }).eq("id", eqId);
+              if (error) toast.error(error.message); else toast.success("Oznaczono jako sprawne");
+              setRepairFor(null); load();
+            }}
+            onClose={() => setRepairFor(null)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ==================== WIDOK: KAFELKI OBIEKTÓW ====================
+  const q = search.trim().toLowerCase();
+  const filteredObjects = q
+    ? objects.filter(
+        (o) =>
+          o.name.toLowerCase().includes(q) ||
+          (o.description ?? "").toLowerCase().includes(q),
+      )
+    : objects;
 
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Baza urządzeń</h1>
+          <h1 className="text-2xl font-semibold">Obiekty</h1>
           <p className="text-sm text-muted-foreground">
-            Ewidencja urządzeń oczyszczalni z dokumentacją, zdjęciami i schematami.
+            Wybierz obiekt, aby zobaczyć urządzenia, dokumentację i historię serwisową.
           </p>
         </div>
         {isManager && (
@@ -173,232 +371,188 @@ function EquipmentPage() {
             <Button variant="outline" onClick={() => setShowNewCat(true)}>
               <Settings className="w-4 h-4" /> Kategorie
             </Button>
-            <Button onClick={() => setShowNewEq(true)}>
-              <Plus className="w-4 h-4" /> Dodaj urządzenie
+            <Button onClick={() => setShowNewObj(true)}>
+              <Plus className="w-4 h-4" /> Dodaj obiekt
             </Button>
           </div>
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1 min-w-[240px]">
-              <Label className="text-xs">Szukaj</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  className="pl-8"
-                  placeholder="Nazwa, kod, lokalizacja, producent…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="min-w-[220px]">
-              <Label className="text-xs">Obiekt</Label>
-              <Select value={filterObj} onValueChange={setFilterObj}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Wszystkie</SelectItem>
-                  {objects.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                  ))}
-                  <SelectItem value="none">— bez przypisania —</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-[200px]">
-              <Label className="text-xs">Kategoria</Label>
-              <Select value={filterCat} onValueChange={setFilterCat}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Wszystkie</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-muted-foreground text-sm">Ładowanie…</div>
-          ) : filtered.length === 0 ? (
-            <div className="text-muted-foreground text-sm py-8 text-center">
-              Brak urządzeń. {isManager && "Kliknij Dodaj urządzenie, aby utworzyć pierwsze."}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {groups.map((g, idx) => (
-                <div key={g.obj?.id ?? `none-${idx}`} className="space-y-2">
-                  <div className="flex items-baseline gap-2 border-b pb-1">
-                    <h3 className="text-base font-semibold">
-                      {g.obj?.name ?? "Bez przypisanego obiektu"}
-                    </h3>
-                    <span className="text-xs text-muted-foreground">
-                      {g.items.length} {g.items.length === 1 ? "urządzenie" : "urządzeń"}
-                    </span>
-                    {g.obj?.description && (
-                      <span className="text-xs text-muted-foreground italic">
-                        — {g.obj.description}
-                      </span>
-                    )}
+      <div className="relative max-w-md">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          placeholder="Szukaj obiektu…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-muted-foreground text-sm">Ładowanie…</div>
+      ) : filteredObjects.length === 0 && unassignedCount === 0 ? (
+        <div className="text-muted-foreground text-sm py-16 text-center border rounded-lg">
+          Brak obiektów. {isManager && "Kliknij „Dodaj obiekt", aby utworzyć pierwszy."}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredObjects.map((o) => {
+            const s = objectStats.get(o.id) ?? { total: 0, awaria: 0, serwis: 0 };
+            return (
+              <button
+                key={o.id}
+                onClick={() => { setSearch(""); setSelectedObjectId(o.id); }}
+                className="group text-left border rounded-lg p-4 bg-card hover:bg-accent hover:border-primary/40 transition-colors flex flex-col gap-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5 text-primary" />
                   </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nazwa</TableHead>
-                        <TableHead>Kod</TableHead>
-                        <TableHead>Kategoria</TableHead>
-                        <TableHead>Lokalizacja</TableHead>
-                        <TableHead>Producent / model</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[160px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {g.items.map((e) => (
-                        <TableRow key={e.id}>
-                          <TableCell className="font-medium">{e.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{e.code ?? "—"}</TableCell>
-                          <TableCell>{catName(e.category_id)}</TableCell>
-                          <TableCell>{e.location ?? "—"}</TableCell>
-                          <TableCell className="text-sm">
-                            {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
-                          </TableCell>
-                          <TableCell>
-                            {e.status === "awaria" ? (
-                              <Badge variant="destructive">Awaria</Badge>
-                            ) : e.status === "serwis" ? (
-                              <Badge className="bg-amber-600">Serwis</Badge>
-                            ) : e.active ? (
-                              <Badge variant="secondary">Sprawne</Badge>
-                            ) : (
-                              <Badge variant="outline">Wyłączone</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
-                            </Button>
-                            {isManager && (
-                              <>
-                                {e.status !== "awaria" ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive"
-                                    onClick={() => setBreakdownFor(e)}
-                                  >
-                                    <AlertTriangle className="w-3.5 h-3.5" /> Zgłoś awarię
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setRepairFor(e)}
-                                  >
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Oznacz sprawne
-                                  </Button>
-                                )}
-                                <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                              </>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                 </div>
-              ))}
-            </div>
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{o.name}</div>
+                  {o.description && (
+                    <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{o.description}</div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap mt-auto pt-2 border-t">
+                  <Badge variant="secondary">{s.total} {s.total === 1 ? "urządzenie" : "urządzeń"}</Badge>
+                  {s.awaria > 0 && <Badge variant="destructive">{s.awaria} awaria</Badge>}
+                  {s.serwis > 0 && <Badge className="bg-amber-600">{s.serwis} serwis</Badge>}
+                </div>
+              </button>
+            );
+          })}
+
+          {unassignedCount > 0 && !q && (
+            <button
+              onClick={() => setSelectedObjectId("__none__")}
+              className="group text-left border border-dashed rounded-lg p-4 bg-muted/30 hover:bg-accent transition-colors flex flex-col gap-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                  <Wrench className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <div className="font-semibold">Bez przypisanego obiektu</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Urządzenia, które nie mają jeszcze obiektu.</div>
+              </div>
+              <div className="flex items-center gap-2 mt-auto pt-2 border-t">
+                <Badge variant="secondary">{unassignedCount} {unassignedCount === 1 ? "urządzenie" : "urządzeń"}</Badge>
+              </div>
+            </button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-
-
-
-      {(showNewEq || editEq) && (
-        <EquipmentFormDialog
-          equipment={editEq}
-          categories={categories}
-          objects={objects}
-          onClose={() => {
-            setShowNewEq(false);
-            setEditEq(null);
-          }}
-          onSaved={() => {
-            setShowNewEq(false);
-            setEditEq(null);
-            load();
-          }}
+      {showNewObj && (
+        <ObjectFormDialog
+          object={null}
+          onClose={() => setShowNewObj(false)}
+          onSaved={() => { setShowNewObj(false); load(); }}
         />
       )}
 
       {(showNewCat || editCat) && (
         <CategoryManagerDialog
           categories={categories}
-          onClose={() => {
-            setShowNewCat(false);
-            setEditCat(null);
-          }}
+          onClose={() => setShowNewCat(false)}
           onSaved={load}
-        />
-      )}
-
-      {breakdownFor && (
-        <EquipmentEventDialog
-          equipment={breakdownFor}
-          userId={user?.id ?? null}
-          fixedKind="awaria"
-          title="Zgłoś awarię"
-          description="Opisz objawy awarii. Powiadomienie zostanie wysłane do kierownika."
-          afterSave={async (eqId) => {
-            const { error } = await supabase
-              .from("equipment")
-              .update({ status: "awaria" })
-              .eq("id", eqId);
-            if (error) toast.error(error.message);
-            else toast.success("Zgłoszono awarię");
-            setBreakdownFor(null);
-            load();
-          }}
-          onClose={() => setBreakdownFor(null)}
-        />
-      )}
-
-      {repairFor && (
-        <EquipmentEventDialog
-          equipment={repairFor}
-          userId={user?.id ?? null}
-          fixedKind="naprawa"
-          title="Oznacz jako sprawne"
-          description="Opisz wykonaną naprawę. Wpis trafi do historii urządzenia."
-          afterSave={async (eqId) => {
-            const { error } = await supabase
-              .from("equipment")
-              .update({ status: "sprawne" })
-              .eq("id", eqId);
-            if (error) toast.error(error.message);
-            else toast.success("Oznaczono jako sprawne");
-            setRepairFor(null);
-            load();
-          }}
-          onClose={() => setRepairFor(null)}
         />
       )}
     </div>
   );
 }
+
+function ObjectFormDialog({
+  object,
+  onClose,
+  onSaved,
+}: {
+  object: PlantObject | null;
+  onClose: () => void;
+  onSaved: (deleted?: boolean) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [name, setName] = useState(object?.name ?? "");
+  const [description, setDescription] = useState(object?.description ?? "");
+  const [sortOrder, setSortOrder] = useState<number>(object?.sort_order ?? 100);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true);
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || null,
+      sort_order: sortOrder,
+    };
+    try {
+      if (object) {
+        const { error } = await supabase.from("plant_objects" as any).update(payload).eq("id", object.id);
+        if (error) throw error;
+        toast.success("Zaktualizowano obiekt");
+      } else {
+        const { error } = await supabase.from("plant_objects" as any).insert(payload);
+        if (error) throw error;
+        toast.success("Dodano obiekt");
+      }
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Błąd zapisu");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!object) return;
+    if (!confirm(`Usunąć obiekt „${object.name}"? Urządzenia zostaną odpięte (pole obiektu puste).`)) return;
+    setBusy(true);
+    const { error } = await supabase.from("plant_objects" as any).delete().eq("id", object.id);
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else { toast.success("Usunięto obiekt"); onSaved(true); }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{object ? "Edytuj obiekt" : "Nowy obiekt"}</DialogTitle>
+          <DialogDescription>Obiekt to lokalizacja lub instalacja grupująca urządzenia.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <Label>Nazwa *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div>
+            <Label>Opis</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+          </div>
+          <div>
+            <Label>Kolejność</Label>
+            <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value))} />
+          </div>
+          <DialogFooter>
+            {object && (
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={busy}>
+                <Trash2 className="w-4 h-4" /> Usuń
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Anuluj</Button>
+            <Button type="submit" disabled={busy}>{busy ? "Zapisywanie…" : "Zapisz"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function EquipmentFormDialog({
   equipment,
