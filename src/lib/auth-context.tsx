@@ -80,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     roles,
     profile,
     loading,
-    isManager: roles.includes("kierownik") || roles.includes("admin"),
-    isAdmin: roles.includes("admin"),
+    isManager: roles.includes("kierownik") || roles.includes("admin") || roles.includes("zarzadca"),
+    isAdmin: roles.includes("admin") || roles.includes("zarzadca"),
+    isBoss: roles.includes("admin") || roles.includes("zarzadca"),
     refreshProfile: async () => {
       if (session?.user) await loadProfile(session.user.id);
     },
