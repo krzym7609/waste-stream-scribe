@@ -403,16 +403,19 @@ function EquipmentPage() {
 function EquipmentFormDialog({
   equipment,
   categories,
+  objects,
   onClose,
   onSaved,
 }: {
   equipment: Equipment | null;
   categories: Category[];
+  objects: PlantObject[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [categoryId, setCategoryId] = useState<string | "none">(equipment?.category_id ?? "none");
+  const [objectId, setObjectId] = useState<string | "none">(equipment?.object_id ?? "none");
   const [active, setActive] = useState(equipment?.active ?? true);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -429,6 +432,7 @@ function EquipmentFormDialog({
       installed_at: String(fd.get("installed_at") ?? "") || null,
       notes: String(fd.get("notes") ?? "").trim() || null,
       category_id: categoryId === "none" ? null : categoryId,
+      object_id: objectId === "none" ? null : objectId,
       active,
     };
     try {
