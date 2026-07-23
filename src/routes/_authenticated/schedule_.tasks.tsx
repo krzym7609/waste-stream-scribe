@@ -16,9 +16,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SHIFT_DEFS, type ShiftType } from "@/lib/shifts";
 
 export const Route = createFileRoute("/_authenticated/schedule_/tasks")({
   head: () => ({ meta: [{ title: "Zadania harmonogramu — Oczyszczalnia" }] }),
