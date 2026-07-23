@@ -558,18 +558,20 @@ function EquipmentFormDialog({
   equipment,
   categories,
   objects,
+  defaultObjectId,
   onClose,
   onSaved,
 }: {
   equipment: Equipment | null;
   categories: Category[];
   objects: PlantObject[];
+  defaultObjectId?: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [categoryId, setCategoryId] = useState<string | "none">(equipment?.category_id ?? "none");
-  const [objectId, setObjectId] = useState<string | "none">(equipment?.object_id ?? "none");
+  const [objectId, setObjectId] = useState<string | "none">(equipment?.object_id ?? defaultObjectId ?? "none");
   const [active, setActive] = useState(equipment?.active ?? true);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
