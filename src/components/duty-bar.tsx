@@ -9,6 +9,7 @@ import {
   SHIFT_LABEL,
   formatHM,
 } from "@/lib/shifts";
+import { nextShift } from "@/lib/shift-utils";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,16 +79,33 @@ export function DutyBar() {
   const takeDuty = useMutation({
     mutationFn: async (input: { note: string }) => {
       if (!user) throw new Error("Brak sesji");
+      // Domyślnie zmiana wg zegara; jeśli przejmujemy po kimś (aktywna sesja) — bierzemy następną zmianę.
+      let assignedShift: import("@/lib/shifts").ShiftType = type;
       if (data?.session) {
+        assignedShift = nextShift(data.session.shift_type).type;
         const { error: eEnd } = await supabase
           .from("duty_sessions")
           .update({ ended_at: new Date().toISOString(), end_note: "Przekazanie automatyczne (przejęcie)" })
           .eq("id", data.session.id);
         if (eEnd) throw eEnd;
+      } else {
+        // Jeżeli poprzednia dzisiejsza sesja była już na bieżącej zmianie (wg zegara),
+        // to nowa osoba przejmuje kolejną zmianę.
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const { data: last } = await supabase
+          .from("duty_sessions")
+          .select("shift_type, started_at")
+          .gte("started_at", `${todayIso}T00:00:00`)
+          .order("started_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (last && last.shift_type === type) {
+          assignedShift = nextShift(type).type;
+        }
       }
       const { error } = await supabase.from("duty_sessions").insert({
         user_id: user.id,
-        shift_type: type,
+        shift_type: assignedShift,
         start_note: input.note || null,
         outside_window: !withinWindow,
       });
