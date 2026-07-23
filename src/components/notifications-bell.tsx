@@ -1,12 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Bell, AlertTriangle, FileWarning, Clock, CheckCheck } from "lucide-react";
+import { Bell, AlertTriangle, FileWarning, Clock, CheckCheck, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const KIND_META: Record<string, { icon: typeof Bell; color: string }> = {
@@ -34,6 +34,7 @@ export function NotificationsBell() {
   const { user, isManager } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
 
   const { data: items = [] } = useQuery({
     queryKey: ["notifications", user?.id],
@@ -87,12 +88,27 @@ export function NotificationsBell() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const clearAll = useMutation({
+    mutationFn: async () => {
+      const ids = items.map((n) => n.id);
+      if (!ids.length) return;
+      await supabase.from("shift_notifications").delete().in("id", ids);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   if (!isManager) return null;
 
   const unread = items.filter((n) => !n.read_at).length;
 
+  const handleClick = (n: (typeof items)[number]) => {
+    if (!n.read_at) markRead.mutate(n.id);
+    setOpen(false);
+    navigate({ to: routeForKind(n.kind) });
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative" aria-label="Powiadomienia">
           <Bell className="w-5 h-5" />
@@ -126,13 +142,18 @@ export function NotificationsBell() {
                 return (
                   <li
                     key={n.id}
+                    role="button"
+                    tabIndex={0}
                     className={cn(
                       "p-3 flex gap-3 items-start cursor-pointer hover:bg-accent/50",
                       !n.read_at && "bg-primary/5",
                     )}
-                    onClick={() => {
-                      if (!n.read_at) markRead.mutate(n.id);
-                      navigate({ to: routeForKind(n.kind) });
+                    onClick={() => handleClick(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleClick(n);
+                      }
                     }}
                   >
                     <Icon className={cn("w-4 h-4 mt-0.5 shrink-0", meta.color)} />
@@ -152,11 +173,20 @@ export function NotificationsBell() {
             </ul>
           )}
         </div>
-        <div className="p-2 border-t text-center">
-          <Button variant="link" size="sm" asChild>
-            <Link to="/equipment">Przejdź do urządzeń</Link>
-          </Button>
-        </div>
+        {items.length > 0 && (
+          <div className="p-2 border-t flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => clearAll.mutate()}
+              disabled={clearAll.isPending}
+            >
+              <Trash2 className="w-4 h-4" />
+              Wyczyść powiadomienia
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
