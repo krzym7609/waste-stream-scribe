@@ -331,6 +331,7 @@ function EquipmentPage() {
         <EquipmentFormDialog
           equipment={editEq}
           categories={categories}
+          objects={objects}
           onClose={() => {
             setShowNewEq(false);
             setEditEq(null);
