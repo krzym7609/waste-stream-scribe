@@ -14,6 +14,7 @@ function AuthenticatedLayout() {
   const { session, loading, signOut, profile, isManager } = useAuth();
   const nav = useNavigate();
   const { location } = useRouterState();
+  useShiftSettings();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Ładowanie…</div>;
