@@ -11,10 +11,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ListChecks, Save } from "lucide-react";
+import { ListChecks, Save, FileDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { SHIFT_DEFS, type ShiftType } from "@/lib/shifts";
 import { cn } from "@/lib/utils";
+import { exportAnnualSchedulePdf, exportAnnualScheduleXlsx } from "@/lib/reports/annual-schedule";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({ meta: [{ title: "Harmonogram — Oczyszczalnia" }] }),
@@ -152,6 +153,34 @@ function SchedulePage() {
               </SelectContent>
             </Select>
           </div>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const data = await loadAnnualData(year);
+                await exportAnnualSchedulePdf(year, data.tasks, data.template, data.overrides);
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            <FileDown className="w-4 h-4" />
+            Raport roczny PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const data = await loadAnnualData(year);
+                exportAnnualScheduleXlsx(year, data.tasks, data.template, data.overrides);
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Raport roczny Excel
+          </Button>
           {isManager && (
             <Button variant="outline" asChild>
               <Link to="/schedule/tasks">
@@ -431,4 +460,45 @@ function EditForm({
       )}
     </div>
   );
+}
+
+async function loadAnnualData(year: number) {
+  const [tasksRes, tplRes, ovrRes] = await Promise.all([
+    supabase
+      .from("schedule_tasks")
+      .select("id, task_number, name, requires_service_report, frequency_note")
+      .eq("active", true)
+      .order("task_number"),
+    supabase
+      .from("schedule_template_entries")
+      .select("task_id, day_of_month, shifts"),
+    supabase
+      .from("schedule_month_overrides")
+      .select("task_id, year, month, day_of_month, shifts")
+      .eq("year", year),
+  ]);
+  if (tasksRes.error) throw tasksRes.error;
+  if (tplRes.error) throw tplRes.error;
+  if (ovrRes.error) throw ovrRes.error;
+  return {
+    tasks: (tasksRes.data ?? []) as Array<{
+      id: string;
+      task_number: number;
+      name: string;
+      requires_service_report: boolean;
+      frequency_note: string | null;
+    }>,
+    template: (tplRes.data ?? []) as Array<{
+      task_id: string;
+      day_of_month: number;
+      shifts: ShiftType[];
+    }>,
+    overrides: (ovrRes.data ?? []) as Array<{
+      task_id: string;
+      year: number;
+      month: number;
+      day_of_month: number;
+      shifts: ShiftType[];
+    }>,
+  };
 }
