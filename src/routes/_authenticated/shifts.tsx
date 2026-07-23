@@ -166,7 +166,6 @@ function ShiftsPage() {
                   <SelectContent>
                     <SelectItem value="rano">{SHIFT_LABEL.rano}</SelectItem>
                     <SelectItem value="popoludnie">{SHIFT_LABEL.popoludnie}</SelectItem>
-                    <SelectItem value="noc">{SHIFT_LABEL.noc}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
