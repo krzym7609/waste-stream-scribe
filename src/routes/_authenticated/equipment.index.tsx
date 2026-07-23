@@ -129,6 +129,10 @@ function EquipmentPage() {
     const q = search.trim().toLowerCase();
     return equipment.filter((e) => {
       if (filterCat !== "all" && e.category_id !== filterCat) return false;
+      if (filterObj !== "all") {
+        if (filterObj === "none" && e.object_id) return false;
+        if (filterObj !== "none" && e.object_id !== filterObj) return false;
+      }
       if (!q) return true;
       return (
         e.name.toLowerCase().includes(q) ||
@@ -138,9 +142,22 @@ function EquipmentPage() {
         (e.model ?? "").toLowerCase().includes(q)
       );
     });
-  }, [equipment, filterCat, search]);
+  }, [equipment, filterCat, filterObj, search]);
 
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
+  const objName = (id: string | null) => objects.find((o) => o.id === id)?.name ?? null;
+
+  // Grupowanie po obiektach dla widoku "Obiekty > urządzenia"
+  const groups = useMemo(() => {
+    const map = new Map<string, { obj: PlantObject | null; items: Equipment[] }>();
+    for (const o of objects) map.set(o.id, { obj: o, items: [] });
+    map.set("__none__", { obj: null, items: [] });
+    for (const e of filtered) {
+      const key = e.object_id && map.has(e.object_id) ? e.object_id : "__none__";
+      map.get(key)!.items.push(e);
+    }
+    return Array.from(map.values()).filter((g) => g.items.length > 0);
+  }, [objects, filtered]);
 
   return (
     <div className="p-6 space-y-4">
