@@ -11,10 +11,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ListChecks, Save } from "lucide-react";
+import { ListChecks, Save, FileDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { SHIFT_DEFS, type ShiftType } from "@/lib/shifts";
 import { cn } from "@/lib/utils";
+import { exportAnnualSchedulePdf, exportAnnualScheduleXlsx } from "@/lib/reports/annual-schedule";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({ meta: [{ title: "Harmonogram — Oczyszczalnia" }] }),
