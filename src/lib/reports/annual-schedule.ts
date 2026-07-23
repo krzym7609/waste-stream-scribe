@@ -365,7 +365,7 @@ export async function exportAnnualSchedulePdf(
         style: "cell",
         alignment: "center",
         bold: !!mk,
-        fillColor: mk ? "#fffbcc" : undefined,
+        fillColor: mk ? "#FFFF66" : undefined,
       })),
     ];
     body.push(row);
