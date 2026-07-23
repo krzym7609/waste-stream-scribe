@@ -198,11 +198,12 @@ function TeamPage() {
                 <SelectTrigger id="role"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="operator">Operator</SelectItem>
-                  {isAdmin && <SelectItem value="kierownik">Kierownik</SelectItem>}
+                  {isBoss && <SelectItem value="kierownik">Kierownik</SelectItem>}
+                  {isBoss && <SelectItem value="zarzadca">Zarządca (prezes)</SelectItem>}
                   {isAdmin && <SelectItem value="admin">Administrator</SelectItem>}
                 </SelectContent>
               </Select>
-              {!isAdmin && (
+              {!isBoss && (
                 <p className="text-xs text-muted-foreground">Kierownik może dodawać tylko operatorów.</p>
               )}
             </div>
