@@ -116,7 +116,7 @@ function EquipmentPage() {
       supabase.from("equipment").select("*").order("name"),
     ]);
     setCategories((cats ?? []) as Category[]);
-    setObjects((objs ?? []) as PlantObject[]);
+    setObjects(((objs ?? []) as unknown) as PlantObject[]);
     setEquipment((eq ?? []) as Equipment[]);
     setLoading(false);
   }
