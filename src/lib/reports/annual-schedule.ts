@@ -365,7 +365,7 @@ export async function exportAnnualSchedulePdf(
         style: "cell",
         alignment: "center",
         bold: !!mk,
-        fillColor: mk ? "#fffbcc" : undefined,
+        fillColor: mk ? "#FFFF66" : undefined,
       })),
     ];
     body.push(row);
@@ -378,40 +378,42 @@ export async function exportAnnualSchedulePdf(
     ...WEEKDAY_HEADERS.map<TableCell>((w) => ({ text: w, style: "hdr" })),
   ]);
 
-  // Szerokości – dopasowane by 1 strona A4 poziomo (ok. 800pt szerokości użytkowej)
-  const nrW = 12;
-  const nameW = 175;
-  const usable = 800 - nrW - nameW;
+  // Szerokości – dopasowane by szerokościowo mieściło się na A4 poziomo.
+  // W pionie może się rozlewać na kolejne strony.
+  const nrW = 14;
+  const nameW = 190;
+  const usable = 802 - nrW - nameW;
   const dayW = usable / STRIP_COLS;
 
   const doc: TDocumentDefinitions = {
     pageOrientation: "landscape",
     pageSize: "A4",
-    pageMargins: [10, 12, 10, 10],
-    defaultStyle: { font: "Roboto", fontSize: 6 },
+    pageMargins: [10, 12, 10, 12],
+    defaultStyle: { font: "Roboto", fontSize: 7 },
     styles: {
       hdr: {
         bold: true,
         alignment: "center",
-        fillColor: "#ffdddd",
-        color: "#000000",
-        fontSize: 6,
+        fillColor: "#FF0000",
+        color: "#FFFFFF",
+        fontSize: 7,
       },
-      cell: { fontSize: 6, alignment: "center" },
-      monthName: { bold: true, fontSize: 7, alignment: "left" },
-      shiftBand: { bold: true, fontSize: 8, fillColor: "#ffff99", alignment: "center" },
+      cell: { fontSize: 7, alignment: "center" },
+      monthName: { bold: true, fontSize: 8, alignment: "left" },
+      shiftBand: { bold: true, fontSize: 9, fillColor: "#FFFF66", alignment: "center" },
     },
     content: [
       {
         text: `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
         bold: true,
         alignment: "center",
-        fontSize: 9,
-        margin: [0, 0, 0, 4],
+        fontSize: 10,
+        margin: [0, 0, 0, 6],
       },
       {
         table: {
           headerRows: 1,
+          dontBreakRows: true,
           widths: [nrW, nameW, ...Array(STRIP_COLS).fill(dayW)],
           body,
         },
