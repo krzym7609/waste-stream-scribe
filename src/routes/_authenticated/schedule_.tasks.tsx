@@ -253,6 +253,7 @@ function TasksPage() {
                     </TableCell>
                     {isManager && (
                       <TableCell className="text-right space-x-1">
+                        <TemplateButton taskId={t.id} taskName={t.name} />
                         <Button
                           size="icon"
                           variant="ghost"
