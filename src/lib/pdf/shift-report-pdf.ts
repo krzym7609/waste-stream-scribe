@@ -30,16 +30,18 @@ export type ShiftReportPdfData = {
   }>;
 };
 
-const SHIFT_SHORT: Record<string, string> = {
-  rano: "I",
-  popoludnie: "II",
-  noc: "III",
-};
+import { SHIFT_LABEL } from "@/lib/shifts";
+import type { ShiftType } from "@/lib/shifts";
 
 const SHIFT_NUM: Record<string, string> = {
   rano: "1",
   popoludnie: "2",
-  noc: "3",
+  noc: "2",
+};
+
+const shiftFullLabel = (s: string): string => {
+  const key = s as ShiftType;
+  return SHIFT_LABEL[key] || s;
 };
 
 const orBrak = (v: string | null | undefined) => {
