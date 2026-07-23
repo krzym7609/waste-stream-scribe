@@ -85,7 +85,7 @@ export async function generateShiftReportPdf(d: ShiftReportPdfData) {
       body: [
         [
           {
-            text: `Data / zmiana : ${d.date} / ${SHIFT_SHORT[d.shift] ?? d.shift}`,
+            text: `Data / zmiana : ${d.date} / ${shiftFullLabel(d.shift)}`,
             rowSpan: 2,
             margin: [4, 14, 4, 14],
           },
@@ -295,6 +295,7 @@ export async function generateHandoverPdf(d: HandoverPdfData) {
           {
             stack: [
               { text: `Data : ${d.date}`, margin: [4, 2, 4, 2] },
+              { text: `Zmiana: ${shiftFullLabel(d.shiftFrom)}`, bold: true, margin: [4, 2, 4, 2] },
             ],
           },
         ],
