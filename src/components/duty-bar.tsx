@@ -80,7 +80,7 @@ export function DutyBar() {
     mutationFn: async (input: { note: string }) => {
       if (!user) throw new Error("Brak sesji");
       // Domyślnie zmiana wg zegara; jeśli przejmujemy po kimś (aktywna sesja) — bierzemy następną zmianę.
-      let assignedShift = type;
+      let assignedShift: import("@/lib/shifts").ShiftType = type;
       if (data?.session) {
         assignedShift = nextShift(data.session.shift_type).type;
         const { error: eEnd } = await supabase
