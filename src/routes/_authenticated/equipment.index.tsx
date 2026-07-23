@@ -22,9 +22,11 @@ export const Route = createFileRoute("/_authenticated/equipment/")({
 });
 
 type Category = { id: string; name: string; sort_order: number };
+type PlantObject = { id: string; name: string; description: string | null; sort_order: number };
 type Equipment = {
   id: string;
   category_id: string | null;
+  object_id: string | null;
   name: string;
   code: string | null;
   location: string | null;
