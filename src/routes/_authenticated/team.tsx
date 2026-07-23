@@ -78,7 +78,7 @@ function TeamPage() {
           first_name: String(fd.get("first_name")),
           last_name: String(fd.get("last_name")),
           phone: String(fd.get("phone") ?? "") || null,
-          role: String(fd.get("role") ?? "operator") as "operator" | "kierownik" | "admin",
+          role: String(fd.get("role") ?? "operator") as "operator" | "kierownik" | "admin" | "zarzadca",
         },
       });
       setShowCreate(false);
