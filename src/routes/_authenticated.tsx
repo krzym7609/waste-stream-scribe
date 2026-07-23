@@ -29,7 +29,7 @@ function AuthenticatedLayout() {
   const navItems = [
     { to: "/shift/checklist", label: "Pulpit", icon: LayoutDashboard },
     { to: "/shift/report", label: "Raport zmiany", icon: FileText },
-    { to: "/equipment", label: "Urządzenia", icon: Wrench },
+    { to: "/equipment", label: "Obiekty", icon: Wrench },
     ...(isManager
       ? [
           { to: "/schedule", label: "Harmonogram roczny", icon: CalendarRange },
