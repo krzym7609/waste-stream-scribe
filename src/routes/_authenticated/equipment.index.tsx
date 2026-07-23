@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Search, Settings, AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Search, Settings, AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter, ArrowLeft, Building2, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/equipment/")({
   head: () => ({ meta: [{ title: "Obiekty" }] }),
