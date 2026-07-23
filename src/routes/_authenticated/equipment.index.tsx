@@ -498,6 +498,19 @@ function EquipmentFormDialog({
             </Select>
           </div>
           <div className="col-span-2">
+            <Label>Obiekt</Label>
+            <Select value={objectId} onValueChange={(v) => setObjectId(v as string)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— brak —</SelectItem>
+                {objects.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          <div className="col-span-2">
             <Label>Lokalizacja</Label>
             <Input name="location" defaultValue={equipment?.location ?? ""} placeholder="np. Hala dmuchaw" />
           </div>
