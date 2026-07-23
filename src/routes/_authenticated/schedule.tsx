@@ -172,7 +172,7 @@ function SchedulePage() {
             onClick={async () => {
               try {
                 const data = await loadAnnualData(year);
-                exportAnnualScheduleXlsx(year, data.tasks, data.template, data.overrides);
+                await exportAnnualScheduleXlsx(year, data.tasks, data.template, data.overrides);
               } catch (e) {
                 toast.error((e as Error).message);
               }
