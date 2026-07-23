@@ -461,3 +461,44 @@ function EditForm({
     </div>
   );
 }
+
+async function loadAnnualData(year: number) {
+  const [tasksRes, tplRes, ovrRes] = await Promise.all([
+    supabase
+      .from("schedule_tasks")
+      .select("id, task_number, name, requires_service_report, frequency_note")
+      .eq("active", true)
+      .order("task_number"),
+    supabase
+      .from("schedule_template_entries")
+      .select("task_id, day_of_month, shifts"),
+    supabase
+      .from("schedule_month_overrides")
+      .select("task_id, year, month, day_of_month, shifts")
+      .eq("year", year),
+  ]);
+  if (tasksRes.error) throw tasksRes.error;
+  if (tplRes.error) throw tplRes.error;
+  if (ovrRes.error) throw ovrRes.error;
+  return {
+    tasks: (tasksRes.data ?? []) as Array<{
+      id: string;
+      task_number: number;
+      name: string;
+      requires_service_report: boolean;
+      frequency_note: string | null;
+    }>,
+    template: (tplRes.data ?? []) as Array<{
+      task_id: string;
+      day_of_month: number;
+      shifts: ShiftType[];
+    }>,
+    overrides: (ovrRes.data ?? []) as Array<{
+      task_id: string;
+      year: number;
+      month: number;
+      day_of_month: number;
+      shifts: ShiftType[];
+    }>,
+  };
+}
