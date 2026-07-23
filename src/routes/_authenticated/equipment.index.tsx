@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileText, Image as ImageIcon, FileSearch, Wrench, Download, Search, Settings, AlertTriangle, History, CheckCircle2, Droplet, ClipboardCheck, ListFilter } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/equipment/")({
-  head: () => ({ meta: [{ title: "Urządzenia" }] }),
+  head: () => ({ meta: [{ title: "Obiekty" }] }),
   component: EquipmentPage,
 });
 
