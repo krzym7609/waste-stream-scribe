@@ -510,6 +510,7 @@ function EquipmentFormDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
           <div className="col-span-2">
             <Label>Lokalizacja</Label>
             <Input name="location" defaultValue={equipment?.location ?? ""} placeholder="np. Hala dmuchaw" />
