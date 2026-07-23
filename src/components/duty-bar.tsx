@@ -9,6 +9,7 @@ import {
   SHIFT_LABEL,
   formatHM,
 } from "@/lib/shifts";
+import { nextShift } from "@/lib/shift-utils";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
