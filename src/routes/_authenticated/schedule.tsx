@@ -153,6 +153,34 @@ function SchedulePage() {
               </SelectContent>
             </Select>
           </div>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const data = await loadAnnualData(year);
+                await exportAnnualSchedulePdf(year, data.tasks, data.template, data.overrides);
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            <FileDown className="w-4 h-4" />
+            Raport roczny PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const data = await loadAnnualData(year);
+                exportAnnualScheduleXlsx(year, data.tasks, data.template, data.overrides);
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Raport roczny Excel
+          </Button>
           {isManager && (
             <Button variant="outline" asChild>
               <Link to="/schedule/tasks">
