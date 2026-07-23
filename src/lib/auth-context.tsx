@@ -21,6 +21,7 @@ interface AuthCtx {
   loading: boolean;
   isManager: boolean;
   isAdmin: boolean;
+  isBoss: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
