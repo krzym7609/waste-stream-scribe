@@ -94,11 +94,13 @@ const KIND_ICONS: Record<AttachmentKind, React.ComponentType<{ className?: strin
 function EquipmentPage() {
   const { isManager, user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [objects, setObjects] = useState<PlantObject[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<string>("all");
-  
+  const [filterObj, setFilterObj] = useState<string>("all");
+
   const [editEq, setEditEq] = useState<Equipment | null>(null);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [showNewEq, setShowNewEq] = useState(false);
@@ -108,11 +110,13 @@ function EquipmentPage() {
 
   async function load() {
     setLoading(true);
-    const [{ data: cats }, { data: eq }] = await Promise.all([
+    const [{ data: cats }, { data: objs }, { data: eq }] = await Promise.all([
       supabase.from("equipment_categories").select("*").order("sort_order"),
+      supabase.from("plant_objects" as any).select("*").order("sort_order"),
       supabase.from("equipment").select("*").order("name"),
     ]);
     setCategories((cats ?? []) as Category[]);
+    setObjects((objs ?? []) as PlantObject[]);
     setEquipment((eq ?? []) as Equipment[]);
     setLoading(false);
   }
