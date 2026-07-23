@@ -380,35 +380,35 @@ export async function exportAnnualSchedulePdf(
 
   // Szerokości – dopasowane by szerokościowo mieściło się na A4 poziomo.
   // W pionie może się rozlewać na kolejne strony.
-  const nrW = 14;
-  const nameW = 190;
-  const usable = 802 - nrW - nameW;
+  const nrW = 10;
+  const nameW = 150;
+  const usable = 812 - nrW - nameW;
   const dayW = usable / STRIP_COLS;
 
   const doc: TDocumentDefinitions = {
     pageOrientation: "landscape",
     pageSize: "A4",
-    pageMargins: [10, 12, 10, 12],
-    defaultStyle: { font: "Roboto", fontSize: 7 },
+    pageMargins: [6, 10, 6, 10],
+    defaultStyle: { font: "Roboto", fontSize: 5 },
     styles: {
       hdr: {
         bold: true,
         alignment: "center",
         fillColor: "#FF0000",
         color: "#FFFFFF",
-        fontSize: 7,
+        fontSize: 5,
       },
-      cell: { fontSize: 7, alignment: "center" },
-      monthName: { bold: true, fontSize: 8, alignment: "left" },
-      shiftBand: { bold: true, fontSize: 9, fillColor: "#FFFF66", alignment: "center" },
+      cell: { fontSize: 5, alignment: "center" },
+      monthName: { bold: true, fontSize: 6, alignment: "left" },
+      shiftBand: { bold: true, fontSize: 7, fillColor: "#FFFF66", alignment: "center" },
     },
     content: [
       {
         text: `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
         bold: true,
         alignment: "center",
-        fontSize: 10,
-        margin: [0, 0, 0, 6],
+        fontSize: 8,
+        margin: [0, 0, 0, 4],
       },
       {
         table: {
@@ -418,8 +418,8 @@ export async function exportAnnualSchedulePdf(
           body,
         },
         layout: {
-          hLineWidth: () => 0.3,
-          vLineWidth: () => 0.3,
+          hLineWidth: () => 0.25,
+          vLineWidth: () => 0.25,
           hLineColor: () => "#808080",
           vLineColor: () => "#808080",
         },
