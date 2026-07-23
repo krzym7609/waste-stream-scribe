@@ -33,8 +33,16 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Download, Pencil, History, Lock } from "lucide-react";
+import { Download, Pencil, History, Lock, FileSpreadsheet, FileText } from "lucide-react";
 import { generateShiftReportPdf, generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
+import {
+  exportDailyExcel,
+  exportDailyPdf,
+  exportMonthlyExcel,
+  exportMonthlyPdf,
+  exportYearlyExcel,
+  exportYearlyPdf,
+} from "@/lib/reports/export-reports";
 
 export const Route = createFileRoute("/_authenticated/manager/reports")({
   head: () => ({ meta: [{ title: "Raporty — Oczyszczalnia" }] }),
