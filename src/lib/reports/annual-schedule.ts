@@ -3,6 +3,12 @@ import type { TDocumentDefinitions, TableCell } from "pdfmake/interfaces";
 import { downloadPdf } from "@/lib/pdf/pdfmake-instance";
 import type { ShiftType } from "@/lib/shifts";
 
+/* -----------------------------------------------------------
+   Odtworzenie layoutu z pliku harmonogram-roczny-2026.xlsx
+   Wygląd 1:1. Dynamicznie zmieniają się tylko daty pod dany rok
+   oraz oznaczenia zmian pobierane z szablonu użytkownika.
+   ----------------------------------------------------------- */
+
 export type AnnualTask = {
   id: string;
   task_number: number;
@@ -10,13 +16,11 @@ export type AnnualTask = {
   requires_service_report: boolean;
   frequency_note: string | null;
 };
-
 export type AnnualTemplateEntry = {
   task_id: string;
   day_of_month: number;
   shifts: ShiftType[];
 };
-
 export type AnnualOverrideEntry = {
   task_id: string;
   year: number;
@@ -29,26 +33,49 @@ const MONTHS_PL = [
   "Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
   "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień",
 ];
-// weekday indexes: 1=Mon..7=Sun (ISO)
-const WD_PL = ["Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd"];
+// Kolumny C..AD (28 sztuk) – nagłówek dni tygodnia w cyklu Wt→Pn (4 tygodnie)
+const WEEKDAY_HEADERS = [
+  "Wt","Śr","Cz","Pt","Sb","Nd","Pn",
+  "Wt","Śr","Cz","Pt","Sb","Nd","Pn",
+  "Wt","Śr","Cz","Pt","Sb","Nd","Pn",
+  "Wt","Śr","Cz","Pt","Sb","Nd","Pn",
+];
+const STRIP_COLS = 28;      // C..AD
+const FIRST_DAY_COL = 3;    // kolumna C (1-based)
+const NAME_COL = 2;         // kolumna B
 
-const TOTAL_COLS = 31; // day columns 1..31 covering worst-case month
-
-// Colors
-const HEADER_FILL = "FFFF6B6B";   // red-ish header (matches reference)
-const ZEBRA_FILL = "FFFFF2A8";    // yellow zebra
-const MARK_FILL = "FFFFF2A8";     // marked cells background
-const WEEKEND_FILL = "FFE8F5E9";  // light green weekend
-const SERVICE_COLOR = "FF1D4ED8"; // blue for tasks requiring service report
+// Kolory (dokładnie jak w pliku źródłowym)
+const HEADER_FILL = "FFFF0000";   // czerwony nagłówek
+const MARK_FILL   = "FFFFF66";    // żółte pole oznaczenia zmiany (jak C27 w źródle)
+const SHIFT_FILL  = "FFFFFF66";   // żółty pas "Z M I A N A"
+const SERVICE_COLOR = "FF1D4ED8"; // niebieski dla zadań z raportem serwisowym
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
-function isoWeekday(year: number, month: number, day: number): number {
-  // JS: 0=Sun..6=Sat  → ISO: 1=Mon..7=Sun
-  const d = new Date(year, month - 1, day).getDay();
-  return d === 0 ? 7 : d;
+// JS Date: 0=Nd..6=Sb  → mapujemy tak, że Wt=0..Pn=6 (bo strip zaczyna się od Wt)
+function offsetFromTue(year: number, month: number, day: number): number {
+  const d = new Date(year, month - 1, day).getDay(); // 0=Nd
+  // Wt=2 (JS) → 0. Formuła: (jsDay - 2 + 7) % 7
+  return (d - 2 + 7) % 7;
 }
+function daysBeforeMonth(year: number, month: number): number {
+  let n = 0;
+  for (let m = 1; m < month; m++) n += daysInMonth(year, m);
+  return n;
+}
+/** Zwraca kolumnę (1-based) i wiersz w obrębie pary wierszy miesiąca (0 lub 1)
+ *  dla dnia `day` miesiąca `month` w danym roku. */
+function placeDay(year: number, month: number, day: number) {
+  const startOffset = offsetFromTue(year, 1, 1); // wyrównanie roku
+  const pos = (startOffset + daysBeforeMonth(year, month) + (day - 1)) % STRIP_COLS;
+  const monthStart = (startOffset + daysBeforeMonth(year, month)) % STRIP_COLS;
+  const linear = monthStart + (day - 1);
+  const rowInMonth = Math.floor(linear / STRIP_COLS);
+  const col = FIRST_DAY_COL + (linear % STRIP_COLS);
+  return { col, rowInMonth, pos };
+}
+
 function shiftMark(shifts: ShiftType[]): string {
   if (!shifts || shifts.length === 0) return "";
   const has1 = shifts.includes("rano");
@@ -58,173 +85,8 @@ function shiftMark(shifts: ShiftType[]): string {
   if (has2) return "2";
   return "";
 }
-function buildResolver(
-  template: AnnualTemplateEntry[],
-  overrides: AnnualOverrideEntry[],
-) {
-  const tpl = new Map<string, ShiftType[]>();
-  template.forEach((e) => tpl.set(`${e.task_id}:${e.day_of_month}`, e.shifts));
-  const ovr = new Map<string, ShiftType[]>();
-  overrides.forEach((e) =>
-    ovr.set(`${e.task_id}:${e.year}:${e.month}:${e.day_of_month}`, e.shifts),
-  );
-  return function resolve(
-    taskId: string, year: number, month: number, day: number,
-  ): ShiftType[] {
-    const o = ovr.get(`${taskId}:${year}:${month}:${day}`);
-    if (o !== undefined) return o;
-    return tpl.get(`${taskId}:${day}`) ?? [];
-  };
-}
 
-/* ---------- PDF (single A4 landscape page) ---------- */
-
-export async function exportAnnualSchedulePdf(
-  year: number,
-  tasks: AnnualTask[],
-  template: AnnualTemplateEntry[],
-  overrides: AnnualOverrideEntry[],
-) {
-  const resolve = buildResolver(template, overrides);
-  const dayNums = Array.from({ length: TOTAL_COLS }, (_, i) => i + 1);
-
-  // --- CALENDAR STRIP (top): rows per month; each cell = day number (or blank),
-  //     background green for weekends, empty for days that don't exist.
-  const calBody: TableCell[][] = [];
-  // header
-  calBody.push([
-    { text: "Miesiąc / Dzień", style: "hdr" },
-    ...dayNums.map<TableCell>((d) => ({ text: String(d), style: "hdr" })),
-  ]);
-  for (let m = 1; m <= 12; m++) {
-    const dcount = daysInMonth(year, m);
-    const row: TableCell[] = [{ text: MONTHS_PL[m - 1], style: "monthName" }];
-    for (const d of dayNums) {
-      if (d > dcount) {
-        row.push({ text: "", style: "calCell", fillColor: "#f3f4f6" });
-      } else {
-        const wd = isoWeekday(year, m, d);
-        const isWeekend = wd >= 6;
-        row.push({
-          text: WD_PL[wd - 1],
-          style: "calCell",
-          fillColor: isWeekend ? "#c6efce" : undefined,
-        });
-      }
-    }
-    calBody.push(row);
-  }
-
-  // --- TASK TABLE: one row per task, 31 day columns, marks from template
-  const taskBody: TableCell[][] = [];
-  taskBody.push([
-    { text: "Nr", style: "hdr" },
-    { text: "Wyszczególnienie", style: "hdr" },
-    ...dayNums.map<TableCell>((d) => ({ text: String(d), style: "hdr" })),
-  ]);
-
-  tasks.forEach((t, idx) => {
-    const zebra = idx % 2 === 1;
-    const zebraFill = zebra ? "#fffbe6" : undefined;
-    const row: TableCell[] = [
-      { text: String(t.task_number), style: "cell", alignment: "center", fillColor: zebraFill },
-      {
-        text: t.name,
-        style: "cell",
-        color: t.requires_service_report ? "#1d4ed8" : undefined,
-        bold: t.requires_service_report,
-        fillColor: zebraFill,
-      },
-    ];
-    for (const d of dayNums) {
-      // aggregate: take any month's override if present, else template
-      let mark = "";
-      // check template first (uniform across year); if any override in year for this day changes it,
-      // we still show the template mark — the annual report shows the recurring plan.
-      const tplShifts = template.find(
-        (e) => e.task_id === t.id && e.day_of_month === d,
-      );
-      if (tplShifts) mark = shiftMark(tplShifts.shifts);
-      row.push({
-        text: mark,
-        style: "cell",
-        alignment: "center",
-        bold: !!mark,
-        fillColor: mark ? "#fff2a8" : zebraFill,
-      });
-    }
-    taskBody.push(row);
-  });
-
-  // widths: name col wider; day cols equal narrow
-  const nameW = 130;
-  const nrW = 14;
-  const dayW = (770 - nrW - nameW) / TOTAL_COLS; // ~19pt each
-  const calMonthW = nrW + nameW;
-
-  const content: TDocumentDefinitions["content"] = [
-    {
-      text: `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
-      style: "title",
-      alignment: "center",
-      margin: [0, 0, 0, 4],
-    },
-    {
-      table: {
-        headerRows: 1,
-        widths: [calMonthW, ...dayNums.map(() => dayW)],
-        body: calBody,
-      },
-      layout: {
-        hLineWidth: () => 0.3,
-        vLineWidth: () => 0.3,
-        hLineColor: () => "#666",
-        vLineColor: () => "#666",
-      },
-      fontSize: 5,
-    },
-    { text: "", margin: [0, 2, 0, 0] },
-    {
-      table: {
-        headerRows: 1,
-        widths: [nrW, nameW, ...dayNums.map(() => dayW)],
-        body: taskBody,
-      },
-      layout: {
-        hLineWidth: () => 0.3,
-        vLineWidth: () => 0.3,
-        hLineColor: () => "#666",
-        vLineColor: () => "#666",
-      },
-      fontSize: 5,
-    },
-    {
-      text: "Legenda: 1 = zmiana 1 (rano), 2 = zmiana 2 (popołudnie), 1;2 = obie zmiany. Zadania niebieską czcionką wymagają wewnętrznego raportu serwisowego. Zielone pola w kalendarzu = weekend.",
-      fontSize: 5,
-      italics: true,
-      margin: [0, 3, 0, 0],
-    },
-  ];
-
-  const doc: TDocumentDefinitions = {
-    pageOrientation: "landscape",
-    pageSize: "A4",
-    pageMargins: [12, 14, 12, 12],
-    defaultStyle: { font: "Roboto", fontSize: 5 },
-    styles: {
-      title: { fontSize: 9, bold: true },
-      hdr: { bold: true, alignment: "center", fillColor: "#fecaca", fontSize: 5 },
-      monthName: { bold: true, fontSize: 5 },
-      calCell: { alignment: "center", fontSize: 5 },
-      cell: { fontSize: 5 },
-    },
-    content,
-  };
-
-  await downloadPdf(doc, `harmonogram-roczny-${year}.pdf`);
-}
-
-/* ---------- EXCEL (single sheet, one printed page A4 landscape) ---------- */
+/* ---------- EXCEL (1:1 z plikiem źródłowym) ---------- */
 
 export async function exportAnnualScheduleXlsx(
   year: number,
@@ -244,135 +106,172 @@ export async function exportAnnualScheduleXlsx(
     },
   });
 
-  const dayNums = Array.from({ length: TOTAL_COLS }, (_, i) => i + 1);
-
-  // Column widths
-  ws.getColumn(1).width = 4;   // Nr
-  ws.getColumn(2).width = 40;  // name / month
-  for (let i = 0; i < TOTAL_COLS; i++) ws.getColumn(3 + i).width = 3.2;
+  // Szerokości kolumn – jak w oryginale
+  ws.getColumn(1).width = 3;      // A – Nr
+  ws.getColumn(2).width = 62.875; // B – nazwa / miesiąc
+  ws.getColumn(3).width = 3.625;  // C
+  for (let i = 1; i < STRIP_COLS; i++) ws.getColumn(FIRST_DAY_COL + i).width = 3.25;
 
   const border = {
-    top: { style: "thin" as const, color: { argb: "FF808080" } },
-    left: { style: "thin" as const, color: { argb: "FF808080" } },
+    top:    { style: "thin" as const, color: { argb: "FF808080" } },
+    left:   { style: "thin" as const, color: { argb: "FF808080" } },
     bottom: { style: "thin" as const, color: { argb: "FF808080" } },
-    right: { style: "thin" as const, color: { argb: "FF808080" } },
+    right:  { style: "thin" as const, color: { argb: "FF808080" } },
   };
+  const thinBorder = border;
 
-  // Title
-  const titleRow = ws.addRow([
-    `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
-  ]);
-  ws.mergeCells(titleRow.number, 1, titleRow.number, 2 + TOTAL_COLS);
-  titleRow.getCell(1).font = { bold: true, size: 10 };
-  titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-  titleRow.height = 16;
-
-  // Calendar header
-  const calHdr = ws.addRow(["", "Miesiąc / Dzień", ...dayNums.map(String)]);
-  ws.mergeCells(calHdr.number, 1, calHdr.number, 2);
-  calHdr.eachCell((c) => {
-    c.font = { bold: true, size: 6 };
-    c.alignment = { horizontal: "center", vertical: "middle" };
+  // === Wiersz 1: nagłówek dni tygodnia (kalendarz) ===
+  const hdr1 = ws.getRow(1);
+  hdr1.getCell(NAME_COL).value = "Miesiąc / Dzień tygodnia:";
+  hdr1.getCell(NAME_COL).font = { bold: true, size: 8, color: { argb: "FFFFFFFF" } };
+  hdr1.getCell(NAME_COL).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+  hdr1.getCell(NAME_COL).alignment = { horizontal: "left", vertical: "middle" };
+  hdr1.getCell(NAME_COL).border = thinBorder;
+  for (let i = 0; i < STRIP_COLS; i++) {
+    const c = hdr1.getCell(FIRST_DAY_COL + i);
+    c.value = WEEKDAY_HEADERS[i];
+    c.font = { bold: true, size: 7, color: { argb: "FFFFFFFF" } };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
-    c.border = border;
-  });
-  calHdr.height = 12;
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.border = thinBorder;
+  }
+  hdr1.height = 14;
 
-  // Calendar rows per month
+  // === Wiersze 2..25: 12 miesięcy × 2 wiersze ===
   for (let m = 1; m <= 12; m++) {
+    const topRow = 2 + (m - 1) * 2;
+    const botRow = topRow + 1;
+    // Scalone: kolumna A i B pomiędzy tymi 2 wierszami
+    ws.mergeCells(topRow, 1, botRow, 1);
+    ws.mergeCells(topRow, NAME_COL, botRow, NAME_COL);
+    const nameCell = ws.getCell(topRow, NAME_COL);
+    nameCell.value = MONTHS_PL[m - 1];
+    nameCell.font = { bold: true, size: 9 };
+    nameCell.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+    nameCell.border = thinBorder;
+    ws.getCell(topRow, 1).border = thinBorder;
+
+    ws.getRow(topRow).height = 13;
+    ws.getRow(botRow).height = 13;
+
+    // Rozłóż dni miesiąca
     const dcount = daysInMonth(year, m);
-    const rowVals: (string | number)[] = ["", MONTHS_PL[m - 1]];
-    for (const d of dayNums) {
-      rowVals.push(d > dcount ? "" : WD_PL[isoWeekday(year, m, d) - 1]);
-    }
-    const r = ws.addRow(rowVals);
-    ws.mergeCells(r.number, 1, r.number, 2);
-    r.height = 11;
-    r.getCell(1).value = MONTHS_PL[m - 1];
-    r.getCell(1).font = { bold: true, size: 6 };
-    r.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
-    r.getCell(1).border = border;
-    for (let i = 0; i < TOTAL_COLS; i++) {
-      const cell = r.getCell(3 + i);
-      const d = i + 1;
-      cell.font = { size: 6 };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
-      cell.border = border;
-      if (d > dcount) {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
-      } else {
-        const wd = isoWeekday(year, m, d);
-        if (wd >= 6) {
-          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFC6EFCE" } };
-        }
+    // Najpierw zainicjalizuj wszystkie 28 kolumn w obu wierszach ramkami
+    for (const r of [topRow, botRow]) {
+      for (let i = 0; i < STRIP_COLS; i++) {
+        const c = ws.getCell(r, FIRST_DAY_COL + i);
+        c.border = thinBorder;
+        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.font = { size: 8 };
       }
+    }
+    for (let d = 1; d <= dcount; d++) {
+      const { col, rowInMonth } = placeDay(year, m, d);
+      const row = rowInMonth === 0 ? topRow : botRow;
+      const c = ws.getCell(row, col);
+      c.value = d;
+      c.font = { size: 8 };
     }
   }
 
-  // Spacer row
-  ws.addRow([]);
-
-  // Task table header
-  const taskHdr = ws.addRow(["Nr", "Wyszczególnienie", ...dayNums.map(String)]);
-  taskHdr.eachCell((c) => {
-    c.font = { bold: true, size: 6 };
-    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  // === Wiersz 26: nagłówek tabeli zadań ===
+  const hdr2 = ws.getRow(26);
+  hdr2.getCell(NAME_COL).value = "Wyszczególnienie/ Dzień tygodnia:";
+  hdr2.getCell(NAME_COL).font = { bold: true, size: 8, color: { argb: "FFFFFFFF" } };
+  hdr2.getCell(NAME_COL).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+  hdr2.getCell(NAME_COL).alignment = { horizontal: "left", vertical: "middle" };
+  hdr2.getCell(NAME_COL).border = thinBorder;
+  for (let i = 0; i < STRIP_COLS; i++) {
+    const c = hdr2.getCell(FIRST_DAY_COL + i);
+    c.value = WEEKDAY_HEADERS[i];
+    c.font = { bold: true, size: 7, color: { argb: "FFFFFFFF" } };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
-    c.border = border;
-  });
-  taskHdr.height = 14;
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.border = thinBorder;
+  }
+  hdr2.height = 14;
 
-  // Task rows
+  // === Wiersz 27: pas "Z M I A N A" ===
+  const shiftRow = ws.getRow(27);
+  ws.mergeCells(27, FIRST_DAY_COL, 27, FIRST_DAY_COL + STRIP_COLS - 1);
+  const shiftCell = shiftRow.getCell(FIRST_DAY_COL);
+  shiftCell.value = "Z M I A N A";
+  shiftCell.font = { bold: true, size: 9 };
+  shiftCell.alignment = { horizontal: "center", vertical: "middle" };
+  shiftCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: SHIFT_FILL } };
+  shiftCell.border = thinBorder;
+  shiftRow.getCell(NAME_COL).border = thinBorder;
+  shiftRow.getCell(1).border = thinBorder;
+  shiftRow.height = 13;
+
+  // === Wiersze 28+: zadania ===
+  // Kolumny C..AD (28) reprezentują dni miesiąca 1..28 (jak w oryginale).
+  // Znaczniki dla dni 29-31 nie mają miejsca w pasku, więc trafiają w kolumny C..E
+  // (te same, co dni 1..3 – co odpowiada wizualnie pierwszym kolumnom paska).
+  // W praktyce większość szablonów mieści się w 1..28.
   tasks.forEach((t, idx) => {
-    const zebra = idx % 2 === 1;
-    const rowVals: (string | number)[] = [t.task_number, t.name];
-    const marks: string[] = [];
-    for (const d of dayNums) {
-      const tpl = template.find((e) => e.task_id === t.id && e.day_of_month === d);
-      marks.push(tpl ? shiftMark(tpl.shifts) : "");
-    }
-    const r = ws.addRow([...rowVals, ...marks]);
-    r.height = 11;
-    // Nr
-    const nr = r.getCell(1);
-    nr.font = { size: 6, bold: true };
-    nr.alignment = { horizontal: "center", vertical: "middle" };
-    nr.border = border;
-    if (zebra) nr.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFBE6" } };
-    // Name
-    const nm = r.getCell(2);
+    const rowIdx = 28 + idx;
+    const r = ws.getRow(rowIdx);
+    r.height = 13;
+    r.getCell(1).value = t.task_number;
+    r.getCell(1).font = { size: 8, bold: true };
+    r.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+    r.getCell(1).border = thinBorder;
+
+    const nm = r.getCell(NAME_COL);
+    nm.value = t.name;
     nm.font = {
-      size: 6,
+      size: 8,
       bold: t.requires_service_report,
       color: t.requires_service_report ? { argb: SERVICE_COLOR } : undefined,
     };
     nm.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-    nm.border = border;
-    if (zebra) nm.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFBE6" } };
-    // Day cells
-    for (let i = 0; i < TOTAL_COLS; i++) {
-      const c = r.getCell(3 + i);
-      c.font = { size: 6, bold: !!marks[i] };
+    nm.border = thinBorder;
+
+    // Zbierz oznaczenia dla dni 1..28 (i 29..31 nakładając na kolumny 1..3)
+    const marks: string[] = new Array(STRIP_COLS).fill("");
+    for (const e of template) {
+      if (e.task_id !== t.id) continue;
+      const d = e.day_of_month;
+      const colIdx = ((d - 1) % STRIP_COLS); // 0..27
+      const mark = shiftMark(e.shifts);
+      if (!mark) continue;
+      // jeśli już jest inny znacznik, połącz do 1;2
+      if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
+      else marks[colIdx] = mark;
+    }
+
+    for (let i = 0; i < STRIP_COLS; i++) {
+      const c = r.getCell(FIRST_DAY_COL + i);
+      c.border = thinBorder;
       c.alignment = { horizontal: "center", vertical: "middle" };
-      c.border = border;
+      c.font = { size: 8, bold: !!marks[i] };
       if (marks[i]) {
+        c.value = marks[i];
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MARK_FILL } };
-      } else if (zebra) {
-        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFBE6" } };
       }
     }
   });
 
-  // Legend
-  const legend = ws.addRow([
-    "Legenda: 1 = zmiana 1 (rano), 2 = zmiana 2 (popołudnie), 1;2 = obie zmiany. Zadania niebieską czcionką wymagają wewnętrznego raportu serwisowego. Zielone pola = weekend.",
-  ]);
-  ws.mergeCells(legend.number, 1, legend.number, 2 + TOTAL_COLS);
-  legend.getCell(1).font = { italic: true, size: 6 };
-  legend.getCell(1).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-  legend.height = 12;
+  // === Stopka – wiersz z dniami tygodnia ===
+  const footerRowIdx = 28 + tasks.length;
+  const fr = ws.getRow(footerRowIdx);
+  fr.getCell(NAME_COL).value = " Dzień tygodnia:";
+  fr.getCell(NAME_COL).font = { bold: true, size: 8, color: { argb: "FFFFFFFF" } };
+  fr.getCell(NAME_COL).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+  fr.getCell(NAME_COL).alignment = { horizontal: "left", vertical: "middle" };
+  fr.getCell(NAME_COL).border = thinBorder;
+  for (let i = 0; i < STRIP_COLS; i++) {
+    const c = fr.getCell(FIRST_DAY_COL + i);
+    c.value = WEEKDAY_HEADERS[i];
+    c.font = { bold: true, size: 7, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.border = thinBorder;
+  }
+  fr.height = 14;
 
-  ws.pageSetup.printArea = `A1:${ws.getColumn(2 + TOTAL_COLS).letter}${legend.number}`;
+  ws.pageSetup.printArea = `A1:${ws.getColumn(FIRST_DAY_COL + STRIP_COLS - 1).letter}${footerRowIdx}`;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {
@@ -386,4 +285,145 @@ export async function exportAnnualScheduleXlsx(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/* ---------- PDF (ten sam układ, A4 poziomo, 1 strona) ---------- */
+
+export async function exportAnnualSchedulePdf(
+  year: number,
+  tasks: AnnualTask[],
+  template: AnnualTemplateEntry[],
+  _overrides: AnnualOverrideEntry[],
+) {
+  // Budujemy taką samą siatkę jak w Excelu, tylko jako tabelę pdfmake
+  const totalCols = 1 /*A Nr*/ + 1 /*B Nazwa*/ + STRIP_COLS;
+
+  // Kalendarz – nagłówek
+  const hdrRow: TableCell[] = [
+    { text: "", style: "hdr" },
+    { text: "Miesiąc / Dzień tygodnia:", style: "hdr", alignment: "left" },
+    ...WEEKDAY_HEADERS.map<TableCell>((w) => ({ text: w, style: "hdr" })),
+  ];
+  const body: TableCell[][] = [hdrRow];
+
+  for (let m = 1; m <= 12; m++) {
+    const dcount = daysInMonth(year, m);
+    const top: TableCell[] = new Array(totalCols).fill(null).map(() => ({ text: "", style: "cell" }));
+    const bot: TableCell[] = new Array(totalCols).fill(null).map(() => ({ text: "", style: "cell" }));
+    // scalone A i B na dwa wiersze
+    top[0] = { text: "", style: "cell", rowSpan: 2 };
+    top[1] = { text: MONTHS_PL[m - 1], style: "monthName", rowSpan: 2, alignment: "left" };
+    for (let d = 1; d <= dcount; d++) {
+      const { col, rowInMonth } = placeDay(year, m, d);
+      // col to 1-based nr kolumny arkusza; w PDF-owej tablicy index = col - 1
+      const idx = col - 1;
+      const target = rowInMonth === 0 ? top : bot;
+      target[idx] = { text: String(d), style: "cell" };
+    }
+    body.push(top, bot);
+  }
+
+  // Nagłówek tabeli zadań
+  const taskHdr: TableCell[] = [
+    { text: "", style: "hdr" },
+    { text: "Wyszczególnienie/ Dzień tygodnia:", style: "hdr", alignment: "left" },
+    ...WEEKDAY_HEADERS.map<TableCell>((w) => ({ text: w, style: "hdr" })),
+  ];
+  body.push(taskHdr);
+
+  // Pas "Z M I A N A"
+  const shiftBand: TableCell[] = [
+    { text: "", style: "cell" },
+    { text: "", style: "cell" },
+    { text: "Z M I A N A", style: "shiftBand", colSpan: STRIP_COLS, alignment: "center" },
+    ...new Array(STRIP_COLS - 1).fill({}),
+  ];
+  body.push(shiftBand);
+
+  // Zadania
+  tasks.forEach((t) => {
+    const marks: string[] = new Array(STRIP_COLS).fill("");
+    for (const e of template) {
+      if (e.task_id !== t.id) continue;
+      const colIdx = ((e.day_of_month - 1) % STRIP_COLS);
+      const mark = shiftMark(e.shifts);
+      if (!mark) continue;
+      if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
+      else marks[colIdx] = mark;
+    }
+    const row: TableCell[] = [
+      { text: String(t.task_number), style: "cell", alignment: "center", bold: true },
+      {
+        text: t.name,
+        style: "cell",
+        alignment: "left",
+        color: t.requires_service_report ? "#1d4ed8" : undefined,
+        bold: t.requires_service_report,
+      },
+      ...marks.map<TableCell>((mk) => ({
+        text: mk,
+        style: "cell",
+        alignment: "center",
+        bold: !!mk,
+        fillColor: mk ? "#fffbcc" : undefined,
+      })),
+    ];
+    body.push(row);
+  });
+
+  // Stopka – dni tygodnia
+  body.push([
+    { text: "", style: "hdr" },
+    { text: " Dzień tygodnia:", style: "hdr", alignment: "left" },
+    ...WEEKDAY_HEADERS.map<TableCell>((w) => ({ text: w, style: "hdr" })),
+  ]);
+
+  // Szerokości – dopasowane by 1 strona A4 poziomo (ok. 800pt szerokości użytkowej)
+  const nrW = 12;
+  const nameW = 175;
+  const usable = 800 - nrW - nameW;
+  const dayW = usable / STRIP_COLS;
+
+  const doc: TDocumentDefinitions = {
+    pageOrientation: "landscape",
+    pageSize: "A4",
+    pageMargins: [10, 12, 10, 10],
+    defaultStyle: { font: "Roboto", fontSize: 6 },
+    styles: {
+      hdr: {
+        bold: true,
+        alignment: "center",
+        fillColor: "#ffdddd",
+        color: "#000000",
+        fontSize: 6,
+      },
+      cell: { fontSize: 6, alignment: "center" },
+      monthName: { bold: true, fontSize: 7, alignment: "left" },
+      shiftBand: { bold: true, fontSize: 8, fillColor: "#ffff99", alignment: "center" },
+    },
+    content: [
+      {
+        text: `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
+        bold: true,
+        alignment: "center",
+        fontSize: 9,
+        margin: [0, 0, 0, 4],
+      },
+      {
+        table: {
+          headerRows: 1,
+          widths: [nrW, nameW, ...Array(STRIP_COLS).fill(dayW)],
+          body,
+        },
+        layout: {
+          hLineWidth: () => 0.3,
+          vLineWidth: () => 0.3,
+          hLineColor: () => "#808080",
+          vLineColor: () => "#808080",
+        },
+      },
+    ],
+  };
+
+  await downloadPdf(doc, `harmonogram-roczny-${year}.pdf`);
 }
