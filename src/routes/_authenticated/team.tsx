@@ -31,7 +31,7 @@ type Row = {
 };
 
 function TeamPage() {
-  const { isManager, isAdmin } = useAuth();
+  const { isManager, isAdmin, isBoss } = useAuth();
   const create = useServerFn(createEmployee);
   const reset = useServerFn(resetEmployeePassword);
 
