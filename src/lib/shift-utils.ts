@@ -9,8 +9,9 @@ export function toIsoDate(d: Date): string {
 }
 
 export function nextShift(s: ShiftType): { type: ShiftType; dayOffset: number } {
+  // System 2-zmianowy: rano → popoludnie (ten sam dzień), popoludnie → rano (następny dzień).
+  // Wartość 'noc' (historyczna) traktujemy jak popoludnie.
   if (s === "rano") return { type: "popoludnie", dayOffset: 0 };
-  if (s === "popoludnie") return { type: "noc", dayOffset: 0 };
   return { type: "rano", dayOffset: 1 };
 }
 
