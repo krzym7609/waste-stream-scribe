@@ -66,6 +66,7 @@ export type Database = {
           model: string | null
           name: string
           notes: string | null
+          object_id: string | null
           serial_number: string | null
           status: string
           updated_at: string
@@ -82,6 +83,7 @@ export type Database = {
           model?: string | null
           name: string
           notes?: string | null
+          object_id?: string | null
           serial_number?: string | null
           status?: string
           updated_at?: string
@@ -98,6 +100,7 @@ export type Database = {
           model?: string | null
           name?: string
           notes?: string | null
+          object_id?: string | null
           serial_number?: string | null
           status?: string
           updated_at?: string
@@ -108,6 +111,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "equipment_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_object_id_fkey"
+            columns: ["object_id"]
+            isOneToOne: false
+            referencedRelation: "plant_objects"
             referencedColumns: ["id"]
           },
         ]
@@ -400,6 +410,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plant_objects: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -897,6 +940,36 @@ export type Database = {
           },
         ]
       }
+      shift_settings: {
+        Row: {
+          id: boolean
+          shift1_end: string
+          shift1_start: string
+          shift2_end: string
+          shift2_start: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          shift1_end?: string
+          shift1_start?: string
+          shift2_end?: string
+          shift2_start?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          shift1_end?: string
+          shift1_start?: string
+          shift2_end?: string
+          shift2_start?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       shifts: {
         Row: {
           created_at: string
@@ -972,11 +1045,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_role: { Args: { _uid: string }; Returns: boolean }
+      is_manager_role: { Args: { _uid: string }; Returns: boolean }
       notify_overdue_tasks: { Args: never; Returns: undefined }
       username_to_email: { Args: { _username: string }; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "kierownik" | "operator"
+      app_role: "admin" | "kierownik" | "operator" | "zarzadca"
       equipment_attachment_kind:
         | "documentation"
         | "photo"
@@ -1117,7 +1192,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "kierownik", "operator"],
+      app_role: ["admin", "kierownik", "operator", "zarzadca"],
       equipment_attachment_kind: [
         "documentation",
         "photo",

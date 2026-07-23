@@ -31,7 +31,7 @@ type Row = {
 };
 
 function TeamPage() {
-  const { isManager, isAdmin } = useAuth();
+  const { isManager, isAdmin, isBoss } = useAuth();
   const create = useServerFn(createEmployee);
   const reset = useServerFn(resetEmployeePassword);
 
@@ -78,7 +78,7 @@ function TeamPage() {
           first_name: String(fd.get("first_name")),
           last_name: String(fd.get("last_name")),
           phone: String(fd.get("phone") ?? "") || null,
-          role: String(fd.get("role") ?? "operator") as "operator" | "kierownik" | "admin",
+          role: String(fd.get("role") ?? "operator") as "operator" | "kierownik" | "admin" | "zarzadca",
         },
       });
       setShowCreate(false);
@@ -198,11 +198,12 @@ function TeamPage() {
                 <SelectTrigger id="role"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="operator">Operator</SelectItem>
-                  {isAdmin && <SelectItem value="kierownik">Kierownik</SelectItem>}
+                  {isBoss && <SelectItem value="kierownik">Kierownik</SelectItem>}
+                  {isBoss && <SelectItem value="zarzadca">Zarządca (prezes)</SelectItem>}
                   {isAdmin && <SelectItem value="admin">Administrator</SelectItem>}
                 </SelectContent>
               </Select>
-              {!isAdmin && (
+              {!isBoss && (
                 <p className="text-xs text-muted-foreground">Kierownik może dodawać tylko operatorów.</p>
               )}
             </div>

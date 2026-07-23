@@ -22,9 +22,11 @@ export const Route = createFileRoute("/_authenticated/equipment/")({
 });
 
 type Category = { id: string; name: string; sort_order: number };
+type PlantObject = { id: string; name: string; description: string | null; sort_order: number };
 type Equipment = {
   id: string;
   category_id: string | null;
+  object_id: string | null;
   name: string;
   code: string | null;
   location: string | null;
@@ -92,11 +94,13 @@ const KIND_ICONS: Record<AttachmentKind, React.ComponentType<{ className?: strin
 function EquipmentPage() {
   const { isManager, user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [objects, setObjects] = useState<PlantObject[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<string>("all");
-  
+  const [filterObj, setFilterObj] = useState<string>("all");
+
   const [editEq, setEditEq] = useState<Equipment | null>(null);
   const [editCat, setEditCat] = useState<Category | null>(null);
   const [showNewEq, setShowNewEq] = useState(false);
@@ -106,11 +110,13 @@ function EquipmentPage() {
 
   async function load() {
     setLoading(true);
-    const [{ data: cats }, { data: eq }] = await Promise.all([
+    const [{ data: cats }, { data: objs }, { data: eq }] = await Promise.all([
       supabase.from("equipment_categories").select("*").order("sort_order"),
+      supabase.from("plant_objects" as any).select("*").order("sort_order"),
       supabase.from("equipment").select("*").order("name"),
     ]);
     setCategories((cats ?? []) as Category[]);
+    setObjects(((objs ?? []) as unknown) as PlantObject[]);
     setEquipment((eq ?? []) as Equipment[]);
     setLoading(false);
   }
@@ -123,6 +129,10 @@ function EquipmentPage() {
     const q = search.trim().toLowerCase();
     return equipment.filter((e) => {
       if (filterCat !== "all" && e.category_id !== filterCat) return false;
+      if (filterObj !== "all") {
+        if (filterObj === "none" && e.object_id) return false;
+        if (filterObj !== "none" && e.object_id !== filterObj) return false;
+      }
       if (!q) return true;
       return (
         e.name.toLowerCase().includes(q) ||
@@ -132,9 +142,22 @@ function EquipmentPage() {
         (e.model ?? "").toLowerCase().includes(q)
       );
     });
-  }, [equipment, filterCat, search]);
+  }, [equipment, filterCat, filterObj, search]);
 
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? "—";
+  const objName = (id: string | null) => objects.find((o) => o.id === id)?.name ?? null;
+
+  // Grupowanie po obiektach dla widoku "Obiekty > urządzenia"
+  const groups = useMemo(() => {
+    const map = new Map<string, { obj: PlantObject | null; items: Equipment[] }>();
+    for (const o of objects) map.set(o.id, { obj: o, items: [] });
+    map.set("__none__", { obj: null, items: [] });
+    for (const e of filtered) {
+      const key = e.object_id && map.has(e.object_id) ? e.object_id : "__none__";
+      map.get(key)!.items.push(e);
+    }
+    return Array.from(map.values()).filter((g) => g.items.length > 0);
+  }, [objects, filtered]);
 
   return (
     <div className="p-6 space-y-4">
@@ -172,6 +195,21 @@ function EquipmentPage() {
                 />
               </div>
             </div>
+            <div className="min-w-[220px]">
+              <Label className="text-xs">Obiekt</Label>
+              <Select value={filterObj} onValueChange={setFilterObj}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie</SelectItem>
+                  {objects.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                  <SelectItem value="none">— bez przypisania —</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="min-w-[200px]">
               <Label className="text-xs">Kategoria</Label>
               <Select value={filterCat} onValueChange={setFilterCat}>
@@ -196,82 +234,104 @@ function EquipmentPage() {
               Brak urządzeń. {isManager && "Kliknij Dodaj urządzenie, aby utworzyć pierwsze."}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nazwa</TableHead>
-                  <TableHead>Kod</TableHead>
-                  <TableHead>Kategoria</TableHead>
-                  <TableHead>Lokalizacja</TableHead>
-                  <TableHead>Producent / model</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[160px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="font-medium">{e.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{e.code ?? "—"}</TableCell>
-                    <TableCell>{catName(e.category_id)}</TableCell>
-                    <TableCell>{e.location ?? "—"}</TableCell>
-                    <TableCell className="text-sm">
-                      {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
-                    </TableCell>
-                    <TableCell>
-                      {e.status === "awaria" ? (
-                        <Badge variant="destructive">Awaria</Badge>
-                      ) : e.status === "serwis" ? (
-                        <Badge className="bg-amber-600">Serwis</Badge>
-                      ) : e.active ? (
-                        <Badge variant="secondary">Sprawne</Badge>
-                      ) : (
-                        <Badge variant="outline">Wyłączone</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
-                      </Button>
-                      {isManager && (
-                        <>
-                          {e.status !== "awaria" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() => setBreakdownFor(e)}
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" /> Zgłoś awarię
+            <div className="space-y-6">
+              {groups.map((g, idx) => (
+                <div key={g.obj?.id ?? `none-${idx}`} className="space-y-2">
+                  <div className="flex items-baseline gap-2 border-b pb-1">
+                    <h3 className="text-base font-semibold">
+                      {g.obj?.name ?? "Bez przypisanego obiektu"}
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {g.items.length} {g.items.length === 1 ? "urządzenie" : "urządzeń"}
+                    </span>
+                    {g.obj?.description && (
+                      <span className="text-xs text-muted-foreground italic">
+                        — {g.obj.description}
+                      </span>
+                    )}
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nazwa</TableHead>
+                        <TableHead>Kod</TableHead>
+                        <TableHead>Kategoria</TableHead>
+                        <TableHead>Lokalizacja</TableHead>
+                        <TableHead>Producent / model</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[160px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {g.items.map((e) => (
+                        <TableRow key={e.id}>
+                          <TableCell className="font-medium">{e.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{e.code ?? "—"}</TableCell>
+                          <TableCell>{catName(e.category_id)}</TableCell>
+                          <TableCell>{e.location ?? "—"}</TableCell>
+                          <TableCell className="text-sm">
+                            {[e.manufacturer, e.model].filter(Boolean).join(" / ") || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {e.status === "awaria" ? (
+                              <Badge variant="destructive">Awaria</Badge>
+                            ) : e.status === "serwis" ? (
+                              <Badge className="bg-amber-600">Serwis</Badge>
+                            ) : e.active ? (
+                              <Badge variant="secondary">Sprawne</Badge>
+                            ) : (
+                              <Badge variant="outline">Wyłączone</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
                             </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setRepairFor(e)}
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Oznacz sprawne
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                            {isManager && (
+                              <>
+                                {e.status !== "awaria" ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive"
+                                    onClick={() => setBreakdownFor(e)}
+                                  >
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Zgłoś awarię
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setRepairFor(e)}
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Oznacz sprawne
+                                  </Button>
+                                )}
+                                <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                              </>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
+
+
 
 
       {(showNewEq || editEq) && (
         <EquipmentFormDialog
           equipment={editEq}
           categories={categories}
+          objects={objects}
           onClose={() => {
             setShowNewEq(false);
             setEditEq(null);
@@ -343,16 +403,19 @@ function EquipmentPage() {
 function EquipmentFormDialog({
   equipment,
   categories,
+  objects,
   onClose,
   onSaved,
 }: {
   equipment: Equipment | null;
   categories: Category[];
+  objects: PlantObject[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [categoryId, setCategoryId] = useState<string | "none">(equipment?.category_id ?? "none");
+  const [objectId, setObjectId] = useState<string | "none">(equipment?.object_id ?? "none");
   const [active, setActive] = useState(equipment?.active ?? true);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -369,6 +432,7 @@ function EquipmentFormDialog({
       installed_at: String(fd.get("installed_at") ?? "") || null,
       notes: String(fd.get("notes") ?? "").trim() || null,
       category_id: categoryId === "none" ? null : categoryId,
+      object_id: objectId === "none" ? null : objectId,
       active,
     };
     try {
@@ -429,6 +493,20 @@ function EquipmentFormDialog({
                 <SelectItem value="none">— brak —</SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="col-span-2">
+            <Label>Obiekt</Label>
+            <Select value={objectId} onValueChange={(v) => setObjectId(v as string)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— brak —</SelectItem>
+                {objects.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

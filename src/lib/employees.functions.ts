@@ -26,8 +26,8 @@ async function assertManager(ctx: { supabase: any; userId: string }) {
     .select("role")
     .eq("user_id", ctx.userId);
   const roles = (data ?? []).map((r: { role: string }) => r.role);
-  if (!roles.includes("kierownik") && !roles.includes("admin")) {
-    throw new Error("Brak uprawnień — wymagana rola kierownik lub admin");
+  if (!roles.includes("kierownik") && !roles.includes("admin") && !roles.includes("zarzadca")) {
+    throw new Error("Brak uprawnień — wymagana rola kierownik, zarządca lub admin");
   }
   return roles;
 }
@@ -36,7 +36,7 @@ const createInput = z.object({
   first_name: z.string().trim().min(1).max(80),
   last_name: z.string().trim().min(1).max(80),
   phone: z.string().trim().max(40).optional().nullable(),
-  role: z.enum(["operator", "kierownik", "admin"]).default("operator"),
+  role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).default("operator"),
 });
 
 export const createEmployee = createServerFn({ method: "POST" })
@@ -44,9 +44,10 @@ export const createEmployee = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => createInput.parse(d))
   .handler(async ({ data, context }) => {
     const roles = await assertManager(context as any);
-    // tylko admin może tworzyć innego admina/kierownika
-    if ((data.role === "admin" || data.role === "kierownik") && !roles.includes("admin")) {
-      throw new Error("Tylko administrator może nadawać rolę kierownika/admina");
+    const isBoss = roles.includes("admin") || roles.includes("zarzadca");
+    // tylko admin/zarządca może tworzyć kierownika/admina/zarządcę
+    if ((data.role === "admin" || data.role === "kierownik" || data.role === "zarzadca") && !isBoss) {
+      throw new Error("Tylko administrator lub zarządca może nadawać rolę kierownika/zarządcy/admina");
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

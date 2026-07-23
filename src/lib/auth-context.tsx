@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type Role = "admin" | "kierownik" | "operator";
+type Role = "admin" | "kierownik" | "operator" | "zarzadca";
 
 interface Profile {
   id: string;
@@ -21,6 +21,7 @@ interface AuthCtx {
   loading: boolean;
   isManager: boolean;
   isAdmin: boolean;
+  isBoss: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -79,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     roles,
     profile,
     loading,
-    isManager: roles.includes("kierownik") || roles.includes("admin"),
-    isAdmin: roles.includes("admin"),
+    isManager: roles.includes("kierownik") || roles.includes("admin") || roles.includes("zarzadca"),
+    isAdmin: roles.includes("admin") || roles.includes("zarzadca"),
+    isBoss: roles.includes("admin") || roles.includes("zarzadca"),
     refreshProfile: async () => {
       if (session?.user) await loadProfile(session.user.id);
     },

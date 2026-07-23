@@ -1,59 +1,123 @@
-// Definicje zmian kalendarzowych (czas lokalny zakładu)
+// System 2 zmian z konfigurowalnymi godzinami (kierownik/zarządca w /settings/shifts).
+// Wartość 'noc' pozostaje tylko dla kompatybilności z historycznymi rekordami w bazie.
 export type ShiftType = "rano" | "popoludnie" | "noc";
 
-export const SHIFT_DEFS: Record<ShiftType, { label: string; startHour: number; endHour: number }> = {
-  rano: { label: "Rano", startHour: 6, endHour: 14 },
-  popoludnie: { label: "Popołudnie", startHour: 14, endHour: 22 },
-  noc: { label: "Noc", startHour: 22, endHour: 6 },
-};
-
-export const SHIFT_LABEL: Record<ShiftType, string> = {
-  rano: "Rano (06:00–14:00)",
-  popoludnie: "Popołudnie (14:00–22:00)",
-  noc: "Noc (22:00–06:00)",
-};
-
-/** Aktualna zmiana kalendarzowa wg zegara lokalnego. */
-export function getCurrentShift(now: Date = new Date()): ShiftType {
-  const h = now.getHours();
-  if (h >= 6 && h < 14) return "rano";
-  if (h >= 14 && h < 22) return "popoludnie";
-  return "noc";
+export interface ShiftTimes {
+  shift1_start: string; // "HH:MM"
+  shift1_end: string;
+  shift2_start: string;
+  shift2_end: string;
 }
 
-/** Granice aktualnej zmiany (start, koniec) jako Date. */
-export function getCurrentShiftWindow(now: Date = new Date()): { start: Date; end: Date; type: ShiftType } {
-  const type = getCurrentShift(now);
+export const DEFAULT_SHIFT_TIMES: ShiftTimes = {
+  shift1_start: "06:00",
+  shift1_end: "14:00",
+  shift2_start: "14:00",
+  shift2_end: "22:00",
+};
+
+let cache: ShiftTimes = { ...DEFAULT_SHIFT_TIMES };
+const listeners = new Set<() => void>();
+
+export function setShiftTimesCache(t: ShiftTimes) {
+  cache = { ...t };
+  listeners.forEach((l) => l());
+}
+export function getShiftTimes(): ShiftTimes {
+  return cache;
+}
+export function subscribeShiftTimes(cb: () => void): () => void {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
+}
+
+function parseHM(s: string): { h: number; m: number } {
+  const [h, m] = s.split(":").map(Number);
+  return { h: h ?? 0, m: m ?? 0 };
+}
+function toMin(s: string): number {
+  const { h, m } = parseHM(s);
+  return h * 60 + m;
+}
+
+/** Bieżąca zmiana (rano/popoludnie) wg godzin z ustawień. */
+export function getCurrentShift(now: Date = new Date(), times: ShiftTimes = cache): "rano" | "popoludnie" {
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const s1s = toMin(times.shift1_start);
+  const s1e = toMin(times.shift1_end);
+  // Zmiana 1 aktywna w [s1s, s1e); poza tym Zmiana 2.
+  if (s1s <= s1e) {
+    return cur >= s1s && cur < s1e ? "rano" : "popoludnie";
+  }
+  // s1 przechodzi przez północ (nietypowe, ale obsłużone)
+  return cur >= s1s || cur < s1e ? "rano" : "popoludnie";
+}
+
+export function getCurrentShiftWindow(
+  now: Date = new Date(),
+  times: ShiftTimes = cache,
+): { start: Date; end: Date; type: "rano" | "popoludnie" } {
+  const type = getCurrentShift(now, times);
+  const [sStr, eStr] = type === "rano"
+    ? [times.shift1_start, times.shift1_end]
+    : [times.shift2_start, times.shift2_end];
+  const s = parseHM(sStr);
+  const e = parseHM(eStr);
   const start = new Date(now);
+  start.setHours(s.h, s.m, 0, 0);
   const end = new Date(now);
-  if (type === "rano") {
-    start.setHours(6, 0, 0, 0);
-    end.setHours(14, 0, 0, 0);
-  } else if (type === "popoludnie") {
-    start.setHours(14, 0, 0, 0);
-    end.setHours(22, 0, 0, 0);
-  } else {
-    // noc: 22:00 – 06:00 (przechodzi przez północ)
-    if (now.getHours() < 6) {
-      start.setDate(start.getDate() - 1);
-      start.setHours(22, 0, 0, 0);
-      end.setHours(6, 0, 0, 0);
-    } else {
-      start.setHours(22, 0, 0, 0);
-      end.setDate(end.getDate() + 1);
-      end.setHours(6, 0, 0, 0);
-    }
+  end.setHours(e.h, e.m, 0, 0);
+  if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
+  // Jeżeli teraz jesteśmy przed start (dot. zmiany 2 wcześnie rano), cofnij o dobę
+  if (now.getTime() < start.getTime() - 60 * 60 * 1000) {
+    start.setDate(start.getDate() - 1);
+    end.setDate(end.getDate() - 1);
   }
   return { start, end, type };
 }
 
-/** Czy przejęcie dyżuru mieści się w oknie tolerancji (±1h od granic zmiany). */
-export function isWithinHandoverWindow(now: Date = new Date()): boolean {
-  const { start, end } = getCurrentShiftWindow(now);
-  const toleranceMs = 60 * 60 * 1000;
-  return now.getTime() >= start.getTime() - toleranceMs && now.getTime() <= end.getTime() + toleranceMs;
+export function isWithinHandoverWindow(now: Date = new Date(), times: ShiftTimes = cache): boolean {
+  const { start, end } = getCurrentShiftWindow(now, times);
+  const tol = 60 * 60 * 1000;
+  return now.getTime() >= start.getTime() - tol && now.getTime() <= end.getTime() + tol;
 }
 
 export function formatHM(d: Date): string {
   return d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
 }
+
+function rangeLabel(a: string, b: string): string {
+  return `${a}–${b}`;
+}
+
+export const SHIFT_LABEL: Record<ShiftType, string> = new Proxy(
+  {} as Record<ShiftType, string>,
+  {
+    get(_t, key: string) {
+      const t = cache;
+      if (key === "rano") return `Zmiana 1 (${rangeLabel(t.shift1_start, t.shift1_end)})`;
+      if (key === "popoludnie") return `Zmiana 2 (${rangeLabel(t.shift2_start, t.shift2_end)})`;
+      if (key === "noc") return `Zmiana 2 (historyczna nocna)`;
+      return "";
+    },
+  },
+);
+
+export const SHIFT_DEFS: Record<ShiftType, { label: string }> = new Proxy(
+  {} as Record<ShiftType, { label: string }>,
+  {
+    get(_t, key: string) {
+      return { label: SHIFT_LABEL[key as ShiftType] };
+    },
+    ownKeys() {
+      // Ograniczamy iterację do 2 aktywnych zmian (schedule wyświetla wybór)
+      return ["rano", "popoludnie"];
+    },
+    getOwnPropertyDescriptor(_t, key) {
+      if (key === "rano" || key === "popoludnie") {
+        return { enumerable: true, configurable: true, value: { label: SHIFT_LABEL[key as ShiftType] } };
+      }
+      return undefined;
+    },
+  },
+);

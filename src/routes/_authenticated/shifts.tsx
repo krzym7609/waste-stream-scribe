@@ -37,9 +37,9 @@ type ShiftRow = {
 };
 
 const SHIFT_LABEL: Record<ShiftRow["shift_type"], string> = {
-  rano: "Rano (6–14)",
-  popoludnie: "Popołudnie (14–22)",
-  noc: "Noc (22–6)",
+  rano: "Zmiana 1",
+  popoludnie: "Zmiana 2",
+  noc: "Zmiana 2 (historyczna)",
 };
 
 const STATUS_VARIANT: Record<ShiftRow["status"], "secondary" | "default" | "outline"> = {
@@ -166,7 +166,6 @@ function ShiftsPage() {
                   <SelectContent>
                     <SelectItem value="rano">{SHIFT_LABEL.rano}</SelectItem>
                     <SelectItem value="popoludnie">{SHIFT_LABEL.popoludnie}</SelectItem>
-                    <SelectItem value="noc">{SHIFT_LABEL.noc}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

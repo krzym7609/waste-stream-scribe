@@ -1,9 +1,10 @@
 import { createFileRoute, Outlet, Navigate, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound, CalendarRange, FileText, BarChart3, Wrench } from "lucide-react";
+import { Droplets, LayoutDashboard, ClipboardList, LogOut, Users, KeyRound, CalendarRange, FileText, BarChart3, Wrench, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DutyBar } from "@/components/duty-bar";
+import { useShiftSettings } from "@/lib/use-shift-settings";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -13,6 +14,7 @@ function AuthenticatedLayout() {
   const { session, loading, signOut, profile, isManager } = useAuth();
   const nav = useNavigate();
   const { location } = useRouterState();
+  useShiftSettings();
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Ładowanie…</div>;
@@ -34,6 +36,7 @@ function AuthenticatedLayout() {
           { to: "/manager/reports", label: "Raporty", icon: BarChart3 },
           { to: "/shifts", label: "Zmiany", icon: ClipboardList },
           { to: "/team", label: "Zespół", icon: Users },
+          { to: "/settings/shifts", label: "Ustawienia zmian", icon: Settings },
         ]
       : []),
     { to: "/change-password", label: "Zmiana hasła", icon: KeyRound },
