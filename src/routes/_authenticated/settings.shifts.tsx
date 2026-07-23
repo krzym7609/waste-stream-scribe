@@ -88,17 +88,17 @@ function SettingsShiftsPage() {
               <div className="space-y-2">
                 <Label>Zmiana 1</Label>
                 <div className="flex items-center gap-2">
-                  <Input type="time" value={s1s} onChange={(e) => setS1s(e.target.value)} className="w-32" />
+                  <Input type="time" lang="pl-PL" step={60} value={s1s} onChange={(e) => setS1s(e.target.value)} className="w-32" />
                   <span className="text-muted-foreground">–</span>
-                  <Input type="time" value={s1e} onChange={(e) => setS1e(e.target.value)} className="w-32" />
+                  <Input type="time" lang="pl-PL" step={60} value={s1e} onChange={(e) => setS1e(e.target.value)} className="w-32" />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Zmiana 2</Label>
                 <div className="flex items-center gap-2">
-                  <Input type="time" value={s2s} onChange={(e) => setS2s(e.target.value)} className="w-32" />
+                  <Input type="time" lang="pl-PL" step={60} value={s2s} onChange={(e) => setS2s(e.target.value)} className="w-32" />
                   <span className="text-muted-foreground">–</span>
-                  <Input type="time" value={s2e} onChange={(e) => setS2e(e.target.value)} className="w-32" />
+                  <Input type="time" lang="pl-PL" step={60} value={s2e} onChange={(e) => setS2e(e.target.value)} className="w-32" />
                 </div>
               </div>
               <div className="flex justify-end">
