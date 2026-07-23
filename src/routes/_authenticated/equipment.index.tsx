@@ -392,7 +392,7 @@ function EquipmentPage() {
         <div className="text-muted-foreground text-sm">Ładowanie…</div>
       ) : filteredObjects.length === 0 && unassignedCount === 0 ? (
         <div className="text-muted-foreground text-sm py-16 text-center border rounded-lg">
-          Brak obiektów. {isManager && "Kliknij „Dodaj obiekt", aby utworzyć pierwszy."}
+          Brak obiektów. {isManager && `Kliknij „Dodaj obiekt", aby utworzyć pierwszy.`}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
