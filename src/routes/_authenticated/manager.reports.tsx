@@ -142,10 +142,42 @@ function DailyView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-3 flex-wrap">
         <div>
           <Label className="text-xs">Data</Label>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-44" />
+        </div>
+        <div className="flex gap-2 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              exportDailyExcel({
+                date,
+                reports: data.reports,
+                handovers: data.handovers,
+                execs: data.execs,
+                profMap: data.profMap,
+              })
+            }
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              exportDailyPdf({
+                date,
+                reports: data.reports,
+                handovers: data.handovers,
+                execs: data.execs,
+                profMap: data.profMap,
+              })
+            }
+          >
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
         </div>
       </div>
 
