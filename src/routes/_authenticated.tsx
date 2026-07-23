@@ -36,6 +36,7 @@ function AuthenticatedLayout() {
           { to: "/manager/reports", label: "Raporty", icon: BarChart3 },
           { to: "/shifts", label: "Zmiany", icon: ClipboardList },
           { to: "/team", label: "Zespół", icon: Users },
+          { to: "/settings/shifts", label: "Ustawienia zmian", icon: Settings },
         ]
       : []),
     { to: "/change-password", label: "Zmiana hasła", icon: KeyRound },
