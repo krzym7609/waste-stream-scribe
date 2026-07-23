@@ -546,9 +546,27 @@ function YearlyView() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label className="text-xs">Rok</Label>
-        <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-24" />
+      <div className="flex items-end gap-3 flex-wrap">
+        <div>
+          <Label className="text-xs">Rok</Label>
+          <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="w-24" />
+        </div>
+        <div className="flex gap-2 ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportYearlyExcel({ year, months: chartData })}
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Excel
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportYearlyPdf({ year, months: chartData })}
+          >
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+        </div>
       </div>
 
       <Card>
