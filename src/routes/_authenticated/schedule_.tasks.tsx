@@ -286,3 +286,196 @@ function TasksPage() {
     </div>
   );
 }
+
+/* ---------- Edytor szablonu (dni miesiąca × zmiany) ---------- */
+
+type TplEntry = { id: string; day_of_month: number; shifts: ShiftType[] };
+
+function TemplateButton({ taskId, taskName }: { taskId: string; taskName: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="icon" variant="ghost" title="Ustaw dni w miesiącu" onClick={() => setOpen(true)}>
+        <CalendarDays className="w-3.5 h-3.5" />
+      </Button>
+      {open && (
+        <TemplateDialog taskId={taskId} taskName={taskName} open={open} onOpenChange={setOpen} />
+      )}
+    </>
+  );
+}
+
+function TemplateDialog({
+  taskId,
+  taskName,
+  open,
+  onOpenChange,
+}: {
+  taskId: string;
+  taskName: string;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const qc = useQueryClient();
+  const { data: entries, isLoading } = useQuery({
+    queryKey: ["schedule-template-task", taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("schedule_template_entries")
+        .select("id, day_of_month, shifts")
+        .eq("task_id", taskId);
+      if (error) throw error;
+      return data as TplEntry[];
+    },
+    enabled: open,
+  });
+
+  const initial = new Map<number, Set<ShiftType>>();
+  (entries ?? []).forEach((e) => initial.set(e.day_of_month, new Set(e.shifts)));
+  const [state, setState] = useState<Map<number, Set<ShiftType>>>(initial);
+
+  // Sync when entries load
+  useSyncedState(entries, setState);
+
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  function toggle(day: number, s: ShiftType) {
+    setState((prev) => {
+      const next = new Map(prev);
+      const set = new Set(next.get(day) ?? []);
+      if (set.has(s)) set.delete(s);
+      else set.add(s);
+      if (set.size === 0) next.delete(day);
+      else next.set(day, set);
+      return next;
+    });
+  }
+
+  function clearDay(day: number) {
+    setState((prev) => {
+      const next = new Map(prev);
+      next.delete(day);
+      return next;
+    });
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      // Prosty algorytm: usuń wszystko dla task_id, wstaw aktualne.
+      const { error: delErr } = await supabase
+        .from("schedule_template_entries")
+        .delete()
+        .eq("task_id", taskId);
+      if (delErr) throw delErr;
+      const rows = Array.from(state.entries()).map(([day, set]) => ({
+        task_id: taskId,
+        day_of_month: day,
+        shifts: Array.from(set),
+      }));
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase
+          .from("schedule_template_entries")
+          .insert(rows);
+        if (insErr) throw insErr;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["schedule-template"] });
+      qc.invalidateQueries({ queryKey: ["schedule-template-task", taskId] });
+      toast.success("Zapisano szablon");
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="text-base">
+            Harmonogram miesięczny — <span className="font-normal">{taskName}</span>
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground -mt-2">
+          Zaznacz w które dni miesiąca (1–31) zadanie ma trafiać na Zmianę 1 (R) i/lub Zmianę 2 (P).
+          Ustawienie stosuje się do wszystkich miesięcy w roku. Wyjątki dla konkretnego miesiąca
+          nadal można ustawić w widoku harmonogramu.
+        </p>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground py-6">Ładowanie…</div>
+        ) : (
+          <div className="max-h-[60vh] overflow-auto border rounded">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card border-b">
+                <tr>
+                  <th className="text-left px-3 py-2 w-16">Dzień</th>
+                  <th className="text-center px-2 py-2 w-24">Zmiana 1 (R)</th>
+                  <th className="text-center px-2 py-2 w-24">Zmiana 2 (P)</th>
+                  <th className="text-left px-3 py-2">Aktualne</th>
+                  <th className="w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((d) => {
+                  const set = state.get(d) ?? new Set<ShiftType>();
+                  const has1 = set.has("rano");
+                  const has2 = set.has("popoludnie");
+                  return (
+                    <tr key={d} className={cn("border-b", (has1 || has2) && "bg-yellow-50 dark:bg-yellow-900/10")}>
+                      <td className="px-3 py-1.5 font-mono">{d}</td>
+                      <td className="text-center px-2 py-1.5">
+                        <Checkbox checked={has1} onCheckedChange={() => toggle(d, "rano")} />
+                      </td>
+                      <td className="text-center px-2 py-1.5">
+                        <Checkbox checked={has2} onCheckedChange={() => toggle(d, "popoludnie")} />
+                      </td>
+                      <td className="px-3 py-1.5 text-xs text-muted-foreground">
+                        {[has1 && "1", has2 && "2"].filter(Boolean).join(";") || "—"}
+                      </td>
+                      <td className="px-1 py-1.5">
+                        {(has1 || has2) && (
+                          <Button size="icon" variant="ghost" onClick={() => clearDay(d)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Anuluj</Button>
+          <Button onClick={() => save.mutate()} disabled={save.isPending || isLoading}>
+            {save.isPending ? "Zapisywanie…" : "Zapisz szablon"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Utility: sync state with fetched entries once loaded
+function useSyncedState(
+  entries: TplEntry[] | undefined,
+  setState: (m: Map<number, Set<ShiftType>>) => void,
+) {
+  const key = entries?.map((e) => `${e.day_of_month}:${e.shifts.join(",")}`).join("|") ?? "";
+  const lastRef = useSyncedStateRef();
+  if (entries && key !== lastRef.current) {
+    lastRef.current = key;
+    const m = new Map<number, Set<ShiftType>>();
+    entries.forEach((e) => m.set(e.day_of_month, new Set(e.shifts)));
+    setState(m);
+  }
+}
+
+function useSyncedStateRef() {
+  const [ref] = useState<{ current: string }>({ current: "__init__" });
+  return ref;
+}
+
+// avoid unused import warning
+void SHIFT_DEFS;
