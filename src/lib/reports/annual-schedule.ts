@@ -159,13 +159,16 @@ export async function exportAnnualScheduleXlsx(
 
     // Rozłóż dni miesiąca
     const dcount = daysInMonth(year, m);
-    // Najpierw zainicjalizuj wszystkie 28 kolumn w obu wierszach ramkami
+    // Najpierw zainicjalizuj wszystkie 28 kolumn w obu wierszach ramkami + zielony pas co 2 kol.
     for (const r of [topRow, botRow]) {
       for (let i = 0; i < STRIP_COLS; i++) {
         const c = ws.getCell(r, FIRST_DAY_COL + i);
         c.border = thinBorder;
         c.alignment = { horizontal: "center", vertical: "middle" };
         c.font = { size: 8 };
+        if (isStripeCol(i)) {
+          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: STRIPE_FILL } };
+        }
       }
     }
     for (let d = 1; d <= dcount; d++) {
