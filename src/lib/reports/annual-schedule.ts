@@ -383,31 +383,31 @@ export async function exportAnnualSchedulePdf(
   // dodaje ~240pt przy 30 kolumnach i wypycha połowę tabeli poza kartkę.
   const pageWidth = 841.89; // A4 landscape w punktach PDF
   const horizontalMargins = 8;
-  const cellHorizontalPadding = 0.6;
+  const cellHorizontalPadding = 0.8; // 0.4 z każdej strony komórki
   const tableLineWidth = 0.25;
   const tableLineTotal = (totalCols + 1) * tableLineWidth;
   const paddingTotal = totalCols * cellHorizontalPadding;
   const usable = pageWidth - horizontalMargins - tableLineTotal - paddingTotal;
   const nrW = 12;
-  const nameW = 190;
-  const dayW = (usable - nrW - nameW) / STRIP_COLS;
+  const nameW = 200; // szersza kolumna nazwy zadania
+  const dayW = 16.5; // zwężone kolumny dni tygodnia
 
   const doc: TDocumentDefinitions = {
     pageOrientation: "landscape",
     pageSize: "A4",
     pageMargins: [4, 8, 4, 8],
-    defaultStyle: { font: "Roboto", fontSize: 6.5 },
+    defaultStyle: { font: "Roboto", fontSize: 7 },
     styles: {
       hdr: {
         bold: true,
         alignment: "center",
         fillColor: "#FF0000",
         color: "#FFFFFF",
-        fontSize: 6,
+        fontSize: 7,
       },
-      cell: { fontSize: 6.5, alignment: "center" },
-      monthName: { bold: true, fontSize: 7, alignment: "left" },
-      shiftBand: { bold: true, fontSize: 8, fillColor: "#FFFF66", alignment: "center" },
+      cell: { fontSize: 7, alignment: "center" },
+      monthName: { bold: true, fontSize: 8, alignment: "left" },
+      shiftBand: { bold: true, fontSize: 9, fillColor: "#FFFF66", alignment: "center" },
     },
     content: [
       {
