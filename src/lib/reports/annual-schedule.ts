@@ -322,19 +322,30 @@ export async function exportAnnualSchedulePdf(
   ];
   const body: TableCell[][] = [hdrRow];
 
+  const STRIPE_HEX = "#E2F0D9";
+  const ROW_ALT_HEX = "#F2F2F2";
+  const dayFill = (i: number) => (isStripeCol(i) ? STRIPE_HEX : undefined);
+
   for (let m = 1; m <= 12; m++) {
     const dcount = daysInMonth(year, m);
-    const top: TableCell[] = new Array(totalCols).fill(null).map(() => ({ text: "", style: "cell" }));
-    const bot: TableCell[] = new Array(totalCols).fill(null).map(() => ({ text: "", style: "cell" }));
-    // scalone A i B na dwa wiersze
+    const top: TableCell[] = new Array(totalCols).fill(null).map((_v, i) => ({
+      text: "",
+      style: "cell",
+      fillColor: i >= 2 ? dayFill(i - 2) : undefined,
+    }));
+    const bot: TableCell[] = new Array(totalCols).fill(null).map((_v, i) => ({
+      text: "",
+      style: "cell",
+      fillColor: i >= 2 ? dayFill(i - 2) : undefined,
+    }));
     top[0] = { text: "", style: "cell", rowSpan: 2 };
     top[1] = { text: MONTHS_PL[m - 1], style: "monthName", rowSpan: 2, alignment: "left" };
     for (let d = 1; d <= dcount; d++) {
       const { col, rowInMonth } = placeDay(year, m, d);
-      // col to 1-based nr kolumny arkusza; w PDF-owej tablicy index = col - 1
       const idx = col - 1;
       const target = rowInMonth === 0 ? top : bot;
-      target[idx] = { text: String(d), style: "cell" };
+      const stripe = dayFill(idx - 2);
+      target[idx] = { text: String(d), style: "cell", fillColor: stripe };
     }
     body.push(top, bot);
   }
@@ -357,31 +368,38 @@ export async function exportAnnualSchedulePdf(
   body.push(shiftBand);
 
   // Zadania
-  tasks.forEach((t) => {
+  tasks.forEach((t, tIdx) => {
     const marks: string[] = new Array(STRIP_COLS).fill("");
-    for (const e of template) {
-      if (e.task_id !== t.id) continue;
-      const colIdx = ((e.day_of_month - 1) % STRIP_COLS);
-      const mark = shiftMark(e.shifts);
-      if (!mark) continue;
+    const collect = (day: number, shifts: ShiftType[]) => {
+      const mark = shiftMark(shifts);
+      if (!mark) return;
+      const colIdx = (day - 1) % STRIP_COLS;
       if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
       else marks[colIdx] = mark;
+    };
+    for (const e of template) {
+      if (e.task_id === t.id) collect(e.day_of_month, e.shifts);
     }
+    for (const e of _overrides) {
+      if (e.task_id === t.id && e.year === year) collect(e.day_of_month, e.shifts);
+    }
+    const rowAlt = tIdx % 2 === 1 ? ROW_ALT_HEX : undefined;
     const row: TableCell[] = [
-      { text: String(t.task_number), style: "cell", alignment: "center", bold: true },
+      { text: String(t.task_number), style: "cell", alignment: "center", bold: true, fillColor: rowAlt },
       {
         text: t.name,
         style: "cell",
         alignment: "left",
         color: t.requires_service_report ? "#1d4ed8" : undefined,
         bold: t.requires_service_report,
+        fillColor: rowAlt,
       },
-      ...marks.map<TableCell>((mk) => ({
+      ...marks.map<TableCell>((mk, i) => ({
         text: mk,
         style: "cell",
         alignment: "center",
         bold: !!mk,
-        fillColor: mk ? "#FFFF66" : undefined,
+        fillColor: mk ? "#FFFF66" : (isStripeCol(i) ? STRIPE_HEX : rowAlt),
       })),
     ];
     body.push(row);
