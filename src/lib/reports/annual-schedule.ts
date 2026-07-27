@@ -436,8 +436,10 @@ export async function exportAnnualSchedulePdf(
   const paddingTotal = totalCols * cellHorizontalPadding;
   const usable = pageWidth - horizontalMargins - tableLineTotal - paddingTotal;
   const nrW = 12;
-  const nameW = 200; // szersza kolumna nazwy zadania
   const dayW = 16.5; // zwężone kolumny dni tygodnia
+  // Rozciągamy kolumnę nazwy tak, żeby tabela wypełniła całą szerokość A4 landscape
+  // przy równych marginesach (4pt z każdej strony).
+  const nameW = usable - nrW - STRIP_COLS * dayW;
 
   const doc: TDocumentDefinitions = {
     pageOrientation: "landscape",
