@@ -46,9 +46,12 @@ const NAME_COL = 2;         // kolumna B
 
 // Kolory (dokładnie jak w pliku źródłowym)
 const HEADER_FILL = "FFFF0000";   // czerwony nagłówek
-const MARK_FILL   = "FFFFF66";    // żółte pole oznaczenia zmiany (jak C27 w źródle)
+const MARK_FILL   = "FFFFFF66";   // żółte pole oznaczenia zmiany
 const SHIFT_FILL  = "FFFFFF66";   // żółty pas "Z M I A N A"
 const SERVICE_COLOR = "FF1D4ED8"; // niebieski dla zadań z raportem serwisowym
+const STRIPE_FILL = "FFE2F0D9";   // jasnozielony pas na co 2 kolumnę dni
+const ROW_ALT_FILL = "FFF2F2F2";  // co 2 wiersz zadań – szary
+const isStripeCol = (i: number) => i % 2 === 1; // co 2 kolumna (indeks 1,3,5,...)
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
@@ -156,13 +159,16 @@ export async function exportAnnualScheduleXlsx(
 
     // Rozłóż dni miesiąca
     const dcount = daysInMonth(year, m);
-    // Najpierw zainicjalizuj wszystkie 28 kolumn w obu wierszach ramkami
+    // Najpierw zainicjalizuj wszystkie 28 kolumn w obu wierszach ramkami + zielony pas co 2 kol.
     for (const r of [topRow, botRow]) {
       for (let i = 0; i < STRIP_COLS; i++) {
         const c = ws.getCell(r, FIRST_DAY_COL + i);
         c.border = thinBorder;
         c.alignment = { horizontal: "center", vertical: "middle" };
         c.font = { size: 8 };
+        if (isStripeCol(i)) {
+          c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: STRIPE_FILL } };
+        }
       }
     }
     for (let d = 1; d <= dcount; d++) {
@@ -205,18 +211,20 @@ export async function exportAnnualScheduleXlsx(
   shiftRow.height = 13;
 
   // === Wiersze 28+: zadania ===
-  // Kolumny C..AD (28) reprezentują dni miesiąca 1..28 (jak w oryginale).
-  // Znaczniki dla dni 29-31 nie mają miejsca w pasku, więc trafiają w kolumny C..E
-  // (te same, co dni 1..3 – co odpowiada wizualnie pierwszym kolumnom paska).
-  // W praktyce większość szablonów mieści się w 1..28.
   tasks.forEach((t, idx) => {
     const rowIdx = 28 + idx;
     const r = ws.getRow(rowIdx);
     r.height = 13;
+    const rowAlt = idx % 2 === 1;
+    const altFill = rowAlt
+      ? { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: ROW_ALT_FILL } }
+      : undefined;
+
     r.getCell(1).value = t.task_number;
     r.getCell(1).font = { size: 8, bold: true };
     r.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
     r.getCell(1).border = thinBorder;
+    if (altFill) r.getCell(1).fill = altFill;
 
     const nm = r.getCell(NAME_COL);
     nm.value = t.name;
@@ -227,18 +235,22 @@ export async function exportAnnualScheduleXlsx(
     };
     nm.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     nm.border = thinBorder;
+    if (altFill) nm.fill = altFill;
 
-    // Zbierz oznaczenia dla dni 1..28 (i 29..31 nakładając na kolumny 1..3)
+    // Zbierz oznaczenia z szablonu + nadpisań miesięcznych dla danego roku
     const marks: string[] = new Array(STRIP_COLS).fill("");
-    for (const e of template) {
-      if (e.task_id !== t.id) continue;
-      const d = e.day_of_month;
-      const colIdx = ((d - 1) % STRIP_COLS); // 0..27
-      const mark = shiftMark(e.shifts);
-      if (!mark) continue;
-      // jeśli już jest inny znacznik, połącz do 1;2
+    const collect = (day: number, shifts: ShiftType[]) => {
+      const mark = shiftMark(shifts);
+      if (!mark) return;
+      const colIdx = (day - 1) % STRIP_COLS;
       if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
       else marks[colIdx] = mark;
+    };
+    for (const e of template) {
+      if (e.task_id === t.id) collect(e.day_of_month, e.shifts);
+    }
+    for (const e of _overrides) {
+      if (e.task_id === t.id && e.year === year) collect(e.day_of_month, e.shifts);
     }
 
     for (let i = 0; i < STRIP_COLS; i++) {
@@ -249,6 +261,10 @@ export async function exportAnnualScheduleXlsx(
       if (marks[i]) {
         c.value = marks[i];
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MARK_FILL } };
+      } else if (isStripeCol(i)) {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: STRIPE_FILL } };
+      } else if (altFill) {
+        c.fill = altFill;
       }
     }
   });
@@ -306,19 +322,30 @@ export async function exportAnnualSchedulePdf(
   ];
   const body: TableCell[][] = [hdrRow];
 
+  const STRIPE_HEX = "#E2F0D9";
+  const ROW_ALT_HEX = "#F2F2F2";
+  const dayFill = (i: number) => (isStripeCol(i) ? STRIPE_HEX : undefined);
+
   for (let m = 1; m <= 12; m++) {
     const dcount = daysInMonth(year, m);
-    const top: TableCell[] = new Array(totalCols).fill(null).map(() => ({ text: "", style: "cell" }));
-    const bot: TableCell[] = new Array(totalCols).fill(null).map(() => ({ text: "", style: "cell" }));
-    // scalone A i B na dwa wiersze
+    const top: TableCell[] = new Array(totalCols).fill(null).map((_v, i) => ({
+      text: "",
+      style: "cell",
+      fillColor: i >= 2 ? dayFill(i - 2) : undefined,
+    }));
+    const bot: TableCell[] = new Array(totalCols).fill(null).map((_v, i) => ({
+      text: "",
+      style: "cell",
+      fillColor: i >= 2 ? dayFill(i - 2) : undefined,
+    }));
     top[0] = { text: "", style: "cell", rowSpan: 2 };
     top[1] = { text: MONTHS_PL[m - 1], style: "monthName", rowSpan: 2, alignment: "left" };
     for (let d = 1; d <= dcount; d++) {
       const { col, rowInMonth } = placeDay(year, m, d);
-      // col to 1-based nr kolumny arkusza; w PDF-owej tablicy index = col - 1
       const idx = col - 1;
       const target = rowInMonth === 0 ? top : bot;
-      target[idx] = { text: String(d), style: "cell" };
+      const stripe = dayFill(idx - 2);
+      target[idx] = { text: String(d), style: "cell", fillColor: stripe };
     }
     body.push(top, bot);
   }
@@ -341,31 +368,38 @@ export async function exportAnnualSchedulePdf(
   body.push(shiftBand);
 
   // Zadania
-  tasks.forEach((t) => {
+  tasks.forEach((t, tIdx) => {
     const marks: string[] = new Array(STRIP_COLS).fill("");
-    for (const e of template) {
-      if (e.task_id !== t.id) continue;
-      const colIdx = ((e.day_of_month - 1) % STRIP_COLS);
-      const mark = shiftMark(e.shifts);
-      if (!mark) continue;
+    const collect = (day: number, shifts: ShiftType[]) => {
+      const mark = shiftMark(shifts);
+      if (!mark) return;
+      const colIdx = (day - 1) % STRIP_COLS;
       if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
       else marks[colIdx] = mark;
+    };
+    for (const e of template) {
+      if (e.task_id === t.id) collect(e.day_of_month, e.shifts);
     }
+    for (const e of _overrides) {
+      if (e.task_id === t.id && e.year === year) collect(e.day_of_month, e.shifts);
+    }
+    const rowAlt = tIdx % 2 === 1 ? ROW_ALT_HEX : undefined;
     const row: TableCell[] = [
-      { text: String(t.task_number), style: "cell", alignment: "center", bold: true },
+      { text: String(t.task_number), style: "cell", alignment: "center", bold: true, fillColor: rowAlt },
       {
         text: t.name,
         style: "cell",
         alignment: "left",
         color: t.requires_service_report ? "#1d4ed8" : undefined,
         bold: t.requires_service_report,
+        fillColor: rowAlt,
       },
-      ...marks.map<TableCell>((mk) => ({
+      ...marks.map<TableCell>((mk, i) => ({
         text: mk,
         style: "cell",
         alignment: "center",
         bold: !!mk,
-        fillColor: mk ? "#FFFF66" : undefined,
+        fillColor: mk ? "#FFFF66" : (isStripeCol(i) ? STRIPE_HEX : rowAlt),
       })),
     ];
     body.push(row);
