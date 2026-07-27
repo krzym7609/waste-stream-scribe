@@ -211,18 +211,20 @@ export async function exportAnnualScheduleXlsx(
   shiftRow.height = 13;
 
   // === Wiersze 28+: zadania ===
-  // Kolumny C..AD (28) reprezentują dni miesiąca 1..28 (jak w oryginale).
-  // Znaczniki dla dni 29-31 nie mają miejsca w pasku, więc trafiają w kolumny C..E
-  // (te same, co dni 1..3 – co odpowiada wizualnie pierwszym kolumnom paska).
-  // W praktyce większość szablonów mieści się w 1..28.
   tasks.forEach((t, idx) => {
     const rowIdx = 28 + idx;
     const r = ws.getRow(rowIdx);
     r.height = 13;
+    const rowAlt = idx % 2 === 1;
+    const altFill = rowAlt
+      ? { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: ROW_ALT_FILL } }
+      : undefined;
+
     r.getCell(1).value = t.task_number;
     r.getCell(1).font = { size: 8, bold: true };
     r.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
     r.getCell(1).border = thinBorder;
+    if (altFill) r.getCell(1).fill = altFill;
 
     const nm = r.getCell(NAME_COL);
     nm.value = t.name;
@@ -233,18 +235,22 @@ export async function exportAnnualScheduleXlsx(
     };
     nm.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     nm.border = thinBorder;
+    if (altFill) nm.fill = altFill;
 
-    // Zbierz oznaczenia dla dni 1..28 (i 29..31 nakładając na kolumny 1..3)
+    // Zbierz oznaczenia z szablonu + nadpisań miesięcznych dla danego roku
     const marks: string[] = new Array(STRIP_COLS).fill("");
-    for (const e of template) {
-      if (e.task_id !== t.id) continue;
-      const d = e.day_of_month;
-      const colIdx = ((d - 1) % STRIP_COLS); // 0..27
-      const mark = shiftMark(e.shifts);
-      if (!mark) continue;
-      // jeśli już jest inny znacznik, połącz do 1;2
+    const collect = (day: number, shifts: ShiftType[]) => {
+      const mark = shiftMark(shifts);
+      if (!mark) return;
+      const colIdx = (day - 1) % STRIP_COLS;
       if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
       else marks[colIdx] = mark;
+    };
+    for (const e of template) {
+      if (e.task_id === t.id) collect(e.day_of_month, e.shifts);
+    }
+    for (const e of _overrides) {
+      if (e.task_id === t.id && e.year === year) collect(e.day_of_month, e.shifts);
     }
 
     for (let i = 0; i < STRIP_COLS; i++) {
@@ -255,6 +261,10 @@ export async function exportAnnualScheduleXlsx(
       if (marks[i]) {
         c.value = marks[i];
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MARK_FILL } };
+      } else if (isStripeCol(i)) {
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: STRIPE_FILL } };
+      } else if (altFill) {
+        c.fill = altFill;
       }
     }
   });
