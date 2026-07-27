@@ -414,7 +414,7 @@ export async function exportAnnualSchedulePdf(
         text: `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
         bold: true,
         alignment: "center",
-        fontSize: 9,
+        fontSize: 8,
         margin: [0, 0, 0, 4],
       },
       {
