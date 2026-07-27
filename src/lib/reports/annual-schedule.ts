@@ -469,6 +469,16 @@ export async function exportAnnualSchedulePdf(
           paddingBottom: () => 0.4,
         },
       },
+      {
+        text:
+          "Uwaga: w wierszach zadań kolumny 1–28 oznaczają cykl powtarzający się co miesiąc " +
+          "(pozycja = ((dzień miesiąca − 1) mod 28) + 1), a NIE konkretne daty z kalendarza powyżej. " +
+          "Oznaczenie w kolumnie 5 dotyczy 5. dnia każdego miesiąca (a także 33. dnia dla miesięcy dłuższych niż 28). " +
+          "Kalendarz u góry służy wyłącznie do odczytania dnia tygodnia dla danej daty.",
+        fontSize: 6,
+        italics: true,
+        margin: [0, 4, 0, 0],
+      },
     ],
   };
 
