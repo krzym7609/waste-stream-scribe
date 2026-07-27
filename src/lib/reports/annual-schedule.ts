@@ -383,7 +383,11 @@ export async function exportAnnualSchedulePdf(
   // dodaje ~240pt przy 30 kolumnach i wypycha połowę tabeli poza kartkę.
   const pageWidth = 841.89; // A4 landscape w punktach PDF
   const horizontalMargins = 8;
-  const usable = pageWidth - horizontalMargins;
+  const cellHorizontalPadding = 0.6;
+  const tableLineWidth = 0.25;
+  const tableLineTotal = (totalCols + 1) * tableLineWidth;
+  const paddingTotal = totalCols * cellHorizontalPadding;
+  const usable = pageWidth - horizontalMargins - tableLineTotal - paddingTotal;
   const nrW = 8;
   const nameW = 112;
   const dayW = (usable - nrW - nameW) / STRIP_COLS;
