@@ -1,68 +1,46 @@
-# Plan wdrożenia
+# Pełna instrukcja użytkowania BiokrApp (Word + screenshoty)
 
-Realizujemy w 4 etapach, w kolejności którą wybrałeś. FEKO+ pomijamy do czasu doprecyzowania źródła danych.
+Wygeneruję nowy plik `BiokrApp-Instrukcja_v3.docx` w `/mnt/documents/`, który krok po kroku prowadzi użytkownika przez całą aplikację — od logowania, przez codzienne raporty operatora, aż po pełny panel kierownika. Każda funkcja opisana słownie i zilustrowana zrzutem ekranu.
 
-## Etap 1 — Baza urządzeń + załączniki
+## Zakres treści (spis rozdziałów)
 
-### Schemat bazy
-- `equipment_categories(id, name, sort_order)` — np. „Pompy", „Dmuchawy", „Krata", „Piaskownik", „Aparatura elektryczna" itd.
-- `equipment(id, category_id, name, code, location, manufacturer, model, serial_number, installed_at, notes, active)`
-- `equipment_attachments(id, equipment_id, kind enum('documentation','photo','schema','service'), file_path, original_name, mime_type, size_bytes, uploaded_by, uploaded_at)`
-- Storage bucket prywatny `equipment-files`, polityki RLS: odczyt dla zalogowanych, zapis tylko dla kierownika.
+1. **Czym jest BiokrApp** — cel systemu (cyfrowe raporty zmianowe, harmonogram, dokumentacja urządzeń dla oczyszczalni), architektura (2 zmiany, role), zasady bezpieczeństwa danych.
+2. **Role kont** — Operator, Kierownik, Zarządca (prezes), Administrator: co każdy widzi i co może zrobić (tabela uprawnień).
+3. **Logowanie i pierwsze uruchomienie** — ekran logowania, wymuszona zmiana hasła, jak zmienić hasło później.
+4. **Dodawanie pracowników (kierownik/zarządca)** — zakładka Zespół: formularz „Dodaj pracownika", automatyczny login, jednorazowe hasło, reset hasła, ograniczenia (kto może nadać rolę kierownika/zarządcy/admina).
+5. **Pulpit operatora i pasek dyżuru** — checklista dnia, DutyBar (kto ma zmianę), powiadomienia.
+6. **Raport zmianowy — operator**
+   - Jak wypełnić raport (parametry, notatki, załączniki).
+   - Zapis roboczy vs wysłanie.
+   - Przekazanie zmiany (handover) — kto przejmuje.
+7. **Zmiany i harmonogram tygodniowy** — zakładka Zmiany: przypisywanie operatorów na dni, edycja przez kierownika.
+8. **Harmonogram roczny czynności eksploatacyjnych**
+   - Widok kalendarza rocznego.
+   - Dodawanie zadań cyklicznych (szablony miesięczne) i wyjątków dla konkretnych miesięcy.
+   - Oznaczanie zmian (1, 2, 1;2) na dany dzień.
+   - Eksport do PDF i Excel (jedna strona A4 poziomo).
+9. **Raporty kierownika**
+   - Widok dzienny / miesięczny / roczny + wykresy.
+   - Podgląd raportu zmianowego, przekazań, historii edycji.
+   - **Jak poprawić raport błędnie utworzony przez pracownika** (edycja, kto widzi historię zmian).
+   - Eksport do Excela i PDF.
+10. **Obiekty i urządzenia**
+    - Struktura: obiekty → urządzenia → dokumentacja/zdjęcia/schematy/serwis.
+    - Podgląd plików bez pobierania.
+    - Dodawanie i edycja (kierownik).
+11. **Powiadomienia** — dzwoneczek, przekierowania do źródła, „oznacz jako przeczytane", „wyczyść wszystkie".
+12. **Ustawienia zmian** — konfiguracja godzin 1. i 2. zmiany.
+13. **Zmiana hasła i wylogowanie**.
+14. **FAQ / rozwiązywanie problemów** — brak dostępu, zapomniane hasło, brak podglądu pliku, brak powiadomień.
 
-### UI
-- `/equipment` — lista urządzeń (filtr po kategorii, wyszukiwarka po nazwie/kodzie/lokalizacji). Karta urządzenia z 4 zakładkami załączników (Dokumentacja PDF, Zdjęcia, Schematy, Inne pliki serwisowe).
-- `/equipment/$id` — szczegóły + upload/usuwanie załączników (kierownik), przegląd (operator).
-- `/equipment/manage` — CRUD urządzeń i kategorii (tylko kierownik).
-- W sidebarze nowa pozycja „Urządzenia" dla wszystkich, „Zarządzaj urządzeniami" dla kierownika.
+## Jak to zrobię (technicznie)
 
-## Etap 2 — Powiadomienia w aplikacji dla administratora
+1. Uruchomię Playwright na aktualnie zalogowanej sesji preview i zrobię brakujące/odświeżone zrzuty (`dashboard`, `shift_report` z wypełnionymi polami, `shift_handover`, `shifts`, `schedule`, `schedule_tasks` — dodawanie zadania, `equipment` — lista + karta urządzenia + podgląd pliku, `manager_reports` — dzień/miesiąc/rok + wykres + eksport, `team` — lista + modal „Nowy pracownik" + modal z hasłem, `settings_shifts`, `notifications-bell` otwarty, `change-password`, `auth`).
+2. Jeżeli obecna sesja nie jest kierownikiem (poprzednio `/manager/reports` przekierowywało), poproszę o zalogowanie jako `kierownik / Kier123!` **przed** generacją, żeby wszystkie zrzuty zawierały panel kierownika. Jeśli będą braki — opiszę je tekstem i wstawię placeholder do uzupełnienia.
+3. Skryptem Node + `docx` zbuduję dokument A4, styl spójny z v2 (Arial, nagłówki 1–3, tabele uprawnień, ImageRun dla zrzutów, podpisy pod obrazkami, spis treści na początku).
+4. Walidacja: konwersja do PDF przez LibreOffice + `pdftoppm`, przegląd każdej strony pod kątem przycięć/pustych stron; poprawki i ponowna generacja aż do czystego wyniku.
+5. Zapis do `/mnt/documents/BiokrApp-Instrukcja_v3.docx` i emisja `<presentation-artifact>`.
 
-### Schemat
-- `admin_notifications(id, kind enum('shift_report_submitted','handover_submitted','handover_accepted','report_edited','equipment_added','service_report_submitted'), title, body, ref_table, ref_id, created_for_user_id, read_at, created_at)`
-- Trigger po insert w `shift_reports`, `handover_reports`, `report_edit_history` → wstawia powiadomienie dla każdego użytkownika z rolą `manager`.
+## Pytanie kontrolne przed startem
 
-### UI
-- Dzwoneczek w topbarze (`DutyBar`) z badge ilości nieprzeczytanych — tylko dla kierownika.
-- Popover z listą ostatnich 20 powiadomień, klik → przejście do raportu, oznaczenie jako przeczytane.
-- `/notifications` — pełna lista z filtrowaniem, „oznacz wszystkie jako przeczytane".
-- Realtime subskrypcja na `admin_notifications` przez `supabase_realtime` (toast „Nowy raport od X").
-
-## Etap 3 — Szkielet „Raport utrzymania ruchu elektrycznego"
-
-### Schemat
-- `electrical_maintenance_reports(id, author_id, report_date, shift, status enum('draft','submitted'), notes, created_at, updated_at)`
-- `electrical_maintenance_items(id, report_id, label, value text, ok boolean, notes)` — generyczne pole klucz/wartość, wypełnimy listę pozycji gdy dostarczysz wzór.
-
-### UI
-- `/reports/electrical/new` — pusty formularz: data, zmiana, lista pozycji (na razie 5 placeholderów), notatki, „Zapisz/Wyślij".
-- `/reports/electrical` — lista raportów (operator widzi swoje, kierownik wszystkie).
-- Wpięte w „Raporty" w sidebarze kierownika jako nowa zakładka.
-- Komentarz w kodzie: `// TODO: podmienić listę pozycji wg wzoru kierownika`.
-
-## Etap 4 — Szkielet raportu serwisowego per urządzenie
-
-### Schemat
-- `service_reports(id, equipment_id, author_id, performed_at, kind text (np. 'wymiana oleju', 'przegląd', 'naprawa'), description, parts_used text, hours_worked numeric, status enum('draft','submitted'), created_at, updated_at)`
-- `service_report_attachments(id, report_id, file_path, original_name, mime_type, size_bytes)` — protokoły, faktury.
-- Sekcja „Historia serwisu" na karcie urządzenia (`/equipment/$id`) — lista wszystkich `service_reports`.
-
-### UI
-- Z karty urządzenia przycisk „Nowy raport serwisowy" → `/equipment/$id/service/new`.
-- `/reports/service` — pełna lista (kierownik), filtr po urządzeniu.
-- Pusty szablon pól (typowe pola: rodzaj czynności, opis, użyte części, czas, załączniki). Konkretne listy zadań serwisowych dodamy gdy dostarczysz wzór.
-
-## FEKO+ — odłożone
-Wracamy gdy określisz źródło (API/eksport/SQL). Plan zostawiam pusty.
-
-## Etapy migracji bazy (kolejność)
-1. `equipment_categories`, `equipment`, `equipment_attachments` + bucket + RLS + GRANT.
-2. `admin_notifications` + triggery + realtime publication.
-3. `electrical_maintenance_reports` + items + RLS + GRANT.
-4. `service_reports` + attachments + RLS + GRANT.
-
-## Pytania kontrolne
-1. Czy operator może **tylko czytać** bazę urządzeń, czy także dodawać zdjęcia z telefonu (np. zdjęcie awarii)?
-2. Powiadomienia: tylko in-app czy także e-mail do kierownika? (e-mail wymaga konfiguracji Resend)
-3. Czy raport utrzymania ruchu elektrycznego jest **dzienny / na zmianę / tygodniowy**?
-4. Czy chcesz żebym zaczął od **całego Etapu 1** w jednym kroku (baza + UI + upload), czy najpierw sam schemat i UI listy, a upload w kolejnej iteracji?
+Czy mam **teraz** korzystać z Twojej obecnej sesji preview (jeśli jesteś zalogowany jako kierownik), czy najpierw zalogujesz się jako `kierownik / Kier123!` i napiszesz „gotowe"? Bez roli kierownika sekcje 7–9 (Zmiany, Harmonogram roczny, Raporty kierownika) będą miały zrzuty operatora zamiast panelu kierownika.
