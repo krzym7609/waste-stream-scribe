@@ -378,29 +378,32 @@ export async function exportAnnualSchedulePdf(
     ...WEEKDAY_HEADERS.map<TableCell>((w) => ({ text: w, style: "hdr" })),
   ]);
 
-  // Szerokości – dopasowane by szerokościowo mieściło się na A4 poziomo.
-  // W pionie może się rozlewać na kolejne strony.
-  const nrW = 10;
-  const nameW = 150;
-  const usable = 812 - nrW - nameW;
-  const dayW = usable / STRIP_COLS;
+  // Szerokości PDF muszą uwzględniać padding komórek pdfmake.
+  // Sama suma `widths` może być mniejsza od A4, ale domyślny padding 4pt/strona
+  // dodaje ~240pt przy 30 kolumnach i wypycha połowę tabeli poza kartkę.
+  const pageWidth = 841.89; // A4 landscape w punktach PDF
+  const horizontalMargins = 8;
+  const usable = pageWidth - horizontalMargins;
+  const nrW = 8;
+  const nameW = 112;
+  const dayW = (usable - nrW - nameW) / STRIP_COLS;
 
   const doc: TDocumentDefinitions = {
     pageOrientation: "landscape",
     pageSize: "A4",
-    pageMargins: [6, 10, 6, 10],
-    defaultStyle: { font: "Roboto", fontSize: 5 },
+    pageMargins: [4, 8, 4, 8],
+    defaultStyle: { font: "Roboto", fontSize: 4 },
     styles: {
       hdr: {
         bold: true,
         alignment: "center",
         fillColor: "#FF0000",
         color: "#FFFFFF",
-        fontSize: 5,
+        fontSize: 4,
       },
-      cell: { fontSize: 5, alignment: "center" },
-      monthName: { bold: true, fontSize: 6, alignment: "left" },
-      shiftBand: { bold: true, fontSize: 7, fillColor: "#FFFF66", alignment: "center" },
+      cell: { fontSize: 4, alignment: "center" },
+      monthName: { bold: true, fontSize: 4.5, alignment: "left" },
+      shiftBand: { bold: true, fontSize: 5, fillColor: "#FFFF66", alignment: "center" },
     },
     content: [
       {
@@ -422,6 +425,10 @@ export async function exportAnnualSchedulePdf(
           vLineWidth: () => 0.25,
           hLineColor: () => "#808080",
           vLineColor: () => "#808080",
+          paddingLeft: () => 0.3,
+          paddingRight: () => 0.3,
+          paddingTop: () => 0.15,
+          paddingBottom: () => 0.15,
         },
       },
     ],
