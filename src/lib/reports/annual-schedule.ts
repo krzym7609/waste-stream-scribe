@@ -46,9 +46,12 @@ const NAME_COL = 2;         // kolumna B
 
 // Kolory (dokładnie jak w pliku źródłowym)
 const HEADER_FILL = "FFFF0000";   // czerwony nagłówek
-const MARK_FILL   = "FFFFF66";    // żółte pole oznaczenia zmiany (jak C27 w źródle)
+const MARK_FILL   = "FFFFFF66";   // żółte pole oznaczenia zmiany
 const SHIFT_FILL  = "FFFFFF66";   // żółty pas "Z M I A N A"
 const SERVICE_COLOR = "FF1D4ED8"; // niebieski dla zadań z raportem serwisowym
+const STRIPE_FILL = "FFE2F0D9";   // jasnozielony pas na co 2 kolumnę dni
+const ROW_ALT_FILL = "FFF2F2F2";  // co 2 wiersz zadań – szary
+const isStripeCol = (i: number) => i % 2 === 1; // co 2 kolumna (indeks 1,3,5,...)
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
