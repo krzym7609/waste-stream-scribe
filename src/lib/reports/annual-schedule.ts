@@ -287,7 +287,20 @@ export async function exportAnnualScheduleXlsx(
   }
   fr.height = 14;
 
-  ws.pageSetup.printArea = `A1:${ws.getColumn(FIRST_DAY_COL + STRIP_COLS - 1).letter}${footerRowIdx}`;
+  // Notka wyjaśniająca układ kolumn w wierszach zadań
+  const noteRowIdx = footerRowIdx + 1;
+  ws.mergeCells(noteRowIdx, 1, noteRowIdx, FIRST_DAY_COL + STRIP_COLS - 1);
+  const noteCell = ws.getCell(noteRowIdx, 1);
+  noteCell.value =
+    "Uwaga: w wierszach zadań kolumny 1–28 to cykl powtarzający się co miesiąc " +
+    "(pozycja = ((dzień miesiąca − 1) mod 28) + 1), a NIE konkretne daty z kalendarza powyżej. " +
+    "Oznaczenie w kolumnie 5 dotyczy 5. dnia każdego miesiąca (oraz 33. dnia miesięcy dłuższych niż 28). " +
+    "Kalendarz u góry służy wyłącznie do odczytania dnia tygodnia dla danej daty.";
+  noteCell.font = { italic: true, size: 8 };
+  noteCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  ws.getRow(noteRowIdx).height = 26;
+
+  ws.pageSetup.printArea = `A1:${ws.getColumn(FIRST_DAY_COL + STRIP_COLS - 1).letter}${noteRowIdx}`;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {
