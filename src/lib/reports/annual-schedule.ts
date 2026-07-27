@@ -396,7 +396,7 @@ export async function exportAnnualSchedulePdf(
     pageOrientation: "landscape",
     pageSize: "A4",
     pageMargins: [4, 8, 4, 8],
-    defaultStyle: { font: "Roboto", fontSize: 7 },
+    defaultStyle: { font: "Roboto", fontSize: 6 },
     styles: {
       hdr: {
         bold: true,
@@ -405,16 +405,16 @@ export async function exportAnnualSchedulePdf(
         color: "#FFFFFF",
         fontSize: 7,
       },
-      cell: { fontSize: 7, alignment: "center" },
-      monthName: { bold: true, fontSize: 8, alignment: "left" },
-      shiftBand: { bold: true, fontSize: 9, fillColor: "#FFFF66", alignment: "center" },
+      cell: { fontSize: 6, alignment: "center" },
+      monthName: { bold: true, fontSize: 7, alignment: "left" },
+      shiftBand: { bold: true, fontSize: 7, fillColor: "#FFFF66", alignment: "center" },
     },
     content: [
       {
         text: `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`,
         bold: true,
         alignment: "center",
-        fontSize: 9,
+        fontSize: 8,
         margin: [0, 0, 0, 4],
       },
       {
