@@ -140,32 +140,40 @@ export async function exportAnnualScheduleXlsx(
   const ws = wb.addWorksheet(String(year), {
     pageSetup: {
       orientation: "landscape",
-      paperSize: 9, // A4
+      paperSize: 9,
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 1,
-      margins: { left: 0.2, right: 0.2, top: 0.2, bottom: 0.2, header: 0, footer: 0 },
+      margins: { left: 0.06, right: 0.06, top: 0.12, bottom: 0.12, header: 0, footer: 0 },
     },
   });
 
-  // Szerokości kolumn – jak w oryginale
-  ws.getColumn(1).width = 3;      // A – Nr
-  ws.getColumn(2).width = 62.875; // B – nazwa / miesiąc
-  ws.getColumn(3).width = 3.625;  // C
+  ws.getColumn(1).width = 3;
+  ws.getColumn(2).width = 62.875;
+  ws.getColumn(3).width = 3.625;
   for (let i = 1; i < STRIP_COLS; i++) ws.getColumn(FIRST_DAY_COL + i).width = 3.25;
 
-  const border = {
+  const thinBorder = {
     top:    { style: "thin" as const, color: { argb: "FF808080" } },
     left:   { style: "thin" as const, color: { argb: "FF808080" } },
     bottom: { style: "thin" as const, color: { argb: "FF808080" } },
     right:  { style: "thin" as const, color: { argb: "FF808080" } },
   };
-  const thinBorder = border;
+  const lastCol = FIRST_DAY_COL + STRIP_COLS - 1;
 
-  // === Wiersz 1: nagłówek dni tygodnia (kalendarz) ===
-  const hdr1 = ws.getRow(1);
+  // === Wiersz 1: TYTUŁ raportu (spójnie z PDF) ===
+  const titleRow = ws.getRow(1);
+  ws.mergeCells(1, 1, 1, lastCol);
+  const titleCell = titleRow.getCell(1);
+  titleCell.value = `HARMONOGRAM PODSTAWOWYCH CZYNNOŚCI EKSPLOATACYJNYCH URZĄDZEŃ OCZYSZCZALNI ŚCIEKÓW — ${year}`;
+  titleCell.font = { bold: true, size: 8 };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleRow.height = 16;
+
+  // === Wiersz 2: nagłówek dni tygodnia (kalendarz) ===
+  const hdr1 = ws.getRow(2);
   hdr1.getCell(NAME_COL).value = "Miesiąc / Dzień tygodnia:";
-  hdr1.getCell(NAME_COL).font = { bold: true, size: 8, color: { argb: "FFFFFFFF" } };
+  hdr1.getCell(NAME_COL).font = { bold: true, size: 7, color: { argb: "FFFFFFFF" } };
   hdr1.getCell(NAME_COL).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
   hdr1.getCell(NAME_COL).alignment = { horizontal: "left", vertical: "middle" };
   hdr1.getCell(NAME_COL).border = thinBorder;
@@ -177,34 +185,31 @@ export async function exportAnnualScheduleXlsx(
     c.alignment = { horizontal: "center", vertical: "middle" };
     c.border = thinBorder;
   }
-  hdr1.height = 14;
+  hdr1.height = 13;
 
-  // === Wiersze 2..25: 12 miesięcy × 2 wiersze ===
+  // === Wiersze 3..26: 12 miesięcy × 2 wiersze ===
   for (let m = 1; m <= 12; m++) {
-    const topRow = 2 + (m - 1) * 2;
+    const topRow = 3 + (m - 1) * 2;
     const botRow = topRow + 1;
-    // Scalone: kolumna A i B pomiędzy tymi 2 wierszami
     ws.mergeCells(topRow, 1, botRow, 1);
     ws.mergeCells(topRow, NAME_COL, botRow, NAME_COL);
     const nameCell = ws.getCell(topRow, NAME_COL);
     nameCell.value = MONTHS_PL[m - 1];
-    nameCell.font = { bold: true, size: 9 };
+    nameCell.font = { bold: true, size: 7 };
     nameCell.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
     nameCell.border = thinBorder;
     ws.getCell(topRow, 1).border = thinBorder;
 
-    ws.getRow(topRow).height = 13;
-    ws.getRow(botRow).height = 13;
+    ws.getRow(topRow).height = 12;
+    ws.getRow(botRow).height = 12;
 
-    // Rozłóż dni miesiąca
     const dcount = daysInMonth(year, m);
-    // Najpierw zainicjalizuj wszystkie 28 kolumn w obu wierszach ramkami + zielony pas co 2 kol.
     for (const r of [topRow, botRow]) {
       for (let i = 0; i < STRIP_COLS; i++) {
         const c = ws.getCell(r, FIRST_DAY_COL + i);
         c.border = thinBorder;
         c.alignment = { horizontal: "center", vertical: "middle" };
-        c.font = { size: 8 };
+        c.font = { size: 6 };
         if (isStripeCol(i)) {
           c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: STRIPE_FILL } };
         }
@@ -215,14 +220,14 @@ export async function exportAnnualScheduleXlsx(
       const row = rowInMonth === 0 ? topRow : botRow;
       const c = ws.getCell(row, col);
       c.value = d;
-      c.font = { size: 8 };
+      c.font = { size: 6 };
     }
   }
 
-  // === Wiersz 26: nagłówek tabeli zadań ===
-  const hdr2 = ws.getRow(26);
+  // === Wiersz 27: nagłówek tabeli zadań ===
+  const hdr2 = ws.getRow(27);
   hdr2.getCell(NAME_COL).value = "Wyszczególnienie/ Dzień tygodnia:";
-  hdr2.getCell(NAME_COL).font = { bold: true, size: 8, color: { argb: "FFFFFFFF" } };
+  hdr2.getCell(NAME_COL).font = { bold: true, size: 7, color: { argb: "FFFFFFFF" } };
   hdr2.getCell(NAME_COL).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
   hdr2.getCell(NAME_COL).alignment = { horizontal: "left", vertical: "middle" };
   hdr2.getCell(NAME_COL).border = thinBorder;
@@ -234,33 +239,33 @@ export async function exportAnnualScheduleXlsx(
     c.alignment = { horizontal: "center", vertical: "middle" };
     c.border = thinBorder;
   }
-  hdr2.height = 14;
+  hdr2.height = 13;
 
-  // === Wiersz 27: pas "Z M I A N A" ===
-  const shiftRow = ws.getRow(27);
-  ws.mergeCells(27, FIRST_DAY_COL, 27, FIRST_DAY_COL + STRIP_COLS - 1);
+  // === Wiersz 28: pas "Z M I A N A" ===
+  const shiftRow = ws.getRow(28);
+  ws.mergeCells(28, FIRST_DAY_COL, 28, lastCol);
   const shiftCell = shiftRow.getCell(FIRST_DAY_COL);
   shiftCell.value = "Z M I A N A";
-  shiftCell.font = { bold: true, size: 9 };
+  shiftCell.font = { bold: true, size: 7 };
   shiftCell.alignment = { horizontal: "center", vertical: "middle" };
   shiftCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: SHIFT_FILL } };
   shiftCell.border = thinBorder;
   shiftRow.getCell(NAME_COL).border = thinBorder;
   shiftRow.getCell(1).border = thinBorder;
-  shiftRow.height = 13;
+  shiftRow.height = 12;
 
-  // === Wiersze 28+: zadania ===
+  // === Wiersze 29+: zadania ===
   tasks.forEach((t, idx) => {
-    const rowIdx = 28 + idx;
+    const rowIdx = 29 + idx;
     const r = ws.getRow(rowIdx);
-    r.height = 13;
+    r.height = 12;
     const rowAlt = idx % 2 === 1;
     const altFill = rowAlt
       ? { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: ROW_ALT_FILL } }
       : undefined;
 
     r.getCell(1).value = t.task_number;
-    r.getCell(1).font = { size: 8, bold: true };
+    r.getCell(1).font = { size: 6, bold: true };
     r.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
     r.getCell(1).border = thinBorder;
     if (altFill) r.getCell(1).fill = altFill;
@@ -268,7 +273,7 @@ export async function exportAnnualScheduleXlsx(
     const nm = r.getCell(NAME_COL);
     nm.value = t.name;
     nm.font = {
-      size: 8,
+      size: 6,
       bold: t.requires_service_report,
       color: t.requires_service_report ? { argb: SERVICE_COLOR } : undefined,
     };
@@ -276,14 +281,13 @@ export async function exportAnnualScheduleXlsx(
     nm.border = thinBorder;
     if (altFill) nm.fill = altFill;
 
-    // Zbierz oznaczenia w kolumnach odpowiadających faktycznym datom z kalendarza powyżej.
     const marks = collectAnnualMarks(year, t.id, template, _overrides);
 
     for (let i = 0; i < STRIP_COLS; i++) {
       const c = r.getCell(FIRST_DAY_COL + i);
       c.border = thinBorder;
       c.alignment = { horizontal: "center", vertical: "middle" };
-      c.font = { size: 8, bold: !!marks[i] };
+      c.font = { size: 6, bold: !!marks[i] };
       if (marks[i]) {
         c.value = marks[i];
         c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: MARK_FILL } };
@@ -295,11 +299,11 @@ export async function exportAnnualScheduleXlsx(
     }
   });
 
-  // === Stopka – wiersz z dniami tygodnia ===
-  const footerRowIdx = 28 + tasks.length;
+  // === Stopka ===
+  const footerRowIdx = 29 + tasks.length;
   const fr = ws.getRow(footerRowIdx);
   fr.getCell(NAME_COL).value = " Dzień tygodnia:";
-  fr.getCell(NAME_COL).font = { bold: true, size: 8, color: { argb: "FFFFFFFF" } };
+  fr.getCell(NAME_COL).font = { bold: true, size: 7, color: { argb: "FFFFFFFF" } };
   fr.getCell(NAME_COL).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
   fr.getCell(NAME_COL).alignment = { horizontal: "left", vertical: "middle" };
   fr.getCell(NAME_COL).border = thinBorder;
@@ -311,9 +315,9 @@ export async function exportAnnualScheduleXlsx(
     c.alignment = { horizontal: "center", vertical: "middle" };
     c.border = thinBorder;
   }
-  fr.height = 14;
+  fr.height = 13;
 
-  ws.pageSetup.printArea = `A1:${ws.getColumn(FIRST_DAY_COL + STRIP_COLS - 1).letter}${footerRowIdx}`;
+  ws.pageSetup.printArea = `A1:${ws.getColumn(lastCol).letter}${footerRowIdx}`;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {
