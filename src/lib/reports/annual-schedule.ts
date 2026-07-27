@@ -89,6 +89,45 @@ function shiftMark(shifts: ShiftType[]): string {
   return "";
 }
 
+function collectAnnualMarks(
+  year: number,
+  taskId: string,
+  template: AnnualTemplateEntry[],
+  overrides: AnnualOverrideEntry[],
+): string[] {
+  const marks: string[] = new Array(STRIP_COLS).fill("");
+  const overrideKeys = new Set(
+    overrides
+      .filter((e) => e.task_id === taskId && e.year === year)
+      .map((e) => `${e.month}:${e.day_of_month}`),
+  );
+
+  const collectDate = (month: number, day: number, shifts: ShiftType[]) => {
+    if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) return;
+    const mark = shiftMark(shifts);
+    if (!mark) return;
+    const { col } = placeDay(year, month, day);
+    const colIdx = col - FIRST_DAY_COL;
+    if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
+    else marks[colIdx] = mark;
+  };
+
+  for (const entry of template) {
+    if (entry.task_id !== taskId) continue;
+    for (let month = 1; month <= 12; month++) {
+      if (overrideKeys.has(`${month}:${entry.day_of_month}`)) continue;
+      collectDate(month, entry.day_of_month, entry.shifts);
+    }
+  }
+
+  for (const entry of overrides) {
+    if (entry.task_id !== taskId || entry.year !== year) continue;
+    collectDate(entry.month, entry.day_of_month, entry.shifts);
+  }
+
+  return marks;
+}
+
 /* ---------- EXCEL (1:1 z plikiem źródłowym) ---------- */
 
 export async function exportAnnualScheduleXlsx(
@@ -237,21 +276,8 @@ export async function exportAnnualScheduleXlsx(
     nm.border = thinBorder;
     if (altFill) nm.fill = altFill;
 
-    // Zbierz oznaczenia z szablonu + nadpisań miesięcznych dla danego roku
-    const marks: string[] = new Array(STRIP_COLS).fill("");
-    const collect = (day: number, shifts: ShiftType[]) => {
-      const mark = shiftMark(shifts);
-      if (!mark) return;
-      const colIdx = (day - 1) % STRIP_COLS;
-      if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
-      else marks[colIdx] = mark;
-    };
-    for (const e of template) {
-      if (e.task_id === t.id) collect(e.day_of_month, e.shifts);
-    }
-    for (const e of _overrides) {
-      if (e.task_id === t.id && e.year === year) collect(e.day_of_month, e.shifts);
-    }
+    // Zbierz oznaczenia w kolumnach odpowiadających faktycznym datom z kalendarza powyżej.
+    const marks = collectAnnualMarks(year, t.id, template, _overrides);
 
     for (let i = 0; i < STRIP_COLS; i++) {
       const c = r.getCell(FIRST_DAY_COL + i);
@@ -287,20 +313,7 @@ export async function exportAnnualScheduleXlsx(
   }
   fr.height = 14;
 
-  // Notka wyjaśniająca układ kolumn w wierszach zadań
-  const noteRowIdx = footerRowIdx + 1;
-  ws.mergeCells(noteRowIdx, 1, noteRowIdx, FIRST_DAY_COL + STRIP_COLS - 1);
-  const noteCell = ws.getCell(noteRowIdx, 1);
-  noteCell.value =
-    "Uwaga: w wierszach zadań kolumny 1–28 to cykl powtarzający się co miesiąc " +
-    "(pozycja = ((dzień miesiąca − 1) mod 28) + 1), a NIE konkretne daty z kalendarza powyżej. " +
-    "Oznaczenie w kolumnie 5 dotyczy 5. dnia każdego miesiąca (oraz 33. dnia miesięcy dłuższych niż 28). " +
-    "Kalendarz u góry służy wyłącznie do odczytania dnia tygodnia dla danej daty.";
-  noteCell.font = { italic: true, size: 8 };
-  noteCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-  ws.getRow(noteRowIdx).height = 26;
-
-  ws.pageSetup.printArea = `A1:${ws.getColumn(FIRST_DAY_COL + STRIP_COLS - 1).letter}${noteRowIdx}`;
+  ws.pageSetup.printArea = `A1:${ws.getColumn(FIRST_DAY_COL + STRIP_COLS - 1).letter}${footerRowIdx}`;
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {
@@ -382,20 +395,7 @@ export async function exportAnnualSchedulePdf(
 
   // Zadania
   tasks.forEach((t, tIdx) => {
-    const marks: string[] = new Array(STRIP_COLS).fill("");
-    const collect = (day: number, shifts: ShiftType[]) => {
-      const mark = shiftMark(shifts);
-      if (!mark) return;
-      const colIdx = (day - 1) % STRIP_COLS;
-      if (marks[colIdx] && marks[colIdx] !== mark) marks[colIdx] = "1;2";
-      else marks[colIdx] = mark;
-    };
-    for (const e of template) {
-      if (e.task_id === t.id) collect(e.day_of_month, e.shifts);
-    }
-    for (const e of _overrides) {
-      if (e.task_id === t.id && e.year === year) collect(e.day_of_month, e.shifts);
-    }
+    const marks = collectAnnualMarks(year, t.id, template, _overrides);
     const rowAlt = tIdx % 2 === 1 ? ROW_ALT_HEX : undefined;
     const row: TableCell[] = [
       { text: String(t.task_number), style: "cell", alignment: "center", bold: true, fillColor: rowAlt },
@@ -481,16 +481,6 @@ export async function exportAnnualSchedulePdf(
           paddingTop: () => 0.4,
           paddingBottom: () => 0.4,
         },
-      },
-      {
-        text:
-          "Uwaga: w wierszach zadań kolumny 1–28 oznaczają cykl powtarzający się co miesiąc " +
-          "(pozycja = ((dzień miesiąca − 1) mod 28) + 1), a NIE konkretne daty z kalendarza powyżej. " +
-          "Oznaczenie w kolumnie 5 dotyczy 5. dnia każdego miesiąca (a także 33. dnia dla miesięcy dłuższych niż 28). " +
-          "Kalendarz u góry służy wyłącznie do odczytania dnia tygodnia dla danej daty.",
-        fontSize: 6,
-        italics: true,
-        margin: [0, 4, 0, 0],
       },
     ],
   };
