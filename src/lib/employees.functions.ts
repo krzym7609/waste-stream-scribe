@@ -215,9 +215,6 @@ export const deleteEmployee = createServerFn({ method: "POST" })
 
     const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
       ban_duration: "876000h",
-      user_metadata: {
-        deactivated: true,
-      },
     });
     if (authErr) throw new Error(authErr.message);
 
