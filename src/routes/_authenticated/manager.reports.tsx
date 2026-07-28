@@ -560,41 +560,20 @@ function MonthlyView() {
           </div>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Zużycie energii i chemii (dziennie)</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dailyChart}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="energia" fill="#3b82f6" name="Energia [kWh]" />
-                  <Bar dataKey="flokProszk" fill="#10b981" name="Flok. proszk. [kg]" />
-                  <Bar dataKey="flokEmul" fill="#f59e0b" name="Flok. emul. [l]" />
-                  <Bar dataKey="wapno" fill="#8b5cf6" name="Wapno [kg]" />
-                  <Bar dataKey="fecl" fill="#ef4444" name="FeCl₃ [l]" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
+            <CardHeader><CardTitle className="text-base">Zużycie energii — dziennie [kWh]</CardTitle></CardHeader>
+            <CardContent><EnergyChart data={dailyChart} xKey="day" /></CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Zużycie chemii — dziennie</CardTitle></CardHeader>
+            <CardContent><ChemistrySmallMultiples data={dailyChart} xKey="day" /></CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Wykonanie zadań (dziennie)</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={dailyChart}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="done" fill="#10b981" name="Wykonane" />
-                  <Bar dataKey="pending" fill="#ef4444" name="Niewykonane" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
+            <CardContent><TasksChart data={dailyChart} xKey="day" /></CardContent>
           </Card>
+
         </>
       )}
     </div>
