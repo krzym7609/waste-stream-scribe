@@ -27,6 +27,7 @@ type Row = {
   username: string | null;
   phone: string | null;
   must_change_password: boolean;
+  employment_status?: string;
   role?: string;
 };
 
@@ -48,7 +49,8 @@ function TeamPage() {
     setLoading(true);
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, username, phone, must_change_password")
+      .select("id, first_name, last_name, username, phone, must_change_password, employment_status")
+      .eq("employment_status", "active")
       .order("last_name", { ascending: true });
     const { data: roles } = await supabase.from("user_roles").select("user_id, role");
     const map = new Map<string, string>();
@@ -142,13 +144,13 @@ function TeamPage() {
       toast.error("Tylko zarządca/administrator może usunąć kierownika/zarządcę/admina");
       return;
     }
-    if (!confirm(`Na pewno usunąć pracownika ${row.first_name} ${row.last_name}? Tej operacji nie można cofnąć.`)) return;
+    if (!confirm(`Wyłączyć konto pracownika ${row.first_name} ${row.last_name}? Raporty i historia pozostaną zachowane.`)) return;
     try {
       await remove({ data: { user_id: row.id } });
-      toast.success("Pracownik usunięty");
+      toast.success("Konto pracownika wyłączone");
       await load();
     } catch (err: any) {
-      toast.error(err?.message ?? "Błąd usuwania");
+      toast.error(err?.message ?? "Błąd wyłączania konta");
     }
   }
 
@@ -211,7 +213,7 @@ function TeamPage() {
                       </Button>
                       {(isBoss || (r.role ?? "operator") === "operator") && (
                         <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => handleDelete(r)}>
-                          <Trash2 className="w-3.5 h-3.5" /> Usuń
+                          <Trash2 className="w-3.5 h-3.5" /> Wyłącz
                         </Button>
                       )}
                     </div>

@@ -11,6 +11,7 @@ interface Profile {
   username: string | null;
   phone: string | null;
   must_change_password: boolean;
+  employment_status?: string;
 }
 
 interface AuthCtx {
@@ -68,9 +69,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function loadProfile(uid: string) {
     const { data } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, username, phone, must_change_password")
+      .select("id, first_name, last_name, username, phone, must_change_password, employment_status")
       .eq("id", uid)
       .maybeSingle();
+    if (data?.employment_status === "inactive") {
+      setProfile(null);
+      setRoles([]);
+      await supabase.auth.signOut();
+      return;
+    }
     setProfile(data as Profile | null);
   }
 

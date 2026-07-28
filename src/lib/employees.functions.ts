@@ -1,49 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-function generatePassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let out = "";
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  for (let i = 0; i < 8; i++) out += chars[bytes[i] % chars.length];
-  return out;
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ł/g, "l")
-    .replace(/[^a-z0-9]/g, "");
-}
-
-async function assertManager(ctx: { supabase: any; userId: string }) {
-  const { data } = await ctx.supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", ctx.userId);
-  const roles = (data ?? []).map((r: { role: string }) => r.role);
-  if (!roles.includes("kierownik") && !roles.includes("admin") && !roles.includes("zarzadca")) {
-    throw new Error("Brak uprawnień — wymagana rola kierownik, zarządca lub admin");
-  }
-  return roles;
-}
-
-const createInput = z.object({
-  first_name: z.string().trim().min(1).max(80),
-  last_name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().max(40).optional().nullable(),
-  role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).default("operator"),
-});
+import { assertEmployeeManager, generateEmployeePassword, slugifyEmployeeName } from "./employees.server";
 
 export const createEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => createInput.parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        first_name: z.string().trim().min(1).max(80),
+        last_name: z.string().trim().min(1).max(80),
+        phone: z.string().trim().max(40).optional().nullable(),
+        role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).default("operator"),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
-    const roles = await assertManager(context as any);
+    const roles = await assertEmployeeManager(context as any);
     const isBoss = roles.includes("admin") || roles.includes("zarzadca");
     // tylko admin/zarządca może tworzyć kierownika/admina/zarządcę
     if ((data.role === "admin" || data.role === "kierownik" || data.role === "zarzadca") && !isBoss) {
@@ -53,7 +26,7 @@ export const createEmployee = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // wygeneruj unikalny login
-    const base = (slugify(data.first_name).charAt(0) || "x") + slugify(data.last_name);
+    const base = (slugifyEmployeeName(data.first_name).charAt(0) || "x") + slugifyEmployeeName(data.last_name);
     let username = base;
     let suffix = 1;
     while (true) {
@@ -67,7 +40,7 @@ export const createEmployee = createServerFn({ method: "POST" })
       username = `${base}${suffix}`;
     }
 
-    const password = generatePassword();
+    const password = generateEmployeePassword();
     const email = `${username}@oczyszczalnia.local`;
 
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
@@ -93,15 +66,13 @@ export const createEmployee = createServerFn({ method: "POST" })
     };
   });
 
-const resetInput = z.object({ user_id: z.string().uuid() });
-
 export const resetEmployeePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => resetInput.parse(d))
+  .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertManager(context as any);
+    await assertEmployeeManager(context as any);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const password = generatePassword();
+    const password = generateEmployeePassword();
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, { password });
     if (error) throw new Error(error.message);
     await supabaseAdmin
@@ -111,19 +82,21 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
     return { password };
   });
 
-const updateInput = z.object({
-  user_id: z.string().uuid(),
-  first_name: z.string().trim().min(1).max(80),
-  last_name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().max(40).optional().nullable(),
-  role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).optional(),
-});
-
 export const updateEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => updateInput.parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        user_id: z.string().uuid(),
+        first_name: z.string().trim().min(1).max(80),
+        last_name: z.string().trim().min(1).max(80),
+        phone: z.string().trim().max(40).optional().nullable(),
+        role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
-    const roles = await assertManager(context as any);
+    const roles = await assertEmployeeManager(context as any);
     const isBoss = roles.includes("admin") || roles.includes("zarzadca");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -177,13 +150,11 @@ export const updateEmployee = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const deleteInput = z.object({ user_id: z.string().uuid() });
-
 export const deleteEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => deleteInput.parse(d))
+  .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const roles = await assertManager(context as any);
+    const roles = await assertEmployeeManager(context as any);
     const isBoss = roles.includes("admin") || roles.includes("zarzadca");
 
     if (data.user_id === (context as any).userId) {
@@ -203,8 +174,20 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       throw new Error("Tylko administrator lub zarządca może usuwać kierownika/zarządcę/admina");
     }
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
-    if (error) throw new Error(error.message);
+    const { error: profErr } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        employment_status: "inactive",
+        deactivated_at: new Date().toISOString(),
+        deactivated_by: (context as any).userId,
+      })
+      .eq("id", data.user_id);
+    if (profErr) throw new Error(profErr.message);
+
+    const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+      ban_duration: "876000h",
+    });
+    if (authErr) throw new Error(authErr.message);
 
     return { ok: true };
   });

@@ -447,7 +447,10 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
           employee_number: string | null
+          employment_status: string
           first_name: string | null
           id: string
           last_name: string | null
@@ -458,7 +461,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           employee_number?: string | null
+          employment_status?: string
           first_name?: string | null
           id: string
           last_name?: string | null
@@ -469,7 +475,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           employee_number?: string | null
+          employment_status?: string
           first_name?: string | null
           id?: string
           last_name?: string | null
