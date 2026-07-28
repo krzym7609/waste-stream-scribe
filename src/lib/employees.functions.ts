@@ -176,3 +176,36 @@ export const updateEmployee = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+const deleteInput = z.object({ user_id: z.string().uuid() });
+
+export const deleteEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => deleteInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await assertManager(context as any);
+    const isBoss = roles.includes("admin") || roles.includes("zarzadca");
+
+    if (data.user_id === (context as any).userId) {
+      throw new Error("Nie możesz usunąć własnego konta");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: targetRoleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id)
+      .maybeSingle();
+    const targetRole = targetRoleRow?.role as string | undefined;
+
+    if (!isBoss && targetRole && targetRole !== "operator") {
+      throw new Error("Tylko administrator lub zarządca może usuwać kierownika/zarządcę/admina");
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    if (error) throw new Error(error.message);
+
+    return { ok: true };
+  });
+
