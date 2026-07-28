@@ -269,7 +269,7 @@ export function DutyBar() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          ) : (
+          ) : !isManager ? (
             <Dialog open={takeOpen} onOpenChange={setTakeOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">Przejmij zmianę</Button>
