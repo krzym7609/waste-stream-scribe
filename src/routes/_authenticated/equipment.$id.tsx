@@ -129,19 +129,19 @@ function EquipmentDetailsPage() {
             {equipment.location && <> · Lokalizacja: <b>{equipment.location}</b></>}
           </p>
         </div>
-        {isManager && (
-          <div className="flex gap-2">
-            {equipment.status !== "awaria" ? (
-              <Button variant="destructive" onClick={() => setBreakdown(true)}>
-                <AlertTriangle className="w-4 h-4" /> Zgłoś awarię
-              </Button>
-            ) : (
+        <div className="flex gap-2">
+          {equipment.status !== "awaria" ? (
+            <Button variant="destructive" onClick={() => setBreakdown(true)}>
+              <AlertTriangle className="w-4 h-4" /> Zgłoś awarię
+            </Button>
+          ) : (
+            isManager && (
               <Button onClick={() => setRepair(true)}>
                 <CheckCircle2 className="w-4 h-4" /> Oznacz sprawne
               </Button>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
       </div>
 
       <Card>
