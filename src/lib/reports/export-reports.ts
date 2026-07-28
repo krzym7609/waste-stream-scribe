@@ -526,8 +526,9 @@ function buildAreaChart(
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     ${defs}${title}${grid.join("")}
     <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
-    ${area}${line}${dots}${xLabels}
+    ${area}${line}${dots}${valueLabels}${xLabels}
   </svg>`;
+
   return { svg, width, alignment: "center" };
 }
 
