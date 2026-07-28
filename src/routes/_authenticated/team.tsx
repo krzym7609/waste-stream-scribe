@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Copy, AlertCircle, Pencil } from "lucide-react";
+import { UserPlus, KeyRound, Copy, AlertCircle, Pencil, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({ meta: [{ title: "Zespół" }] }),
@@ -35,6 +35,7 @@ function TeamPage() {
   const create = useServerFn(createEmployee);
   const reset = useServerFn(resetEmployeePassword);
   const update = useServerFn(updateEmployee);
+  const remove = useServerFn(deleteEmployee);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +136,22 @@ function TeamPage() {
     }
   }
 
+  async function handleDelete(row: Row) {
+    const canDelete = isBoss || (row.role ?? "operator") === "operator";
+    if (!canDelete) {
+      toast.error("Tylko zarządca/administrator może usunąć kierownika/zarządcę/admina");
+      return;
+    }
+    if (!confirm(`Na pewno usunąć pracownika ${row.first_name} ${row.last_name}? Tej operacji nie można cofnąć.`)) return;
+    try {
+      await remove({ data: { user_id: row.id } });
+      toast.success("Pracownik usunięty");
+      await load();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Błąd usuwania");
+    }
+  }
+
   return (
     <div className="p-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
@@ -192,6 +209,11 @@ function TeamPage() {
                       <Button size="sm" variant="outline" onClick={() => handleReset(r)}>
                         <KeyRound className="w-3.5 h-3.5" /> Resetuj hasło
                       </Button>
+                      {(isBoss || (r.role ?? "operator") === "operator") && (
+                        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => handleDelete(r)}>
+                          <Trash2 className="w-3.5 h-3.5" /> Usuń
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
