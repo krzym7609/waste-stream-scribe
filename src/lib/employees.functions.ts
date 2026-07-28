@@ -3,16 +3,18 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertEmployeeManager, generateEmployeePassword, slugifyEmployeeName } from "./employees.server";
 
-const createInput = z.object({
-  first_name: z.string().trim().min(1).max(80),
-  last_name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().max(40).optional().nullable(),
-  role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).default("operator"),
-});
-
 export const createEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => createInput.parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        first_name: z.string().trim().min(1).max(80),
+        last_name: z.string().trim().min(1).max(80),
+        phone: z.string().trim().max(40).optional().nullable(),
+        role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).default("operator"),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const roles = await assertEmployeeManager(context as any);
     const isBoss = roles.includes("admin") || roles.includes("zarzadca");
@@ -64,11 +66,9 @@ export const createEmployee = createServerFn({ method: "POST" })
     };
   });
 
-const resetInput = z.object({ user_id: z.string().uuid() });
-
 export const resetEmployeePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => resetInput.parse(d))
+  .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertEmployeeManager(context as any);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -82,17 +82,19 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
     return { password };
   });
 
-const updateInput = z.object({
-  user_id: z.string().uuid(),
-  first_name: z.string().trim().min(1).max(80),
-  last_name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().max(40).optional().nullable(),
-  role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).optional(),
-});
-
 export const updateEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => updateInput.parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        user_id: z.string().uuid(),
+        first_name: z.string().trim().min(1).max(80),
+        last_name: z.string().trim().min(1).max(80),
+        phone: z.string().trim().max(40).optional().nullable(),
+        role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const roles = await assertEmployeeManager(context as any);
     const isBoss = roles.includes("admin") || roles.includes("zarzadca");
@@ -148,11 +150,9 @@ export const updateEmployee = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const deleteInput = z.object({ user_id: z.string().uuid() });
-
 export const deleteEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => deleteInput.parse(d))
+  .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const roles = await assertEmployeeManager(context as any);
     const isBoss = roles.includes("admin") || roles.includes("zarzadca");
