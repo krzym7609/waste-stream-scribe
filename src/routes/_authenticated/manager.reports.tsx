@@ -59,6 +59,104 @@ const MONTHS_PL = [
   "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru",
 ];
 
+/* Number formatting — polski format, ograniczone miejsca po przecinku */
+const nf = (decimals = 1) =>
+  new Intl.NumberFormat("pl-PL", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  });
+const fmt = (n: number | null | undefined, decimals = 1) =>
+  n == null || Number.isNaN(Number(n)) ? "—" : nf(decimals).format(Number(n));
+
+/* Definicje chemikaliów — jeden konfig do wykresów małych wielokrotności */
+const CHEM_SERIES = [
+  { key: "flokProszk", name: "Flokulant proszkowy", unit: "kg", color: "#10b981" },
+  { key: "flokEmul",   name: "Flokulant emulsyjny", unit: "l",  color: "#f59e0b" },
+  { key: "wapno",      name: "Wapno",               unit: "kg", color: "#8b5cf6" },
+  { key: "fecl",       name: "Chlorek żelaza",      unit: "l",  color: "#ef4444" },
+] as const;
+
+function EnergyChart({ data, xKey, height = 260 }: { data: any[]; xKey: string; height?: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.55} />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey={xKey} tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => nf(0).format(v)} />
+        <Tooltip
+          formatter={(v: any) => [`${nf(0).format(Number(v))} kWh`, "Energia"]}
+          contentStyle={{ fontSize: 12 }}
+        />
+        <Area
+          type="monotone"
+          dataKey="energia"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          fill="url(#energyGrad)"
+          name="Energia [kWh]"
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ChemistrySmallMultiples({
+  data,
+  xKey,
+  height = 180,
+}: {
+  data: any[];
+  xKey: string;
+  height?: number;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {CHEM_SERIES.map((s) => (
+        <div key={s.key} className="border rounded-md p-3">
+          <div className="text-xs font-medium mb-1" style={{ color: s.color }}>
+            {s.name} [{s.unit}]
+          </div>
+          <ResponsiveContainer width="100%" height={height}>
+            <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => nf(1).format(v)} />
+              <Tooltip
+                formatter={(v: any) => [`${nf(2).format(Number(v))} ${s.unit}`, s.name]}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Bar dataKey={s.key} fill={s.color} radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TasksChart({ data, xKey, height = 220 }: { data: any[]; xKey: string; height?: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey={xKey} tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+        <Tooltip contentStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="done" stackId="t" fill="#10b981" name="Wykonane" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="pending" stackId="t" fill="#ef4444" name="Niewykonane" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+
 function ManagerReportsPage() {
   const { isManager, loading } = useAuth();
   if (loading) return <div className="p-6 text-muted-foreground">Ładowanie…</div>;
