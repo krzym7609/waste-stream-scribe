@@ -431,59 +431,6 @@ function buildBarChart(
   return { svg, width, alignment: "center" };
 }
 
-function buildStackedTasksChart(
-  data: Array<{ day: string; done: number; pending: number }>,
-): Content {
-  const width = 520;
-  const height = 140;
-  const padL = 34;
-  const padR = 8;
-  const padT = 20;
-  const padB = 28;
-  const innerW = width - padL - padR;
-  const innerH = height - padT - padB;
-  const max = Math.max(1, ...data.map((d) => d.done + d.pending));
-  const step = innerW / Math.max(1, data.length);
-  const barW = Math.max(2, step * 0.72);
-
-  const yTicks = 4;
-  const ticks: string[] = [];
-  for (let i = 0; i <= yTicks; i++) {
-    const v = (max * i) / yTicks;
-    const y = padT + innerH - (innerH * i) / yTicks;
-    ticks.push(
-      `<line x1="${padL}" y1="${y}" x2="${padL + innerW}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`,
-      `<text x="${padL - 4}" y="${y + 3}" font-size="7" text-anchor="end" fill="#666">${Math.round(v)}</text>`,
-    );
-  }
-  const bars = data
-    .map((d, i) => {
-      const hDone = (d.done / max) * innerH;
-      const hPend = (d.pending / max) * innerH;
-      const x = padL + step * i + (step - barW) / 2;
-      const yDone = padT + innerH - hDone;
-      const yPend = yDone - hPend;
-      return `<rect x="${x}" y="${yDone}" width="${barW}" height="${hDone}" fill="#10b981"/>
-        <rect x="${x}" y="${yPend}" width="${barW}" height="${hPend}" fill="#ef4444"/>
-        <text x="${x + barW / 2}" y="${padT + innerH + 10}" font-size="6" text-anchor="middle" fill="#333">${escapeXml(d.day)}</text>`;
-    })
-    .join("");
-
-  const legend = `
-    <rect x="${padL}" y="4" width="9" height="9" fill="#10b981"/>
-    <text x="${padL + 13}" y="12" font-size="8" fill="#111">Wykonane</text>
-    <rect x="${padL + 80}" y="4" width="9" height="9" fill="#ef4444"/>
-    <text x="${padL + 93}" y="12" font-size="8" fill="#111">Niewykonane</text>`;
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-    <text x="${width / 2}" y="12" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">Wykonanie zadań</text>
-    ${legend}
-    ${ticks.join("")}
-    <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
-    ${bars}
-  </svg>`;
-  return { svg, width, alignment: "center" };
-}
 
 function escapeXml(s: string) {
   return String(s).replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c] as string));
