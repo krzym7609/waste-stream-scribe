@@ -514,6 +514,10 @@ function buildAreaChart(
   const area = areaPath ? `<path d="${areaPath}" fill="url(#${gradId})"/>` : "";
   const line = `<path d="${linePath}" fill="none" stroke="${opts.color}" stroke-width="1.6"/>`;
   const dots = points.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.4" fill="${opts.color}"/>`).join("");
+  const valueLabels = points
+    .map((p, i) => (i % stepLabel === 0 ? `<text x="${p.x.toFixed(1)}" y="${(p.y - 3).toFixed(1)}" font-size="6" text-anchor="middle" fill="#111">${fmtTick(p.d.value)}</text>` : ""))
+    .join("");
+
 
   const title = opts.title
     ? `<text x="${width / 2}" y="10" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
