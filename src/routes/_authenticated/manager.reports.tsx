@@ -570,10 +570,6 @@ function MonthlyView() {
             <CardContent><ChemistrySmallMultiples data={dailyChart} xKey="day" /></CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Wykonanie zadań (dziennie)</CardTitle></CardHeader>
-            <CardContent><TasksChart data={dailyChart} xKey="day" /></CardContent>
-          </Card>
 
         </>
       )}
@@ -712,10 +708,6 @@ function YearlyView() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Wykonanie zadań (miesięcznie)</CardTitle></CardHeader>
-        <CardContent><TasksChart data={chartData} xKey="month" /></CardContent>
-      </Card>
 
     </div>
   );
