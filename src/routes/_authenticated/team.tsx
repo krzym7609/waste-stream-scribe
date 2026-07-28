@@ -185,9 +185,14 @@ function TeamPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => handleReset(r)}>
-                      <KeyRound className="w-3.5 h-3.5" /> Resetuj hasło
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditing(r)}>
+                        <Pencil className="w-3.5 h-3.5" /> Edytuj
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleReset(r)}>
+                        <KeyRound className="w-3.5 h-3.5" /> Resetuj hasło
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
