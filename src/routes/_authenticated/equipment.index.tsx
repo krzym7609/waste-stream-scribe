@@ -319,9 +319,9 @@ function EquipmentPage() {
             fixedKind="awaria"
             title="Zgłoś awarię"
             description="Opisz objawy awarii. Powiadomienie zostanie wysłane do kierownika."
-            afterSave={async (eqId) => {
-              const { error } = await supabase.from("equipment").update({ status: "awaria" }).eq("id", eqId);
-              if (error) toast.error(error.message); else toast.success("Zgłoszono awarię");
+            useRpc
+            afterSave={async () => {
+              toast.success("Zgłoszono awarię");
               setBreakdownFor(null); load();
             }}
             onClose={() => setBreakdownFor(null)}
