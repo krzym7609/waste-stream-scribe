@@ -432,10 +432,13 @@ function buildBarChart(
       const h = (d.value / max) * innerH;
       const x = padL + step * i + (step - barW) / 2;
       const y = padT + innerH - h;
+      const lbl = fmtTick(d.value);
       return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${d.color}"/>
+        <text x="${x + barW / 2}" y="${Math.max(padT + 7, y - 2)}" font-size="6" text-anchor="middle" fill="#111">${lbl}</text>
         <text x="${x + barW / 2}" y="${padT + innerH + 10}" font-size="6" text-anchor="middle" fill="#333">${escapeXml(d.label)}</text>`;
     })
     .join("");
+
 
   const title = opts?.title
     ? `<text x="${width / 2}" y="8" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
@@ -511,6 +514,10 @@ function buildAreaChart(
   const area = areaPath ? `<path d="${areaPath}" fill="url(#${gradId})"/>` : "";
   const line = `<path d="${linePath}" fill="none" stroke="${opts.color}" stroke-width="1.6"/>`;
   const dots = points.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.4" fill="${opts.color}"/>`).join("");
+  const valueLabels = points
+    .map((p, i) => (i % stepLabel === 0 ? `<text x="${p.x.toFixed(1)}" y="${(p.y - 3).toFixed(1)}" font-size="6" text-anchor="middle" fill="#111">${fmtTick(p.d.value)}</text>` : ""))
+    .join("");
+
 
   const title = opts.title
     ? `<text x="${width / 2}" y="10" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
@@ -519,8 +526,9 @@ function buildAreaChart(
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     ${defs}${title}${grid.join("")}
     <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
-    ${area}${line}${dots}${xLabels}
+    ${area}${line}${dots}${valueLabels}${xLabels}
   </svg>`;
+
   return { svg, width, alignment: "center" };
 }
 
@@ -535,39 +543,22 @@ type ChemRow = { label: string; flokProszk: number; flokEmul: number; wapno: num
 
 function buildChemistryGrid(rows: ChemRow[], opts?: { mode?: "bar" | "line" }): Content {
   const mode = opts?.mode ?? "bar";
-  const cellW = 254;
-  const cellH = 130;
-  const cells = CHEM_DEFS.map((c) => {
+  const cellW = 520;
+  const cellH = 150;
+  const charts = CHEM_DEFS.map((c) => {
     const data = rows.map((r) => ({ label: r.label, value: Number(r[c.key]) || 0 }));
-    const chart =
-      mode === "line"
-        ? buildAreaChart(data, { width: cellW, height: cellH, color: c.color, unit: c.unit, mode: "line", title: `${c.name} [${c.unit}]` })
-        : buildBarChart(
-            data.map((d) => ({ label: d.label, value: d.value, color: c.color })),
-            { width: cellW, height: cellH, title: `${c.name} [${c.unit}]` },
-          );
-    return chart;
+    return mode === "line"
+      ? buildAreaChart(data, { width: cellW, height: cellH, color: c.color, unit: c.unit, mode: "line", title: `${c.name} [${c.unit}]` })
+      : buildBarChart(
+          data.map((d) => ({ label: d.label, value: d.value, color: c.color })),
+          { width: cellW, height: cellH, title: `${c.name} [${c.unit}]` },
+        );
   });
   return {
-    table: {
-      widths: [cellW, cellW],
-      body: [
-        [cells[0], cells[1]],
-        [cells[2], cells[3]],
-      ],
-    },
-    layout: {
-      hLineColor: () => "#e5e7eb",
-      vLineColor: () => "#e5e7eb",
-      hLineWidth: () => 0.5,
-      vLineWidth: () => 0.5,
-      paddingLeft: () => 4,
-      paddingRight: () => 4,
-      paddingTop: () => 4,
-      paddingBottom: () => 4,
-    },
-  };
+    stack: charts.map((ch) => ({ ...(ch as any), margin: [0, 0, 0, 8] })),
+  } as Content;
 }
+
 
 
 
