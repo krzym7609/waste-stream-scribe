@@ -259,26 +259,26 @@ function EquipmentPage() {
                         <Button variant="ghost" size="sm" asChild>
                           <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
                         </Button>
-                        {isManager && (
-                          <>
-                            {e.status !== "awaria" ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive"
-                                onClick={() => setBreakdownFor(e)}
-                              >
-                                <AlertTriangle className="w-3.5 h-3.5" /> Awaria
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" onClick={() => setRepairFor(e)}>
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Sprawne
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
-                              <Pencil className="w-3.5 h-3.5" />
+                        {e.status !== "awaria" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => setBreakdownFor(e)}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" /> Awaria
+                          </Button>
+                        ) : (
+                          isManager && (
+                            <Button variant="ghost" size="sm" onClick={() => setRepairFor(e)}>
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Sprawne
                             </Button>
-                          </>
+                          )
+                        )}
+                        {isManager && (
+                          <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -319,9 +319,9 @@ function EquipmentPage() {
             fixedKind="awaria"
             title="Zgłoś awarię"
             description="Opisz objawy awarii. Powiadomienie zostanie wysłane do kierownika."
-            afterSave={async (eqId) => {
-              const { error } = await supabase.from("equipment").update({ status: "awaria" }).eq("id", eqId);
-              if (error) toast.error(error.message); else toast.success("Zgłoszono awarię");
+            useRpc
+            afterSave={async () => {
+              toast.success("Zgłoszono awarię");
               setBreakdownFor(null); load();
             }}
             onClose={() => setBreakdownFor(null)}
@@ -1206,6 +1206,7 @@ function EquipmentEventDialog({
   fixedKind,
   title,
   description,
+  useRpc,
   afterSave,
   onClose,
 }: {
@@ -1214,6 +1215,7 @@ function EquipmentEventDialog({
   fixedKind?: EventKind;
   title: string;
   description?: string;
+  useRpc?: boolean;
   afterSave: (equipmentId: string) => void | Promise<void>;
   onClose: () => void;
 }) {
@@ -1232,30 +1234,41 @@ function EquipmentEventDialog({
     e.preventDefault();
     setBusy(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from("equipment_events")
-        .insert({
-          equipment_id: equipment.id,
-          kind,
-          title: titleVal.trim() || null,
-          description: desc.trim() || null,
-          performed_at: new Date(performedAt).toISOString(),
-          created_by: userId,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      let insertedId: string;
+      if (useRpc && fixedKind === "awaria") {
+        const { data: rpcId, error } = await supabase.rpc("report_equipment_breakdown", {
+          _equipment_id: equipment.id,
+          _description: desc.trim(),
+        });
+        if (error) throw error;
+        insertedId = rpcId as string;
+      } else {
+        const { data: inserted, error } = await supabase
+          .from("equipment_events")
+          .insert({
+            equipment_id: equipment.id,
+            kind,
+            title: titleVal.trim() || null,
+            description: desc.trim() || null,
+            performed_at: new Date(performedAt).toISOString(),
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        insertedId = inserted!.id;
+      }
 
-      if (files.length > 0 && inserted) {
+      if (files.length > 0) {
         for (const file of files) {
           const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
-          const path = `${equipment.id}/event/${inserted.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+          const path = `${equipment.id}/event/${insertedId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
           const { error: upErr } = await supabase.storage.from("equipment-files").upload(path, file);
           if (upErr) throw upErr;
           const isImage = (file.type || "").startsWith("image/");
           const { error: dbErr } = await supabase.from("equipment_attachments").insert({
             equipment_id: equipment.id,
-            event_id: inserted.id,
+            event_id: insertedId,
             kind: isImage ? "photo" : "service",
             file_path: path,
             original_name: file.name,
