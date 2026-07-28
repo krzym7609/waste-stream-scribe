@@ -543,39 +543,22 @@ type ChemRow = { label: string; flokProszk: number; flokEmul: number; wapno: num
 
 function buildChemistryGrid(rows: ChemRow[], opts?: { mode?: "bar" | "line" }): Content {
   const mode = opts?.mode ?? "bar";
-  const cellW = 254;
-  const cellH = 130;
-  const cells = CHEM_DEFS.map((c) => {
+  const cellW = 520;
+  const cellH = 150;
+  const charts = CHEM_DEFS.map((c) => {
     const data = rows.map((r) => ({ label: r.label, value: Number(r[c.key]) || 0 }));
-    const chart =
-      mode === "line"
-        ? buildAreaChart(data, { width: cellW, height: cellH, color: c.color, unit: c.unit, mode: "line", title: `${c.name} [${c.unit}]` })
-        : buildBarChart(
-            data.map((d) => ({ label: d.label, value: d.value, color: c.color })),
-            { width: cellW, height: cellH, title: `${c.name} [${c.unit}]` },
-          );
-    return chart;
+    return mode === "line"
+      ? buildAreaChart(data, { width: cellW, height: cellH, color: c.color, unit: c.unit, mode: "line", title: `${c.name} [${c.unit}]` })
+      : buildBarChart(
+          data.map((d) => ({ label: d.label, value: d.value, color: c.color })),
+          { width: cellW, height: cellH, title: `${c.name} [${c.unit}]` },
+        );
   });
   return {
-    table: {
-      widths: [cellW, cellW],
-      body: [
-        [cells[0], cells[1]],
-        [cells[2], cells[3]],
-      ],
-    },
-    layout: {
-      hLineColor: () => "#e5e7eb",
-      vLineColor: () => "#e5e7eb",
-      hLineWidth: () => 0.5,
-      vLineWidth: () => 0.5,
-      paddingLeft: () => 4,
-      paddingRight: () => 4,
-      paddingTop: () => 4,
-      paddingBottom: () => 4,
-    },
-  };
+    stack: charts.map((ch) => ({ ...(ch as any), margin: [0, 0, 0, 8] })),
+  } as Content;
 }
+
 
 
 
