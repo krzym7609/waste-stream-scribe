@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { NotificationsBell } from "@/components/notifications-bell";
 
 export function DutyBar() {
-  const { user } = useAuth();
+  const { user, isManager } = useAuth();
   const { data, isLoading } = useCurrentDuty();
   const qc = useQueryClient();
   const [now, setNow] = useState(() => new Date());
