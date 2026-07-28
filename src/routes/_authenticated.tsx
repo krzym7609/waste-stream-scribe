@@ -34,7 +34,7 @@ function AuthenticatedLayout() {
       ? [
           { to: "/schedule", label: "Harmonogram roczny", icon: CalendarRange },
           { to: "/manager/reports", label: "Raporty", icon: BarChart3 },
-          { to: "/shifts", label: "Zmiany", icon: ClipboardList },
+          
           { to: "/team", label: "Zespół", icon: Users },
           { to: "/settings/shifts", label: "Ustawienia zmian", icon: Settings },
         ]
