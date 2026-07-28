@@ -503,10 +503,10 @@ function EquipmentTimeline({ equipmentId, userId, isManager }: { equipmentId: st
 }
 
 function EquipmentEventDialog({
-  equipmentId, userId, fixedKind, title, description, afterSave, onClose,
+  equipmentId, userId, fixedKind, title, description, useRpc, afterSave, onClose,
 }: {
   equipmentId: string; userId: string | null; fixedKind?: EventKind;
-  title: string; description?: string;
+  title: string; description?: string; useRpc?: boolean;
   afterSave: () => void | Promise<void>; onClose: () => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -524,21 +524,32 @@ function EquipmentEventDialog({
     e.preventDefault();
     setBusy(true);
     try {
-      const { data: inserted, error } = await supabase.from("equipment_events").insert({
-        equipment_id: equipmentId, kind,
-        title: titleVal.trim() || null, description: desc.trim() || null,
-        performed_at: new Date(performedAt).toISOString(), created_by: userId,
-      }).select("id").single();
-      if (error) throw error;
-      if (files.length > 0 && inserted) {
+      let insertedId: string;
+      if (useRpc && fixedKind === "awaria") {
+        const { data: rpcId, error } = await supabase.rpc("report_equipment_breakdown", {
+          _equipment_id: equipmentId,
+          _description: desc.trim(),
+        });
+        if (error) throw error;
+        insertedId = rpcId as string;
+      } else {
+        const { data: inserted, error } = await supabase.from("equipment_events").insert({
+          equipment_id: equipmentId, kind,
+          title: titleVal.trim() || null, description: desc.trim() || null,
+          performed_at: new Date(performedAt).toISOString(), created_by: userId,
+        }).select("id").single();
+        if (error) throw error;
+        insertedId = inserted!.id;
+      }
+      if (files.length > 0) {
         for (const file of files) {
           const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
-          const path = `${equipmentId}/event/${inserted.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+          const path = `${equipmentId}/event/${insertedId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
           const { error: upErr } = await supabase.storage.from("equipment-files").upload(path, file);
           if (upErr) throw upErr;
           const isImage = (file.type || "").startsWith("image/");
           const { error: dbErr } = await supabase.from("equipment_attachments").insert({
-            equipment_id: equipmentId, event_id: inserted.id,
+            equipment_id: equipmentId, event_id: insertedId,
             kind: isImage ? "photo" : "service",
             file_path: path, original_name: file.name,
             mime_type: file.type || null, size_bytes: file.size, uploaded_by: userId,
