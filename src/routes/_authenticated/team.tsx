@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { createEmployee, resetEmployeePassword } from "@/lib/employees.functions";
+import { createEmployee, resetEmployeePassword, updateEmployee } from "@/lib/employees.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, KeyRound, Copy, AlertCircle } from "lucide-react";
+import { UserPlus, KeyRound, Copy, AlertCircle, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/team")({
   head: () => ({ meta: [{ title: "Zespół" }] }),
@@ -34,10 +34,12 @@ function TeamPage() {
   const { isManager, isAdmin, isBoss } = useAuth();
   const create = useServerFn(createEmployee);
   const reset = useServerFn(resetEmployeePassword);
+  const update = useServerFn(updateEmployee);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
   const [busy, setBusy] = useState(false);
   const [credentials, setCredentials] = useState<{ username: string; password: string; full_name: string } | null>(null);
 
@@ -108,6 +110,31 @@ function TeamPage() {
     }
   }
 
+  async function handleUpdate(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editing) return;
+    setBusy(true);
+    const fd = new FormData(e.currentTarget);
+    try {
+      await update({
+        data: {
+          user_id: editing.id,
+          first_name: String(fd.get("first_name")),
+          last_name: String(fd.get("last_name")),
+          phone: String(fd.get("phone") ?? "") || null,
+          role: String(fd.get("role") ?? "operator") as "operator" | "kierownik" | "admin" | "zarzadca",
+        },
+      });
+      toast.success("Dane pracownika zaktualizowane");
+      setEditing(null);
+      await load();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Błąd edycji");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="p-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
@@ -158,9 +185,14 @@ function TeamPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => handleReset(r)}>
-                      <KeyRound className="w-3.5 h-3.5" /> Resetuj hasło
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setEditing(r)}>
+                        <Pencil className="w-3.5 h-3.5" /> Edytuj
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleReset(r)}>
+                        <KeyRound className="w-3.5 h-3.5" /> Resetuj hasło
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -214,6 +246,60 @@ function TeamPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edycja pracownika</DialogTitle>
+            <DialogDescription>
+              Zmień dane osobowe{isBoss ? " lub rolę" : ""}. Login pozostaje bez zmian.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_first_name">Imię</Label>
+                  <Input id="edit_first_name" name="first_name" defaultValue={editing.first_name ?? ""} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_last_name">Nazwisko</Label>
+                  <Input id="edit_last_name" name="last_name" defaultValue={editing.last_name ?? ""} required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Login</Label>
+                <Input value={editing.username ?? ""} readOnly className="font-mono bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_phone">Telefon</Label>
+                <Input id="edit_phone" name="phone" type="tel" defaultValue={editing.phone ?? ""} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_role">Rola</Label>
+                <Select name="role" defaultValue={editing.role ?? "operator"} disabled={!isBoss && editing.role !== "operator"}>
+                  <SelectTrigger id="edit_role"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="operator">Operator</SelectItem>
+                    {isBoss && <SelectItem value="kierownik">Kierownik</SelectItem>}
+                    {isBoss && <SelectItem value="zarzadca">Zarządca (prezes)</SelectItem>}
+                    {isAdmin && <SelectItem value="admin">Administrator</SelectItem>}
+                  </SelectContent>
+                </Select>
+                {!isBoss && (
+                  <p className="text-xs text-muted-foreground">Tylko zarządca/administrator może zmieniać role kierownicze.</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>Anuluj</Button>
+                <Button type="submit" disabled={busy}>{busy ? "Zapisywanie…" : "Zapisz"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+
 
       <Dialog open={!!credentials} onOpenChange={(o) => !o && setCredentials(null)}>
         <DialogContent>

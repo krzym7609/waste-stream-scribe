@@ -110,3 +110,69 @@ export const resetEmployeePassword = createServerFn({ method: "POST" })
       .eq("id", data.user_id);
     return { password };
   });
+
+const updateInput = z.object({
+  user_id: z.string().uuid(),
+  first_name: z.string().trim().min(1).max(80),
+  last_name: z.string().trim().min(1).max(80),
+  phone: z.string().trim().max(40).optional().nullable(),
+  role: z.enum(["operator", "kierownik", "admin", "zarzadca"]).optional(),
+});
+
+export const updateEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => updateInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const roles = await assertManager(context as any);
+    const isBoss = roles.includes("admin") || roles.includes("zarzadca");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // pobierz obecną rolę edytowanego użytkownika
+    const { data: currentRoleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id)
+      .maybeSingle();
+    const currentRole = currentRoleRow?.role as string | undefined;
+
+    // kierownik nie może edytować kierownika/admina/zarządcy ani nadawać takich ról
+    if (!isBoss) {
+      if (currentRole && currentRole !== "operator") {
+        throw new Error("Tylko administrator lub zarządca może edytować kierownika/zarządcę/admina");
+      }
+      if (data.role && data.role !== "operator") {
+        throw new Error("Tylko administrator lub zarządca może nadawać rolę kierownika/zarządcy/admina");
+      }
+    }
+
+    const { error: profErr } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        first_name: data.first_name,
+        last_name: data.last_name,
+        phone: data.phone ?? null,
+      })
+      .eq("id", data.user_id);
+    if (profErr) throw new Error(profErr.message);
+
+    // zaktualizuj też user_metadata w auth
+    await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+      user_metadata: {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        phone: data.phone ?? null,
+      },
+    });
+
+    if (data.role && data.role !== currentRole) {
+      // usuń stare role i dodaj nową
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: data.user_id, role: data.role });
+      if (roleErr) throw new Error(roleErr.message);
+    }
+
+    return { ok: true };
+  });
