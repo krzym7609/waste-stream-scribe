@@ -204,7 +204,7 @@ export function DutyBar() {
               )}
             </span>
           </div>
-          {isMine ? (
+          {isMine && !isManager ? (
             <Dialog open={endOpen} onOpenChange={setEndOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">Zakończ zmianę</Button>
