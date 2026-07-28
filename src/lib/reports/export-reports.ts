@@ -386,7 +386,10 @@ export async function exportYearlyPdf(d: YearlyExportData) {
       { text: `Raport roczny — ${d.year}`, bold: true, fontSize: 14, alignment: "center", margin: [0, 0, 0, 12] },
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summary,
-      energyBars,
+      { text: "Energia", bold: true, margin: [0, 8, 0, 4] },
+      energyChart,
+      { text: "Chemia", bold: true, margin: [0, 8, 0, 4] },
+      chemistryGrid,
       { text: "Rozkład miesięczny", bold: true, margin: [0, 12, 0, 4] },
       monthlyTable,
     ],
@@ -394,6 +397,7 @@ export async function exportYearlyPdf(d: YearlyExportData) {
   };
   await downloadPdf(doc, `Raport-Roczny-${d.year}.pdf`);
 }
+
 
 /* -------- CHART HELPERS (pdfmake SVG) -------- */
 
