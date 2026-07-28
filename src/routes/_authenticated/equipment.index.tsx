@@ -1262,13 +1262,13 @@ function EquipmentEventDialog({
       if (files.length > 0) {
         for (const file of files) {
           const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
-          const path = `${equipment.id}/event/${inserted.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+          const path = `${equipment.id}/event/${insertedId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
           const { error: upErr } = await supabase.storage.from("equipment-files").upload(path, file);
           if (upErr) throw upErr;
           const isImage = (file.type || "").startsWith("image/");
           const { error: dbErr } = await supabase.from("equipment_attachments").insert({
             equipment_id: equipment.id,
-            event_id: inserted.id,
+            event_id: insertedId,
             kind: isImage ? "photo" : "service",
             file_path: path,
             original_name: file.name,
