@@ -322,6 +322,7 @@ export function DutyBar() {
               </>
             )}
           </div>
+          {!isManager && (
           <Dialog open={takeOpen} onOpenChange={setTakeOpen}>
             <DialogTrigger asChild>
               <Button size="sm">Rozpocznij zmianę</Button>
@@ -355,6 +356,7 @@ export function DutyBar() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          )}
         </>
       )}
     </div>
