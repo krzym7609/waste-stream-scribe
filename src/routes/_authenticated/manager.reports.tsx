@@ -26,6 +26,10 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -34,6 +38,7 @@ import {
   Legend,
 } from "recharts";
 import { Download, Pencil, History, Lock, FileSpreadsheet, FileText } from "lucide-react";
+
 import { generateShiftReportPdf, generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
 import {
   exportDailyExcel,
@@ -53,6 +58,104 @@ const MONTHS_PL = [
   "Sty", "Lut", "Mar", "Kwi", "Maj", "Cze",
   "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru",
 ];
+
+/* Number formatting — polski format, ograniczone miejsca po przecinku */
+const nf = (decimals = 1) =>
+  new Intl.NumberFormat("pl-PL", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  });
+const fmt = (n: number | null | undefined, decimals = 1) =>
+  n == null || Number.isNaN(Number(n)) ? "—" : nf(decimals).format(Number(n));
+
+/* Definicje chemikaliów — jeden konfig do wykresów małych wielokrotności */
+const CHEM_SERIES = [
+  { key: "flokProszk", name: "Flokulant proszkowy", unit: "kg", color: "#10b981" },
+  { key: "flokEmul",   name: "Flokulant emulsyjny", unit: "l",  color: "#f59e0b" },
+  { key: "wapno",      name: "Wapno",               unit: "kg", color: "#8b5cf6" },
+  { key: "fecl",       name: "Chlorek żelaza",      unit: "l",  color: "#ef4444" },
+] as const;
+
+function EnergyChart({ data, xKey, height = 260 }: { data: any[]; xKey: string; height?: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="energyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.55} />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey={xKey} tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => nf(0).format(v)} />
+        <Tooltip
+          formatter={(v: any) => [`${nf(0).format(Number(v))} kWh`, "Energia"]}
+          contentStyle={{ fontSize: 12 }}
+        />
+        <Area
+          type="monotone"
+          dataKey="energia"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          fill="url(#energyGrad)"
+          name="Energia [kWh]"
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ChemistrySmallMultiples({
+  data,
+  xKey,
+  height = 180,
+}: {
+  data: any[];
+  xKey: string;
+  height?: number;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {CHEM_SERIES.map((s) => (
+        <div key={s.key} className="border rounded-md p-3">
+          <div className="text-xs font-medium mb-1" style={{ color: s.color }}>
+            {s.name} [{s.unit}]
+          </div>
+          <ResponsiveContainer width="100%" height={height}>
+            <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey={xKey} tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => nf(1).format(v)} />
+              <Tooltip
+                formatter={(v: any) => [`${nf(2).format(Number(v))} ${s.unit}`, s.name]}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Bar dataKey={s.key} fill={s.color} radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TasksChart({ data, xKey, height = 220 }: { data: any[]; xKey: string; height?: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey={xKey} tick={{ fontSize: 12 }} />
+        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+        <Tooltip contentStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="done" stackId="t" fill="#10b981" name="Wykonane" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="pending" stackId="t" fill="#ef4444" name="Niewykonane" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 
 function ManagerReportsPage() {
   const { isManager, loading } = useAuth();
@@ -441,13 +544,14 @@ function MonthlyView() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Raportów" value={agg.raportow} />
-            <Stat label="Zużycie energii" value={`${agg.energia.toFixed(0)} kWh`} />
-            <Stat label="Flokulant proszk." value={`${agg.flokProszk.toFixed(1)} kg`} />
-            <Stat label="Flokulant emul." value={`${agg.flokEmul.toFixed(1)} l`} />
-            <Stat label="Wapno" value={`${agg.wapno.toFixed(1)} kg`} />
-            <Stat label="Chlorek żelaza" value={`${agg.fecl.toFixed(1)} l`} />
-            <Stat label="Średnia S.M. zag." value={`${agg.smZag.toFixed(2)} %`} />
-            <Stat label="Średnia S.M. odw." value={`${agg.smOdw.toFixed(2)} %`} />
+            <Stat label="Zużycie energii" value={`${fmt(agg.energia, 0)} kWh`} />
+            <Stat label="Flokulant proszk." value={`${fmt(agg.flokProszk, 1)} kg`} />
+            <Stat label="Flokulant emul." value={`${fmt(agg.flokEmul, 1)} l`} />
+            <Stat label="Wapno" value={`${fmt(agg.wapno, 1)} kg`} />
+            <Stat label="Chlorek żelaza" value={`${fmt(agg.fecl, 1)} l`} />
+            <Stat label="Średnia S.M. zag." value={`${fmt(agg.smZag, 2)} %`} />
+            <Stat label="Średnia S.M. odw." value={`${fmt(agg.smOdw, 2)} %`} />
+
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Zadania wykonane" value={agg.done} />
@@ -457,41 +561,20 @@ function MonthlyView() {
           </div>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Zużycie energii i chemii (dziennie)</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dailyChart}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="energia" fill="#3b82f6" name="Energia [kWh]" />
-                  <Bar dataKey="flokProszk" fill="#10b981" name="Flok. proszk. [kg]" />
-                  <Bar dataKey="flokEmul" fill="#f59e0b" name="Flok. emul. [l]" />
-                  <Bar dataKey="wapno" fill="#8b5cf6" name="Wapno [kg]" />
-                  <Bar dataKey="fecl" fill="#ef4444" name="FeCl₃ [l]" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
+            <CardHeader><CardTitle className="text-base">Zużycie energii — dziennie [kWh]</CardTitle></CardHeader>
+            <CardContent><EnergyChart data={dailyChart} xKey="day" /></CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Zużycie chemii — dziennie</CardTitle></CardHeader>
+            <CardContent><ChemistrySmallMultiples data={dailyChart} xKey="day" /></CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Wykonanie zadań (dziennie)</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={dailyChart}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="done" fill="#10b981" name="Wykonane" />
-                  <Bar dataKey="pending" fill="#ef4444" name="Niewykonane" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
+            <CardContent><TasksChart data={dailyChart} xKey="day" /></CardContent>
           </Card>
+
         </>
       )}
     </div>
@@ -570,41 +653,70 @@ function YearlyView() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Zużycie energii i chemii</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Zużycie energii — miesięcznie [kWh]</CardTitle></CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="energia" fill="#3b82f6" name="Energia [kWh]" />
-              <Bar dataKey="flokProszk" fill="#10b981" name="Flok. proszk. [kg]" />
-              <Bar dataKey="flokEmul" fill="#f59e0b" name="Flok. emul. [l]" />
-              <Bar dataKey="wapno" fill="#8b5cf6" name="Wapno [kg]" />
-              <Bar dataKey="fecl" fill="#ef4444" name="FeCl₃ [l]" />
-            </BarChart>
+            <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => nf(0).format(v)} />
+              <Tooltip
+                formatter={(v: any) => [`${nf(0).format(Number(v))} kWh`, "Energia"]}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="energia"
+                stroke="#3b82f6"
+                strokeWidth={2.5}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+                name="Energia [kWh]"
+              />
+            </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Wykonanie zadań</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Zużycie chemii — miesięcznie (trend)</CardTitle></CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="done" fill="#10b981" name="Wykonane" />
-              <Bar dataKey="pending" fill="#ef4444" name="Niewykonane" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {CHEM_SERIES.map((s) => (
+              <div key={s.key} className="border rounded-md p-3">
+                <div className="text-xs font-medium mb-1" style={{ color: s.color }}>
+                  {s.name} [{s.unit}]
+                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => nf(1).format(v)} />
+                    <Tooltip
+                      formatter={(v: any) => [`${nf(2).format(Number(v))} ${s.unit}`, s.name]}
+                      contentStyle={{ fontSize: 12 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey={s.key}
+                      stroke={s.color}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Wykonanie zadań (miesięcznie)</CardTitle></CardHeader>
+        <CardContent><TasksChart data={chartData} xKey="month" /></CardContent>
+      </Card>
+
     </div>
   );
 }
@@ -612,13 +724,15 @@ function YearlyView() {
 /* ---------------- HELPERS ---------------- */
 
 function Metric({ label, value, unit }: { label: string; value: number | null; unit: string }) {
+  const decimals = unit === "kWh" ? 0 : unit === "%" ? 2 : 1;
   return (
     <div className="bg-muted/40 rounded px-2 py-1">
       <div className="text-[10px] text-muted-foreground uppercase">{label}</div>
-      <div className="font-medium">{value != null ? `${value} ${unit}` : "—"}</div>
+      <div className="font-medium">{value != null ? `${fmt(value, decimals)} ${unit}` : "—"}</div>
     </div>
   );
 }
+
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
