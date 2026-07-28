@@ -110,7 +110,32 @@ function TeamPage() {
     }
   }
 
-  return (
+  async function handleUpdate(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editing) return;
+    setBusy(true);
+    const fd = new FormData(e.currentTarget);
+    try {
+      await update({
+        data: {
+          user_id: editing.id,
+          first_name: String(fd.get("first_name")),
+          last_name: String(fd.get("last_name")),
+          phone: String(fd.get("phone") ?? "") || null,
+          role: String(fd.get("role") ?? "operator") as "operator" | "kierownik" | "admin" | "zarzadca",
+        },
+      });
+      toast.success("Dane pracownika zaktualizowane");
+      setEditing(null);
+      await load();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Błąd edycji");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
     <div className="p-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
         <div>
