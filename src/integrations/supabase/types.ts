@@ -1048,6 +1048,10 @@ export type Database = {
       is_admin_role: { Args: { _uid: string }; Returns: boolean }
       is_manager_role: { Args: { _uid: string }; Returns: boolean }
       notify_overdue_tasks: { Args: never; Returns: undefined }
+      report_equipment_breakdown: {
+        Args: { _description: string; _equipment_id: string }
+        Returns: string
+      }
       username_to_email: { Args: { _username: string }; Returns: string }
     }
     Enums: {
