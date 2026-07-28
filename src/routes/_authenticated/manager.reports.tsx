@@ -544,13 +544,14 @@ function MonthlyView() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Raportów" value={agg.raportow} />
-            <Stat label="Zużycie energii" value={`${agg.energia.toFixed(0)} kWh`} />
-            <Stat label="Flokulant proszk." value={`${agg.flokProszk.toFixed(1)} kg`} />
-            <Stat label="Flokulant emul." value={`${agg.flokEmul.toFixed(1)} l`} />
-            <Stat label="Wapno" value={`${agg.wapno.toFixed(1)} kg`} />
-            <Stat label="Chlorek żelaza" value={`${agg.fecl.toFixed(1)} l`} />
-            <Stat label="Średnia S.M. zag." value={`${agg.smZag.toFixed(2)} %`} />
-            <Stat label="Średnia S.M. odw." value={`${agg.smOdw.toFixed(2)} %`} />
+            <Stat label="Zużycie energii" value={`${fmt(agg.energia, 0)} kWh`} />
+            <Stat label="Flokulant proszk." value={`${fmt(agg.flokProszk, 1)} kg`} />
+            <Stat label="Flokulant emul." value={`${fmt(agg.flokEmul, 1)} l`} />
+            <Stat label="Wapno" value={`${fmt(agg.wapno, 1)} kg`} />
+            <Stat label="Chlorek żelaza" value={`${fmt(agg.fecl, 1)} l`} />
+            <Stat label="Średnia S.M. zag." value={`${fmt(agg.smZag, 2)} %`} />
+            <Stat label="Średnia S.M. odw." value={`${fmt(agg.smOdw, 2)} %`} />
+
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Zadania wykonane" value={agg.done} />
