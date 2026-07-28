@@ -259,26 +259,26 @@ function EquipmentPage() {
                         <Button variant="ghost" size="sm" asChild>
                           <Link to="/equipment/$id" params={{ id: e.id }}>Szczegóły</Link>
                         </Button>
-                        {isManager && (
-                          <>
-                            {e.status !== "awaria" ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive"
-                                onClick={() => setBreakdownFor(e)}
-                              >
-                                <AlertTriangle className="w-3.5 h-3.5" /> Awaria
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" onClick={() => setRepairFor(e)}>
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Sprawne
-                              </Button>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
-                              <Pencil className="w-3.5 h-3.5" />
+                        {e.status !== "awaria" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => setBreakdownFor(e)}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" /> Awaria
+                          </Button>
+                        ) : (
+                          isManager && (
+                            <Button variant="ghost" size="sm" onClick={() => setRepairFor(e)}>
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Sprawne
                             </Button>
-                          </>
+                          )
+                        )}
+                        {isManager && (
+                          <Button variant="ghost" size="sm" onClick={() => setEditEq(e)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
