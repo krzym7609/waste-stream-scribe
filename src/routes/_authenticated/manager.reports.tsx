@@ -26,6 +26,10 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -34,6 +38,7 @@ import {
   Legend,
 } from "recharts";
 import { Download, Pencil, History, Lock, FileSpreadsheet, FileText } from "lucide-react";
+
 import { generateShiftReportPdf, generateHandoverPdf } from "@/lib/pdf/shift-report-pdf";
 import {
   exportDailyExcel,
