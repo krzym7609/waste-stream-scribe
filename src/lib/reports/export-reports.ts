@@ -432,10 +432,13 @@ function buildBarChart(
       const h = (d.value / max) * innerH;
       const x = padL + step * i + (step - barW) / 2;
       const y = padT + innerH - h;
+      const lbl = fmtTick(d.value);
       return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${d.color}"/>
+        <text x="${x + barW / 2}" y="${Math.max(padT + 7, y - 2)}" font-size="6" text-anchor="middle" fill="#111">${lbl}</text>
         <text x="${x + barW / 2}" y="${padT + innerH + 10}" font-size="6" text-anchor="middle" fill="#333">${escapeXml(d.label)}</text>`;
     })
     .join("");
+
 
   const title = opts?.title
     ? `<text x="${width / 2}" y="8" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
