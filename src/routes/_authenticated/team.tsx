@@ -34,10 +34,12 @@ function TeamPage() {
   const { isManager, isAdmin, isBoss } = useAuth();
   const create = useServerFn(createEmployee);
   const reset = useServerFn(resetEmployeePassword);
+  const update = useServerFn(updateEmployee);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<Row | null>(null);
   const [busy, setBusy] = useState(false);
   const [credentials, setCredentials] = useState<{ username: string; password: string; full_name: string } | null>(null);
 
