@@ -343,10 +343,15 @@ export async function exportYearlyPdf(d: YearlyExportData) {
     margin: [0, 0, 0, 10],
   };
 
-  const energyBars = buildBarChart(
-    d.months.map((r) => ({ label: r.month, value: r.energia, color: "#3b82f6" })),
-    { width: 520, height: 160, title: "Zużycie energii [kWh] — miesięcznie" },
+  const energyChart = buildAreaChart(
+    d.months.map((r) => ({ label: r.month, value: r.energia })),
+    { width: 520, height: 160, title: "Zużycie energii [kWh] — miesięcznie", color: "#3b82f6", unit: "kWh", mode: "line" },
   );
+  const chemistryGrid = buildChemistryGrid(
+    d.months.map((r) => ({ label: r.month, flokProszk: r.flokProszk, flokEmul: r.flokEmul, wapno: r.wapno, fecl: r.fecl })),
+    { mode: "line" },
+  );
+
 
   const monthlyTable: Content = {
     table: {
