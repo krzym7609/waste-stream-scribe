@@ -44,15 +44,6 @@ export function exportDailyExcel(d: DailyExportData) {
   const wsReports = XLSX.utils.json_to_sheet(reportsRows);
   XLSX.utils.book_append_sheet(wb, wsReports, "Raporty zmianowe");
 
-  const execsRows = d.execs.map((e) => ({
-    Zmiana: e.scheduled_shift ?? "",
-    "Nr zadania": e.task?.task_number ?? "",
-    Nazwa: e.task?.name ?? "",
-    Status: e.status,
-    Notatka: e.note ?? "",
-  }));
-  const wsExecs = XLSX.utils.json_to_sheet(execsRows);
-  XLSX.utils.book_append_sheet(wb, wsExecs, "Zadania");
 
   const handRows = d.handovers.map((h) => ({
     Przekazujący: d.profMap.get(h.from_user_id) ?? "—",
@@ -68,10 +59,6 @@ export function exportDailyExcel(d: DailyExportData) {
 }
 
 export async function exportDailyPdf(d: DailyExportData) {
-  const doneCnt = d.execs.filter((e) => e.status === "done").length;
-  const pendingCnt = d.execs.filter((e) => e.status === "pending").length;
-  const deferredCnt = d.execs.filter((e) => e.status === "deferred").length;
-
   const totalEnergia = d.reports.reduce(
     (s, r) => s + Math.max(0, (Number(r.energia_end) || 0) - (Number(r.energia_start) || 0)),
     0,
@@ -89,19 +76,12 @@ export async function exportDailyPdf(d: DailyExportData) {
         ["Flokulant emul. [l]", { text: sum("flokulant_emulsyjny_l").toFixed(1), alignment: "right" }],
         ["Wapno [kg]", { text: sum("wapno_kg").toFixed(1), alignment: "right" }],
         ["Chlorek żelaza [l]", { text: sum("chlorek_zelaza_l").toFixed(1), alignment: "right" }],
-        ["Zadania — wykonane / niewykonane / przeniesione", { text: `${doneCnt} / ${pendingCnt} / ${deferredCnt}`, alignment: "right" }],
         ["Przekazania zmiany", { text: String(d.handovers.length), alignment: "right" }],
       ],
     },
     margin: [0, 0, 0, 10],
   };
 
-  const chartData = [
-    { label: "Wykonane", value: doneCnt, color: "#10b981" },
-    { label: "Niewykon.", value: pendingCnt, color: "#ef4444" },
-    { label: "Przenies.", value: deferredCnt, color: "#f59e0b" },
-  ];
-  const barChart = buildBarChart(chartData);
 
   const reportsTable: Content =
     d.reports.length === 0
@@ -152,8 +132,6 @@ export async function exportDailyPdf(d: DailyExportData) {
       { text: `Raport dzienny — ${d.date}`, bold: true, fontSize: 14, alignment: "center", margin: [0, 0, 0, 12] },
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summaryTable,
-      { text: "Wykonanie zadań", bold: true, margin: [0, 4, 0, 4] },
-      barChart,
       { text: "Raporty zmianowe", bold: true, margin: [0, 12, 0, 4] },
       reportsTable,
     ],
