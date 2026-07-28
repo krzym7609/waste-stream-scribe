@@ -203,8 +203,23 @@ export const deleteEmployee = createServerFn({ method: "POST" })
       throw new Error("Tylko administrator lub zarządca może usuwać kierownika/zarządcę/admina");
     }
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
-    if (error) throw new Error(error.message);
+    const { error: profErr } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        employment_status: "inactive",
+        deactivated_at: new Date().toISOString(),
+        deactivated_by: (context as any).userId,
+      })
+      .eq("id", data.user_id);
+    if (profErr) throw new Error(profErr.message);
+
+    const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+      ban_duration: "876000h",
+      user_metadata: {
+        deactivated: true,
+      },
+    });
+    if (authErr) throw new Error(authErr.message);
 
     return { ok: true };
   });
