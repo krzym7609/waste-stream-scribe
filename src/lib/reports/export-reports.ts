@@ -183,9 +183,6 @@ export function exportMonthlyExcel(d: MonthlyExportData) {
     { Wskaznik: "Chlorek żelaza [l]", Wartosc: Number(d.agg.fecl.toFixed(1)) },
     { Wskaznik: "Średnia S.M. zagęszcz. [%]", Wartosc: Number(d.agg.smZag.toFixed(2)) },
     { Wskaznik: "Średnia S.M. odwod. [%]", Wartosc: Number(d.agg.smOdw.toFixed(2)) },
-    { Wskaznik: "Zadania wykonane", Wartosc: d.agg.done },
-    { Wskaznik: "Zadania niewykonane", Wartosc: d.agg.pending },
-    { Wskaznik: "Przeniesione", Wartosc: d.agg.deferred },
     { Wskaznik: "Przekazania (przyjęte / wszystkie)", Wartosc: `${d.agg.handoversAccepted} / ${d.agg.handovers}` },
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Podsumowanie");
@@ -197,8 +194,6 @@ export function exportMonthlyExcel(d: MonthlyExportData) {
     "Flok. emul. [l]": Number(r.flokEmul.toFixed(2)),
     "Wapno [kg]": Number(r.wapno.toFixed(2)),
     "FeCl₃ [l]": Number(r.fecl.toFixed(2)),
-    "Zadania wykonane": r.done,
-    "Zadania niewykonane": r.pending,
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(daily), "Dziennie");
   saveWorkbook(wb, `Raport-Miesieczny-${d.year}-${String(d.month).padStart(2, "0")}.xlsx`);
@@ -218,7 +213,7 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
         ["Chlorek żelaza [l]", { text: d.agg.fecl.toFixed(1), alignment: "right" }],
         ["Śr. S.M. zagęszcz. [%]", { text: d.agg.smZag.toFixed(2), alignment: "right" }],
         ["Śr. S.M. odwod. [%]", { text: d.agg.smOdw.toFixed(2), alignment: "right" }],
-        ["Zadania — wyk./niewyk./prze.", { text: `${d.agg.done} / ${d.agg.pending} / ${d.agg.deferred}`, alignment: "right" }],
+        
         ["Przekazania (przyjęte/wszystkie)", { text: `${d.agg.handoversAccepted} / ${d.agg.handovers}`, alignment: "right" }],
       ],
     },
@@ -230,12 +225,12 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
     { width: 520, height: 140, title: "Zużycie energii [kWh] — dzienne" },
   );
 
-  const tasksBars = buildStackedTasksChart(d.dailyChart);
+  
 
   const dailyTable: Content = {
     table: {
       headerRows: 1,
-      widths: [24, 50, 50, 50, 40, 40, 40, 40],
+      widths: [24, 60, 60, 60, 50, 50],
       body: [
         [
           { text: "Dz.", fillColor: GRAY, bold: true },
@@ -244,8 +239,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
           { text: "Flok.e.", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "Wapno", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "FeCl₃", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Wyk.", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Niewyk.", fillColor: GRAY, bold: true, alignment: "right" },
         ],
         ...d.dailyChart.map<TableCell[]>((r) => [
           { text: r.day },
@@ -254,8 +247,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
           { text: r.flokEmul.toFixed(1), alignment: "right" },
           { text: r.wapno.toFixed(1), alignment: "right" },
           { text: r.fecl.toFixed(1), alignment: "right" },
-          { text: String(r.done), alignment: "right" },
-          { text: String(r.pending), alignment: "right" },
         ]),
       ],
     },
@@ -276,8 +267,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summaryTable,
       energyBars,
-      { text: "", margin: [0, 6, 0, 0] },
-      tasksBars,
       { text: "Rozkład dzienny", bold: true, margin: [0, 12, 0, 4], pageBreak: "before" },
       dailyTable,
     ],
@@ -311,8 +300,6 @@ export function exportYearlyExcel(d: YearlyExportData) {
     "Flok. emul. [l]": Number(r.flokEmul.toFixed(2)),
     "Wapno [kg]": Number(r.wapno.toFixed(2)),
     "FeCl₃ [l]": Number(r.fecl.toFixed(2)),
-    "Zadania wykonane": r.done,
-    "Zadania niewykonane": r.pending,
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), `Rok ${d.year}`);
   saveWorkbook(wb, `Raport-Roczny-${d.year}.xlsx`);
@@ -326,10 +313,8 @@ export async function exportYearlyPdf(d: YearlyExportData) {
       flokEmul: s.flokEmul + r.flokEmul,
       wapno: s.wapno + r.wapno,
       fecl: s.fecl + r.fecl,
-      done: s.done + r.done,
-      pending: s.pending + r.pending,
     }),
-    { energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0, done: 0, pending: 0 },
+    { energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0 },
   );
 
   const summary: Content = {
