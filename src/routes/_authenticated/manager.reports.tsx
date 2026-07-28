@@ -140,21 +140,6 @@ function ChemistrySmallMultiples({
   );
 }
 
-function TasksChart({ data, xKey, height = 220 }: { data: any[]; xKey: string; height?: number }) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis dataKey={xKey} tick={{ fontSize: 12 }} />
-        <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-        <Tooltip contentStyle={{ fontSize: 12 }} />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="done" stackId="t" fill="#10b981" name="Wykonane" radius={[0, 0, 0, 0]} />
-        <Bar dataKey="pending" stackId="t" fill="#ef4444" name="Niewykonane" radius={[3, 3, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
 
 
 function ManagerReportsPage() {
@@ -570,10 +555,6 @@ function MonthlyView() {
             <CardContent><ChemistrySmallMultiples data={dailyChart} xKey="day" /></CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Wykonanie zadań (dziennie)</CardTitle></CardHeader>
-            <CardContent><TasksChart data={dailyChart} xKey="day" /></CardContent>
-          </Card>
 
         </>
       )}
@@ -712,10 +693,6 @@ function YearlyView() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Wykonanie zadań (miesięcznie)</CardTitle></CardHeader>
-        <CardContent><TasksChart data={chartData} xKey="month" /></CardContent>
-      </Card>
 
     </div>
   );
