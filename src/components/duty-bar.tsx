@@ -303,7 +303,7 @@ export function DutyBar() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          )}
+          ) : null}
         </>
       ) : (
         <>
