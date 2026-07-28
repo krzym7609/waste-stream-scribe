@@ -272,9 +272,13 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
       },
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summaryTable,
-      energyBars,
+      { text: "Energia", bold: true, margin: [0, 8, 0, 4] },
+      energyChart,
+      { text: "Chemia", bold: true, margin: [0, 8, 0, 4] },
+      chemistryGrid,
       { text: "Rozkład dzienny", bold: true, margin: [0, 12, 0, 4], pageBreak: "before" },
       dailyTable,
+
     ],
     defaultStyle: { fontSize: 9 },
   };
