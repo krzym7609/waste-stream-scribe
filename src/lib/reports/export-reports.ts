@@ -220,10 +220,16 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
     margin: [0, 0, 0, 10],
   };
 
-  const energyBars = buildBarChart(
-    d.dailyChart.map((r) => ({ label: r.day, value: r.energia, color: "#3b82f6" })),
-    { width: 520, height: 140, title: "Zużycie energii [kWh] — dzienne" },
+  const energyChart = buildAreaChart(
+    d.dailyChart.map((r) => ({ label: r.day, value: r.energia })),
+    { width: 520, height: 150, title: "Zużycie energii [kWh] — dzienne", color: "#3b82f6", unit: "kWh" },
   );
+
+  const chemistryGrid = buildChemistryGrid(
+    d.dailyChart.map((r) => ({ label: r.day, flokProszk: r.flokProszk, flokEmul: r.flokEmul, wapno: r.wapno, fecl: r.fecl })),
+  );
+
+
 
   
 
@@ -266,9 +272,13 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
       },
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summaryTable,
-      energyBars,
+      { text: "Energia", bold: true, margin: [0, 8, 0, 4] },
+      energyChart,
+      { text: "Chemia", bold: true, margin: [0, 8, 0, 4] },
+      chemistryGrid,
       { text: "Rozkład dzienny", bold: true, margin: [0, 12, 0, 4], pageBreak: "before" },
       dailyTable,
+
     ],
     defaultStyle: { fontSize: 9 },
   };
@@ -333,10 +343,15 @@ export async function exportYearlyPdf(d: YearlyExportData) {
     margin: [0, 0, 0, 10],
   };
 
-  const energyBars = buildBarChart(
-    d.months.map((r) => ({ label: r.month, value: r.energia, color: "#3b82f6" })),
-    { width: 520, height: 160, title: "Zużycie energii [kWh] — miesięcznie" },
+  const energyChart = buildAreaChart(
+    d.months.map((r) => ({ label: r.month, value: r.energia })),
+    { width: 520, height: 160, title: "Zużycie energii [kWh] — miesięcznie", color: "#3b82f6", unit: "kWh", mode: "line" },
   );
+  const chemistryGrid = buildChemistryGrid(
+    d.months.map((r) => ({ label: r.month, flokProszk: r.flokProszk, flokEmul: r.flokEmul, wapno: r.wapno, fecl: r.fecl })),
+    { mode: "line" },
+  );
+
 
   const monthlyTable: Content = {
     table: {
@@ -371,7 +386,10 @@ export async function exportYearlyPdf(d: YearlyExportData) {
       { text: `Raport roczny — ${d.year}`, bold: true, fontSize: 14, alignment: "center", margin: [0, 0, 0, 12] },
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summary,
-      energyBars,
+      { text: "Energia", bold: true, margin: [0, 8, 0, 4] },
+      energyChart,
+      { text: "Chemia", bold: true, margin: [0, 8, 0, 4] },
+      chemistryGrid,
       { text: "Rozkład miesięczny", bold: true, margin: [0, 12, 0, 4] },
       monthlyTable,
     ],
@@ -379,6 +397,7 @@ export async function exportYearlyPdf(d: YearlyExportData) {
   };
   await downloadPdf(doc, `Raport-Roczny-${d.year}.pdf`);
 }
+
 
 /* -------- CHART HELPERS (pdfmake SVG) -------- */
 
@@ -430,6 +449,126 @@ function buildBarChart(
   </svg>`;
   return { svg, width, alignment: "center" };
 }
+
+function fmtTick(v: number) {
+  if (Math.abs(v) >= 1000) return String(Math.round(v));
+  if (Math.abs(v) >= 10) return v.toFixed(0);
+  return v.toFixed(1);
+}
+
+function buildAreaChart(
+  data: Array<{ label: string; value: number }>,
+  opts: { width?: number; height?: number; title?: string; color: string; unit?: string; mode?: "area" | "line" },
+): Content {
+  const width = opts.width ?? 520;
+  const height = opts.height ?? 150;
+  const padL = 38, padR = 10, padT = 16, padB = 26;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+  const max = Math.max(1, ...data.map((d) => d.value));
+  const n = Math.max(1, data.length);
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : innerW;
+  const points = data.map((d, i) => {
+    const x = data.length > 1 ? padL + stepX * i : padL + innerW / 2;
+    const y = padT + innerH - (d.value / max) * innerH;
+    return { x, y, d };
+  });
+
+  const yTicks = 4;
+  const grid: string[] = [];
+  for (let i = 0; i <= yTicks; i++) {
+    const v = (max * i) / yTicks;
+    const y = padT + innerH - (innerH * i) / yTicks;
+    grid.push(
+      `<line x1="${padL}" y1="${y}" x2="${padL + innerW}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`,
+      `<text x="${padL - 4}" y="${y + 3}" font-size="7" text-anchor="end" fill="#666">${fmtTick(v)}</text>`,
+    );
+  }
+
+  // X labels — thin them if too many
+  const maxLabels = Math.floor(innerW / 22);
+  const stepLabel = Math.max(1, Math.ceil(n / maxLabels));
+  const xLabels = points
+    .map((p, i) =>
+      i % stepLabel === 0
+        ? `<text x="${p.x}" y="${padT + innerH + 10}" font-size="6" text-anchor="middle" fill="#333">${escapeXml(p.d.label)}</text>`
+        : "",
+    )
+    .join("");
+
+  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaPath =
+    opts.mode === "line"
+      ? ""
+      : `${linePath} L${points[points.length - 1].x.toFixed(1)},${padT + innerH} L${points[0].x.toFixed(1)},${padT + innerH} Z`;
+
+  const gradId = `g_${Math.random().toString(36).slice(2, 8)}`;
+  const defs =
+    opts.mode === "line"
+      ? ""
+      : `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${opts.color}" stop-opacity="0.55"/><stop offset="100%" stop-color="${opts.color}" stop-opacity="0.05"/></linearGradient></defs>`;
+
+  const area = areaPath ? `<path d="${areaPath}" fill="url(#${gradId})"/>` : "";
+  const line = `<path d="${linePath}" fill="none" stroke="${opts.color}" stroke-width="1.6"/>`;
+  const dots = points.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.4" fill="${opts.color}"/>`).join("");
+
+  const title = opts.title
+    ? `<text x="${width / 2}" y="10" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
+    : "";
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    ${defs}${title}${grid.join("")}
+    <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
+    ${area}${line}${dots}${xLabels}
+  </svg>`;
+  return { svg, width, alignment: "center" };
+}
+
+const CHEM_DEFS = [
+  { key: "flokProszk" as const, name: "Flokulant proszkowy", unit: "kg", color: "#10b981" },
+  { key: "flokEmul" as const,   name: "Flokulant emulsyjny", unit: "l",  color: "#f59e0b" },
+  { key: "wapno" as const,      name: "Wapno",               unit: "kg", color: "#8b5cf6" },
+  { key: "fecl" as const,       name: "Chlorek żelaza",      unit: "l",  color: "#ef4444" },
+];
+
+type ChemRow = { label: string; flokProszk: number; flokEmul: number; wapno: number; fecl: number };
+
+function buildChemistryGrid(rows: ChemRow[], opts?: { mode?: "bar" | "line" }): Content {
+  const mode = opts?.mode ?? "bar";
+  const cellW = 254;
+  const cellH = 130;
+  const cells = CHEM_DEFS.map((c) => {
+    const data = rows.map((r) => ({ label: r.label, value: Number(r[c.key]) || 0 }));
+    const chart =
+      mode === "line"
+        ? buildAreaChart(data, { width: cellW, height: cellH, color: c.color, unit: c.unit, mode: "line", title: `${c.name} [${c.unit}]` })
+        : buildBarChart(
+            data.map((d) => ({ label: d.label, value: d.value, color: c.color })),
+            { width: cellW, height: cellH, title: `${c.name} [${c.unit}]` },
+          );
+    return chart;
+  });
+  return {
+    table: {
+      widths: [cellW, cellW],
+      body: [
+        [cells[0], cells[1]],
+        [cells[2], cells[3]],
+      ],
+    },
+    layout: {
+      hLineColor: () => "#e5e7eb",
+      vLineColor: () => "#e5e7eb",
+      hLineWidth: () => 0.5,
+      vLineWidth: () => 0.5,
+      paddingLeft: () => 4,
+      paddingRight: () => 4,
+      paddingTop: () => 4,
+      paddingBottom: () => 4,
+    },
+  };
+}
+
 
 
 function escapeXml(s: string) {
