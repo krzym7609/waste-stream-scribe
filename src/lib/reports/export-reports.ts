@@ -327,7 +327,7 @@ export async function exportYearlyPdf(d: YearlyExportData) {
         ["Flokulant emul. [l]", { text: totals.flokEmul.toFixed(1), alignment: "right" }],
         ["Wapno [kg]", { text: totals.wapno.toFixed(1), alignment: "right" }],
         ["Chlorek żelaza [l]", { text: totals.fecl.toFixed(1), alignment: "right" }],
-        ["Zadania wykonane / niewykonane", { text: `${totals.done} / ${totals.pending}`, alignment: "right" }],
+        
       ],
     },
     margin: [0, 0, 0, 10],
@@ -337,14 +337,11 @@ export async function exportYearlyPdf(d: YearlyExportData) {
     d.months.map((r) => ({ label: r.month, value: r.energia, color: "#3b82f6" })),
     { width: 520, height: 160, title: "Zużycie energii [kWh] — miesięcznie" },
   );
-  const tasksBars = buildStackedTasksChart(
-    d.months.map((r) => ({ day: r.month, done: r.done, pending: r.pending, energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0 })),
-  );
 
   const monthlyTable: Content = {
     table: {
       headerRows: 1,
-      widths: [40, 60, 55, 55, 50, 50, 40, 45],
+      widths: [40, 70, 65, 65, 60, 60],
       body: [
         [
           { text: "M-c", fillColor: GRAY, bold: true },
@@ -353,8 +350,6 @@ export async function exportYearlyPdf(d: YearlyExportData) {
           { text: "Flok.e.", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "Wapno", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "FeCl₃", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Wyk.", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Niewyk.", fillColor: GRAY, bold: true, alignment: "right" },
         ],
         ...d.months.map<TableCell[]>((r) => [
           { text: r.month },
@@ -363,8 +358,6 @@ export async function exportYearlyPdf(d: YearlyExportData) {
           { text: r.flokEmul.toFixed(1), alignment: "right" },
           { text: r.wapno.toFixed(1), alignment: "right" },
           { text: r.fecl.toFixed(1), alignment: "right" },
-          { text: String(r.done), alignment: "right" },
-          { text: String(r.pending), alignment: "right" },
         ]),
       ],
     },
