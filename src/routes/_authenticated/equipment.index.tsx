@@ -1206,6 +1206,7 @@ function EquipmentEventDialog({
   fixedKind,
   title,
   description,
+  useRpc,
   afterSave,
   onClose,
 }: {
@@ -1214,6 +1215,7 @@ function EquipmentEventDialog({
   fixedKind?: EventKind;
   title: string;
   description?: string;
+  useRpc?: boolean;
   afterSave: (equipmentId: string) => void | Promise<void>;
   onClose: () => void;
 }) {
