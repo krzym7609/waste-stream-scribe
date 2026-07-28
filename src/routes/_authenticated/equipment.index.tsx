@@ -1234,21 +1234,32 @@ function EquipmentEventDialog({
     e.preventDefault();
     setBusy(true);
     try {
-      const { data: inserted, error } = await supabase
-        .from("equipment_events")
-        .insert({
-          equipment_id: equipment.id,
-          kind,
-          title: titleVal.trim() || null,
-          description: desc.trim() || null,
-          performed_at: new Date(performedAt).toISOString(),
-          created_by: userId,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
+      let insertedId: string;
+      if (useRpc && fixedKind === "awaria") {
+        const { data: rpcId, error } = await supabase.rpc("report_equipment_breakdown", {
+          _equipment_id: equipment.id,
+          _description: desc.trim(),
+        });
+        if (error) throw error;
+        insertedId = rpcId as string;
+      } else {
+        const { data: inserted, error } = await supabase
+          .from("equipment_events")
+          .insert({
+            equipment_id: equipment.id,
+            kind,
+            title: titleVal.trim() || null,
+            description: desc.trim() || null,
+            performed_at: new Date(performedAt).toISOString(),
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        insertedId = inserted!.id;
+      }
 
-      if (files.length > 0 && inserted) {
+      if (files.length > 0) {
         for (const file of files) {
           const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
           const path = `${equipment.id}/event/${inserted.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
