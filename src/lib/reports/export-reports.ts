@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { TDocumentDefinitions, Content, TableCell } from "pdfmake/interfaces";
 import { downloadPdf } from "@/lib/pdf/pdfmake-instance";
 
@@ -172,31 +173,73 @@ export type MonthlyExportData = {
   }>;
 };
 
-export function exportMonthlyExcel(d: MonthlyExportData) {
-  const wb = XLSX.utils.book_new();
-  const summary = [
-    { Wskaznik: "Raportów", Wartosc: d.agg.raportow },
-    { Wskaznik: "Zużycie energii [kWh]", Wartosc: Number(d.agg.energia.toFixed(0)) },
-    { Wskaznik: "Flokulant proszk. [kg]", Wartosc: Number(d.agg.flokProszk.toFixed(1)) },
-    { Wskaznik: "Flokulant emul. [l]", Wartosc: Number(d.agg.flokEmul.toFixed(1)) },
-    { Wskaznik: "Wapno [kg]", Wartosc: Number(d.agg.wapno.toFixed(1)) },
-    { Wskaznik: "Chlorek żelaza [l]", Wartosc: Number(d.agg.fecl.toFixed(1)) },
-    { Wskaznik: "Średnia S.M. zagęszcz. [%]", Wartosc: Number(d.agg.smZag.toFixed(2)) },
-    { Wskaznik: "Średnia S.M. odwod. [%]", Wartosc: Number(d.agg.smOdw.toFixed(2)) },
-    { Wskaznik: "Przekazania (przyjęte / wszystkie)", Wartosc: `${d.agg.handoversAccepted} / ${d.agg.handovers}` },
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Podsumowanie");
+export async function exportMonthlyExcel(d: MonthlyExportData) {
+  const wb = new ExcelJS.Workbook();
 
-  const daily = d.dailyChart.map((r) => ({
-    Dzień: r.day,
-    "Energia [kWh]": Number(r.energia.toFixed(0)),
-    "Flok. proszk. [kg]": Number(r.flokProszk.toFixed(2)),
-    "Flok. emul. [l]": Number(r.flokEmul.toFixed(2)),
-    "Wapno [kg]": Number(r.wapno.toFixed(2)),
-    "FeCl₃ [l]": Number(r.fecl.toFixed(2)),
-  }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(daily), "Dziennie");
-  saveWorkbook(wb, `Raport-Miesieczny-${d.year}-${String(d.month).padStart(2, "0")}.xlsx`);
+  const wsSum = wb.addWorksheet("Podsumowanie");
+  wsSum.columns = [
+    { header: "Wskaźnik", key: "k", width: 40 },
+    { header: "Wartość", key: "v", width: 20 },
+  ];
+  wsSum.addRows([
+    { k: "Raportów", v: d.agg.raportow },
+    { k: "Zużycie energii [kWh]", v: Number(d.agg.energia.toFixed(0)) },
+    { k: "Flokulant proszk. [kg]", v: Number(d.agg.flokProszk.toFixed(1)) },
+    { k: "Flokulant emul. [l]", v: Number(d.agg.flokEmul.toFixed(1)) },
+    { k: "Wapno [kg]", v: Number(d.agg.wapno.toFixed(1)) },
+    { k: "Chlorek żelaza [l]", v: Number(d.agg.fecl.toFixed(1)) },
+    { k: "Średnia S.M. zagęszcz. [%]", v: Number(d.agg.smZag.toFixed(2)) },
+    { k: "Średnia S.M. odwod. [%]", v: Number(d.agg.smOdw.toFixed(2)) },
+    { k: "Przekazania (przyjęte / wszystkie)", v: `${d.agg.handoversAccepted} / ${d.agg.handovers}` },
+  ]);
+  styleHeader(wsSum.getRow(1));
+
+  const wsDaily = wb.addWorksheet("Dziennie");
+  wsDaily.columns = [
+    { header: "Dzień", key: "day", width: 10 },
+    { header: "Energia [kWh]", key: "en", width: 16 },
+    { header: "Flok. proszk. [kg]", key: "fp", width: 18 },
+    { header: "Flok. emul. [l]", key: "fe", width: 18 },
+    { header: "Wapno [kg]", key: "wa", width: 14 },
+    { header: "FeCl₃ [l]", key: "fc", width: 14 },
+  ];
+  d.dailyChart.forEach((r) =>
+    wsDaily.addRow({
+      day: r.day,
+      en: Number(r.energia.toFixed(0)),
+      fp: Number(r.flokProszk.toFixed(2)),
+      fe: Number(r.flokEmul.toFixed(2)),
+      wa: Number(r.wapno.toFixed(2)),
+      fc: Number(r.fecl.toFixed(2)),
+    }),
+  );
+  styleHeader(wsDaily.getRow(1));
+
+  // Charts sheet
+  const wsCharts = wb.addWorksheet("Wykresy");
+  await addChartToSheet(
+    wb,
+    wsCharts,
+    areaChartSvg(d.dailyChart.map((r) => ({ label: r.day, value: r.energia })), {
+      title: "Zużycie energii [kWh] — dzienne",
+      color: "#3b82f6",
+    }),
+    0,
+  );
+  for (let i = 0; i < CHEM_DEFS.length; i++) {
+    const c = CHEM_DEFS[i];
+    await addChartToSheet(
+      wb,
+      wsCharts,
+      areaChartSvg(
+        d.dailyChart.map((r) => ({ label: r.day, value: Number(r[c.key]) || 0 })),
+        { title: `${c.name} [${c.unit}]`, color: c.color },
+      ),
+      i + 1,
+    );
+  }
+
+  await downloadExcelJs(wb, `Raport-Miesieczny-${d.year}-${String(d.month).padStart(2, "0")}.xlsx`);
 }
 
 export async function exportMonthlyPdf(d: MonthlyExportData) {
@@ -228,10 +271,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
   const chemistryGrid = buildChemistryGrid(
     d.dailyChart.map((r) => ({ label: r.day, flokProszk: r.flokProszk, flokEmul: r.flokEmul, wapno: r.wapno, fecl: r.fecl })),
   );
-
-
-
-  
 
   const dailyTable: Content = {
     table: {
@@ -301,18 +340,54 @@ export type YearlyExportData = {
   }>;
 };
 
-export function exportYearlyExcel(d: YearlyExportData) {
-  const wb = XLSX.utils.book_new();
-  const rows = d.months.map((r) => ({
-    Miesiąc: r.month,
-    "Energia [kWh]": Number(r.energia.toFixed(0)),
-    "Flok. proszk. [kg]": Number(r.flokProszk.toFixed(2)),
-    "Flok. emul. [l]": Number(r.flokEmul.toFixed(2)),
-    "Wapno [kg]": Number(r.wapno.toFixed(2)),
-    "FeCl₃ [l]": Number(r.fecl.toFixed(2)),
-  }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), `Rok ${d.year}`);
-  saveWorkbook(wb, `Raport-Roczny-${d.year}.xlsx`);
+export async function exportYearlyExcel(d: YearlyExportData) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(`Rok ${d.year}`);
+  ws.columns = [
+    { header: "Miesiąc", key: "m", width: 14 },
+    { header: "Energia [kWh]", key: "en", width: 16 },
+    { header: "Flok. proszk. [kg]", key: "fp", width: 18 },
+    { header: "Flok. emul. [l]", key: "fe", width: 18 },
+    { header: "Wapno [kg]", key: "wa", width: 14 },
+    { header: "FeCl₃ [l]", key: "fc", width: 14 },
+  ];
+  d.months.forEach((r) =>
+    ws.addRow({
+      m: r.month,
+      en: Number(r.energia.toFixed(0)),
+      fp: Number(r.flokProszk.toFixed(2)),
+      fe: Number(r.flokEmul.toFixed(2)),
+      wa: Number(r.wapno.toFixed(2)),
+      fc: Number(r.fecl.toFixed(2)),
+    }),
+  );
+  styleHeader(ws.getRow(1));
+
+  const wsCharts = wb.addWorksheet("Wykresy");
+  await addChartToSheet(
+    wb,
+    wsCharts,
+    areaChartSvg(d.months.map((r) => ({ label: r.month, value: r.energia })), {
+      title: "Zużycie energii [kWh] — miesięcznie",
+      color: "#3b82f6",
+      mode: "line",
+    }),
+    0,
+  );
+  for (let i = 0; i < CHEM_DEFS.length; i++) {
+    const c = CHEM_DEFS[i];
+    await addChartToSheet(
+      wb,
+      wsCharts,
+      areaChartSvg(
+        d.months.map((r) => ({ label: r.month, value: Number(r[c.key]) || 0 })),
+        { title: `${c.name} [${c.unit}]`, color: c.color, mode: "line" },
+      ),
+      i + 1,
+    );
+  }
+
+  await downloadExcelJs(wb, `Raport-Roczny-${d.year}.xlsx`);
 }
 
 export async function exportYearlyPdf(d: YearlyExportData) {
@@ -399,18 +474,15 @@ export async function exportYearlyPdf(d: YearlyExportData) {
 }
 
 
-/* -------- CHART HELPERS (pdfmake SVG) -------- */
+/* -------- CHART HELPERS (SVG generators + pdfmake wrappers) -------- */
 
-function buildBarChart(
+function barChartSvg(
   data: Array<{ label: string; value: number; color: string }>,
   opts?: { width?: number; height?: number; title?: string },
-): Content {
+): { svg: string; width: number; height: number } {
   const width = opts?.width ?? 520;
   const height = opts?.height ?? 140;
-  const padL = 34;
-  const padR = 8;
-  const padT = 12;
-  const padB = 28;
+  const padL = 34, padR = 8, padT = 12, padB = 28;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -424,7 +496,7 @@ function buildBarChart(
     const y = padT + innerH - (innerH * i) / yTicks;
     ticks.push(
       `<line x1="${padL}" y1="${y}" x2="${padL + innerW}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`,
-      `<text x="${padL - 4}" y="${y + 3}" font-size="7" text-anchor="end" fill="#666">${v >= 1000 ? Math.round(v) : v.toFixed(v < 10 ? 1 : 0)}</text>`,
+      `<text x="${padL - 4}" y="${y + 3}" font-size="7" text-anchor="end" fill="#666">${fmtTick(v)}</text>`,
     );
   }
   const bars = data
@@ -432,24 +504,31 @@ function buildBarChart(
       const h = (d.value / max) * innerH;
       const x = padL + step * i + (step - barW) / 2;
       const y = padT + innerH - h;
-      const lbl = fmtTick(d.value);
       return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${d.color}"/>
-        <text x="${x + barW / 2}" y="${Math.max(padT + 7, y - 2)}" font-size="6" text-anchor="middle" fill="#111">${lbl}</text>
+        <text x="${x + barW / 2}" y="${Math.max(padT + 7, y - 2)}" font-size="6" text-anchor="middle" fill="#111">${fmtTick(d.value)}</text>
         <text x="${x + barW / 2}" y="${padT + innerH + 10}" font-size="6" text-anchor="middle" fill="#333">${escapeXml(d.label)}</text>`;
     })
     .join("");
-
 
   const title = opts?.title
     ? `<text x="${width / 2}" y="8" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
     : "";
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <rect width="100%" height="100%" fill="#ffffff"/>
     ${title}
     ${ticks.join("")}
     <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
     ${bars}
   </svg>`;
+  return { svg, width, height };
+}
+
+function buildBarChart(
+  data: Array<{ label: string; value: number; color: string }>,
+  opts?: { width?: number; height?: number; title?: string },
+): Content {
+  const { svg, width } = barChartSvg(data, opts);
   return { svg, width, alignment: "center" };
 }
 
@@ -459,10 +538,10 @@ function fmtTick(v: number) {
   return v.toFixed(1);
 }
 
-function buildAreaChart(
+function areaChartSvg(
   data: Array<{ label: string; value: number }>,
   opts: { width?: number; height?: number; title?: string; color: string; unit?: string; mode?: "area" | "line" },
-): Content {
+): { svg: string; width: number; height: number } {
   const width = opts.width ?? 520;
   const height = opts.height ?? 150;
   const padL = 38, padR = 10, padT = 16, padB = 26;
@@ -488,7 +567,6 @@ function buildAreaChart(
     );
   }
 
-  // X labels — thin them if too many
   const maxLabels = Math.floor(innerW / 22);
   const stepLabel = Math.max(1, Math.ceil(n / maxLabels));
   const xLabels = points
@@ -518,17 +596,24 @@ function buildAreaChart(
     .map((p, i) => (i % stepLabel === 0 ? `<text x="${p.x.toFixed(1)}" y="${(p.y - 3).toFixed(1)}" font-size="6" text-anchor="middle" fill="#111">${fmtTick(p.d.value)}</text>` : ""))
     .join("");
 
-
   const title = opts.title
     ? `<text x="${width / 2}" y="10" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">${escapeXml(opts.title)}</text>`
     : "";
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <rect width="100%" height="100%" fill="#ffffff"/>
     ${defs}${title}${grid.join("")}
     <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
     ${area}${line}${dots}${valueLabels}${xLabels}
   </svg>`;
+  return { svg, width, height };
+}
 
+function buildAreaChart(
+  data: Array<{ label: string; value: number }>,
+  opts: { width?: number; height?: number; title?: string; color: string; unit?: string; mode?: "area" | "line" },
+): Content {
+  const { svg, width } = areaChartSvg(data, opts);
   return { svg, width, alignment: "center" };
 }
 
@@ -559,9 +644,69 @@ function buildChemistryGrid(rows: ChemRow[], opts?: { mode?: "bar" | "line" }): 
   } as Content;
 }
 
-
-
-
 function escapeXml(s: string) {
   return String(s).replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c] as string));
+}
+
+/* -------- ExcelJS helpers (chart embedding via SVG→PNG) -------- */
+
+function styleHeader(row: ExcelJS.Row) {
+  row.font = { bold: true };
+  row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9D9D9" } };
+}
+
+async function svgToPngDataUrl(svg: string, width: number, height: number, scale = 2): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
+  });
+}
+
+async function addChartToSheet(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+  chart: { svg: string; width: number; height: number },
+  index: number,
+) {
+  const dataUrl = await svgToPngDataUrl(chart.svg, chart.width, chart.height, 2);
+  const imgId = wb.addImage({ base64: dataUrl, extension: "png" });
+  // Each chart occupies ~26 rows vertically; place at column A
+  const rowsPerChart = 26;
+  const topRow = index * rowsPerChart;
+  ws.addImage(imgId, {
+    tl: { col: 0, row: topRow },
+    ext: { width: chart.width, height: chart.height },
+  });
+}
+
+async function downloadExcelJs(wb: ExcelJS.Workbook, filename: string) {
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
