@@ -220,10 +220,16 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
     margin: [0, 0, 0, 10],
   };
 
-  const energyBars = buildBarChart(
-    d.dailyChart.map((r) => ({ label: r.day, value: r.energia, color: "#3b82f6" })),
-    { width: 520, height: 140, title: "Zużycie energii [kWh] — dzienne" },
+  const energyChart = buildAreaChart(
+    d.dailyChart.map((r) => ({ label: r.day, value: r.energia })),
+    { width: 520, height: 150, title: "Zużycie energii [kWh] — dzienne", color: "#3b82f6", unit: "kWh" },
   );
+
+  const chemistryGrid = buildChemistryGrid(
+    d.dailyChart.map((r) => ({ label: r.day, flokProszk: r.flokProszk, flokEmul: r.flokEmul, wapno: r.wapno, fecl: r.fecl })),
+  );
+
+
 
   
 
