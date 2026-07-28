@@ -372,8 +372,6 @@ export async function exportYearlyPdf(d: YearlyExportData) {
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summary,
       energyBars,
-      { text: "", margin: [0, 6, 0, 0] },
-      tasksBars,
       { text: "Rozkład miesięczny", bold: true, margin: [0, 12, 0, 4] },
       monthlyTable,
     ],
