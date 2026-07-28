@@ -247,6 +247,60 @@ function TeamPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edycja pracownika</DialogTitle>
+            <DialogDescription>
+              Zmień dane osobowe{isBoss ? " lub rolę" : ""}. Login pozostaje bez zmian.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_first_name">Imię</Label>
+                  <Input id="edit_first_name" name="first_name" defaultValue={editing.first_name ?? ""} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_last_name">Nazwisko</Label>
+                  <Input id="edit_last_name" name="last_name" defaultValue={editing.last_name ?? ""} required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Login</Label>
+                <Input value={editing.username ?? ""} readOnly className="font-mono bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_phone">Telefon</Label>
+                <Input id="edit_phone" name="phone" type="tel" defaultValue={editing.phone ?? ""} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_role">Rola</Label>
+                <Select name="role" defaultValue={editing.role ?? "operator"} disabled={!isBoss && editing.role !== "operator"}>
+                  <SelectTrigger id="edit_role"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="operator">Operator</SelectItem>
+                    {isBoss && <SelectItem value="kierownik">Kierownik</SelectItem>}
+                    {isBoss && <SelectItem value="zarzadca">Zarządca (prezes)</SelectItem>}
+                    {isAdmin && <SelectItem value="admin">Administrator</SelectItem>}
+                  </SelectContent>
+                </Select>
+                {!isBoss && (
+                  <p className="text-xs text-muted-foreground">Tylko zarządca/administrator może zmieniać role kierownicze.</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>Anuluj</Button>
+                <Button type="submit" disabled={busy}>{busy ? "Zapisywanie…" : "Zapisz"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+
+
       <Dialog open={!!credentials} onOpenChange={(o) => !o && setCredentials(null)}>
         <DialogContent>
           <DialogHeader>
