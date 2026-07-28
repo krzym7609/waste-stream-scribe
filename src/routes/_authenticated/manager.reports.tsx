@@ -652,41 +652,70 @@ function YearlyView() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Zużycie energii i chemii</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Zużycie energii — miesięcznie [kWh]</CardTitle></CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="energia" fill="#3b82f6" name="Energia [kWh]" />
-              <Bar dataKey="flokProszk" fill="#10b981" name="Flok. proszk. [kg]" />
-              <Bar dataKey="flokEmul" fill="#f59e0b" name="Flok. emul. [l]" />
-              <Bar dataKey="wapno" fill="#8b5cf6" name="Wapno [kg]" />
-              <Bar dataKey="fecl" fill="#ef4444" name="FeCl₃ [l]" />
-            </BarChart>
+            <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => nf(0).format(v)} />
+              <Tooltip
+                formatter={(v: any) => [`${nf(0).format(Number(v))} kWh`, "Energia"]}
+                contentStyle={{ fontSize: 12 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="energia"
+                stroke="#3b82f6"
+                strokeWidth={2.5}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+                name="Energia [kWh]"
+              />
+            </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Wykonanie zadań</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Zużycie chemii — miesięcznie (trend)</CardTitle></CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="done" fill="#10b981" name="Wykonane" />
-              <Bar dataKey="pending" fill="#ef4444" name="Niewykonane" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {CHEM_SERIES.map((s) => (
+              <div key={s.key} className="border rounded-md p-3">
+                <div className="text-xs font-medium mb-1" style={{ color: s.color }}>
+                  {s.name} [{s.unit}]
+                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => nf(1).format(v)} />
+                    <Tooltip
+                      formatter={(v: any) => [`${nf(2).format(Number(v))} ${s.unit}`, s.name]}
+                      contentStyle={{ fontSize: 12 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey={s.key}
+                      stroke={s.color}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Wykonanie zadań (miesięcznie)</CardTitle></CardHeader>
+        <CardContent><TasksChart data={chartData} xKey="month" /></CardContent>
+      </Card>
+
     </div>
   );
 }
