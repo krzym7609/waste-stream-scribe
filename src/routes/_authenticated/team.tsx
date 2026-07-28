@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { createEmployee, resetEmployeePassword, updateEmployee } from "@/lib/employees.functions";
+import { createEmployee, resetEmployeePassword, updateEmployee, deleteEmployee } from "@/lib/employees.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
