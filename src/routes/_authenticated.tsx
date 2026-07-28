@@ -27,14 +27,13 @@ function AuthenticatedLayout() {
   }
 
   const navItems = [
-    { to: "/shift/checklist", label: "Pulpit", icon: LayoutDashboard },
-    { to: "/shift/report", label: "Raport zmiany", icon: FileText },
+    { to: isManager ? "/dashboard" : "/shift/checklist", label: "Pulpit", icon: LayoutDashboard },
+    ...(!isManager ? [{ to: "/shift/report", label: "Raport zmiany", icon: FileText }] : []),
     { to: "/equipment", label: "Obiekty", icon: Wrench },
     ...(isManager
       ? [
           { to: "/schedule", label: "Harmonogram roczny", icon: CalendarRange },
           { to: "/manager/reports", label: "Raporty", icon: BarChart3 },
-          
           { to: "/team", label: "Zespół", icon: Users },
           { to: "/settings/shifts", label: "Ustawienia zmian", icon: Settings },
         ]

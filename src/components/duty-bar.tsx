@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { NotificationsBell } from "@/components/notifications-bell";
 
 export function DutyBar() {
-  const { user } = useAuth();
+  const { user, isManager } = useAuth();
   const { data, isLoading } = useCurrentDuty();
   const qc = useQueryClient();
   const [now, setNow] = useState(() => new Date());
@@ -204,7 +204,7 @@ export function DutyBar() {
               )}
             </span>
           </div>
-          {isMine ? (
+          {isMine && !isManager ? (
             <Dialog open={endOpen} onOpenChange={setEndOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">Zakończ zmianę</Button>
@@ -269,7 +269,7 @@ export function DutyBar() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          ) : (
+          ) : !isManager ? (
             <Dialog open={takeOpen} onOpenChange={setTakeOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">Przejmij zmianę</Button>
@@ -303,7 +303,7 @@ export function DutyBar() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          )}
+          ) : null}
         </>
       ) : (
         <>
@@ -322,6 +322,7 @@ export function DutyBar() {
               </>
             )}
           </div>
+          {!isManager && (
           <Dialog open={takeOpen} onOpenChange={setTakeOpen}>
             <DialogTrigger asChild>
               <Button size="sm">Rozpocznij zmianę</Button>
@@ -355,6 +356,7 @@ export function DutyBar() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          )}
         </>
       )}
     </div>
