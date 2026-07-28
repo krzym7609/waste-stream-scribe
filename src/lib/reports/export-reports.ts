@@ -44,15 +44,6 @@ export function exportDailyExcel(d: DailyExportData) {
   const wsReports = XLSX.utils.json_to_sheet(reportsRows);
   XLSX.utils.book_append_sheet(wb, wsReports, "Raporty zmianowe");
 
-  const execsRows = d.execs.map((e) => ({
-    Zmiana: e.scheduled_shift ?? "",
-    "Nr zadania": e.task?.task_number ?? "",
-    Nazwa: e.task?.name ?? "",
-    Status: e.status,
-    Notatka: e.note ?? "",
-  }));
-  const wsExecs = XLSX.utils.json_to_sheet(execsRows);
-  XLSX.utils.book_append_sheet(wb, wsExecs, "Zadania");
 
   const handRows = d.handovers.map((h) => ({
     Przekazujący: d.profMap.get(h.from_user_id) ?? "—",
@@ -68,10 +59,6 @@ export function exportDailyExcel(d: DailyExportData) {
 }
 
 export async function exportDailyPdf(d: DailyExportData) {
-  const doneCnt = d.execs.filter((e) => e.status === "done").length;
-  const pendingCnt = d.execs.filter((e) => e.status === "pending").length;
-  const deferredCnt = d.execs.filter((e) => e.status === "deferred").length;
-
   const totalEnergia = d.reports.reduce(
     (s, r) => s + Math.max(0, (Number(r.energia_end) || 0) - (Number(r.energia_start) || 0)),
     0,
@@ -89,19 +76,12 @@ export async function exportDailyPdf(d: DailyExportData) {
         ["Flokulant emul. [l]", { text: sum("flokulant_emulsyjny_l").toFixed(1), alignment: "right" }],
         ["Wapno [kg]", { text: sum("wapno_kg").toFixed(1), alignment: "right" }],
         ["Chlorek żelaza [l]", { text: sum("chlorek_zelaza_l").toFixed(1), alignment: "right" }],
-        ["Zadania — wykonane / niewykonane / przeniesione", { text: `${doneCnt} / ${pendingCnt} / ${deferredCnt}`, alignment: "right" }],
         ["Przekazania zmiany", { text: String(d.handovers.length), alignment: "right" }],
       ],
     },
     margin: [0, 0, 0, 10],
   };
 
-  const chartData = [
-    { label: "Wykonane", value: doneCnt, color: "#10b981" },
-    { label: "Niewykon.", value: pendingCnt, color: "#ef4444" },
-    { label: "Przenies.", value: deferredCnt, color: "#f59e0b" },
-  ];
-  const barChart = buildBarChart(chartData);
 
   const reportsTable: Content =
     d.reports.length === 0
@@ -152,8 +132,6 @@ export async function exportDailyPdf(d: DailyExportData) {
       { text: `Raport dzienny — ${d.date}`, bold: true, fontSize: 14, alignment: "center", margin: [0, 0, 0, 12] },
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summaryTable,
-      { text: "Wykonanie zadań", bold: true, margin: [0, 4, 0, 4] },
-      barChart,
       { text: "Raporty zmianowe", bold: true, margin: [0, 12, 0, 4] },
       reportsTable,
     ],
@@ -205,9 +183,6 @@ export function exportMonthlyExcel(d: MonthlyExportData) {
     { Wskaznik: "Chlorek żelaza [l]", Wartosc: Number(d.agg.fecl.toFixed(1)) },
     { Wskaznik: "Średnia S.M. zagęszcz. [%]", Wartosc: Number(d.agg.smZag.toFixed(2)) },
     { Wskaznik: "Średnia S.M. odwod. [%]", Wartosc: Number(d.agg.smOdw.toFixed(2)) },
-    { Wskaznik: "Zadania wykonane", Wartosc: d.agg.done },
-    { Wskaznik: "Zadania niewykonane", Wartosc: d.agg.pending },
-    { Wskaznik: "Przeniesione", Wartosc: d.agg.deferred },
     { Wskaznik: "Przekazania (przyjęte / wszystkie)", Wartosc: `${d.agg.handoversAccepted} / ${d.agg.handovers}` },
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), "Podsumowanie");
@@ -219,8 +194,6 @@ export function exportMonthlyExcel(d: MonthlyExportData) {
     "Flok. emul. [l]": Number(r.flokEmul.toFixed(2)),
     "Wapno [kg]": Number(r.wapno.toFixed(2)),
     "FeCl₃ [l]": Number(r.fecl.toFixed(2)),
-    "Zadania wykonane": r.done,
-    "Zadania niewykonane": r.pending,
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(daily), "Dziennie");
   saveWorkbook(wb, `Raport-Miesieczny-${d.year}-${String(d.month).padStart(2, "0")}.xlsx`);
@@ -240,7 +213,7 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
         ["Chlorek żelaza [l]", { text: d.agg.fecl.toFixed(1), alignment: "right" }],
         ["Śr. S.M. zagęszcz. [%]", { text: d.agg.smZag.toFixed(2), alignment: "right" }],
         ["Śr. S.M. odwod. [%]", { text: d.agg.smOdw.toFixed(2), alignment: "right" }],
-        ["Zadania — wyk./niewyk./prze.", { text: `${d.agg.done} / ${d.agg.pending} / ${d.agg.deferred}`, alignment: "right" }],
+        
         ["Przekazania (przyjęte/wszystkie)", { text: `${d.agg.handoversAccepted} / ${d.agg.handovers}`, alignment: "right" }],
       ],
     },
@@ -252,12 +225,12 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
     { width: 520, height: 140, title: "Zużycie energii [kWh] — dzienne" },
   );
 
-  const tasksBars = buildStackedTasksChart(d.dailyChart);
+  
 
   const dailyTable: Content = {
     table: {
       headerRows: 1,
-      widths: [24, 50, 50, 50, 40, 40, 40, 40],
+      widths: [24, 60, 60, 60, 50, 50],
       body: [
         [
           { text: "Dz.", fillColor: GRAY, bold: true },
@@ -266,8 +239,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
           { text: "Flok.e.", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "Wapno", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "FeCl₃", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Wyk.", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Niewyk.", fillColor: GRAY, bold: true, alignment: "right" },
         ],
         ...d.dailyChart.map<TableCell[]>((r) => [
           { text: r.day },
@@ -276,8 +247,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
           { text: r.flokEmul.toFixed(1), alignment: "right" },
           { text: r.wapno.toFixed(1), alignment: "right" },
           { text: r.fecl.toFixed(1), alignment: "right" },
-          { text: String(r.done), alignment: "right" },
-          { text: String(r.pending), alignment: "right" },
         ]),
       ],
     },
@@ -298,8 +267,6 @@ export async function exportMonthlyPdf(d: MonthlyExportData) {
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summaryTable,
       energyBars,
-      { text: "", margin: [0, 6, 0, 0] },
-      tasksBars,
       { text: "Rozkład dzienny", bold: true, margin: [0, 12, 0, 4], pageBreak: "before" },
       dailyTable,
     ],
@@ -333,8 +300,6 @@ export function exportYearlyExcel(d: YearlyExportData) {
     "Flok. emul. [l]": Number(r.flokEmul.toFixed(2)),
     "Wapno [kg]": Number(r.wapno.toFixed(2)),
     "FeCl₃ [l]": Number(r.fecl.toFixed(2)),
-    "Zadania wykonane": r.done,
-    "Zadania niewykonane": r.pending,
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), `Rok ${d.year}`);
   saveWorkbook(wb, `Raport-Roczny-${d.year}.xlsx`);
@@ -348,10 +313,8 @@ export async function exportYearlyPdf(d: YearlyExportData) {
       flokEmul: s.flokEmul + r.flokEmul,
       wapno: s.wapno + r.wapno,
       fecl: s.fecl + r.fecl,
-      done: s.done + r.done,
-      pending: s.pending + r.pending,
     }),
-    { energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0, done: 0, pending: 0 },
+    { energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0 },
   );
 
   const summary: Content = {
@@ -364,7 +327,7 @@ export async function exportYearlyPdf(d: YearlyExportData) {
         ["Flokulant emul. [l]", { text: totals.flokEmul.toFixed(1), alignment: "right" }],
         ["Wapno [kg]", { text: totals.wapno.toFixed(1), alignment: "right" }],
         ["Chlorek żelaza [l]", { text: totals.fecl.toFixed(1), alignment: "right" }],
-        ["Zadania wykonane / niewykonane", { text: `${totals.done} / ${totals.pending}`, alignment: "right" }],
+        
       ],
     },
     margin: [0, 0, 0, 10],
@@ -374,14 +337,11 @@ export async function exportYearlyPdf(d: YearlyExportData) {
     d.months.map((r) => ({ label: r.month, value: r.energia, color: "#3b82f6" })),
     { width: 520, height: 160, title: "Zużycie energii [kWh] — miesięcznie" },
   );
-  const tasksBars = buildStackedTasksChart(
-    d.months.map((r) => ({ day: r.month, done: r.done, pending: r.pending, energia: 0, flokProszk: 0, flokEmul: 0, wapno: 0, fecl: 0 })),
-  );
 
   const monthlyTable: Content = {
     table: {
       headerRows: 1,
-      widths: [40, 60, 55, 55, 50, 50, 40, 45],
+      widths: [40, 70, 65, 65, 60, 60],
       body: [
         [
           { text: "M-c", fillColor: GRAY, bold: true },
@@ -390,8 +350,6 @@ export async function exportYearlyPdf(d: YearlyExportData) {
           { text: "Flok.e.", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "Wapno", fillColor: GRAY, bold: true, alignment: "right" },
           { text: "FeCl₃", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Wyk.", fillColor: GRAY, bold: true, alignment: "right" },
-          { text: "Niewyk.", fillColor: GRAY, bold: true, alignment: "right" },
         ],
         ...d.months.map<TableCell[]>((r) => [
           { text: r.month },
@@ -400,8 +358,6 @@ export async function exportYearlyPdf(d: YearlyExportData) {
           { text: r.flokEmul.toFixed(1), alignment: "right" },
           { text: r.wapno.toFixed(1), alignment: "right" },
           { text: r.fecl.toFixed(1), alignment: "right" },
-          { text: String(r.done), alignment: "right" },
-          { text: String(r.pending), alignment: "right" },
         ]),
       ],
     },
@@ -416,8 +372,6 @@ export async function exportYearlyPdf(d: YearlyExportData) {
       { text: "Podsumowanie", bold: true, margin: [0, 0, 0, 4] },
       summary,
       energyBars,
-      { text: "", margin: [0, 6, 0, 0] },
-      tasksBars,
       { text: "Rozkład miesięczny", bold: true, margin: [0, 12, 0, 4] },
       monthlyTable,
     ],
@@ -477,59 +431,6 @@ function buildBarChart(
   return { svg, width, alignment: "center" };
 }
 
-function buildStackedTasksChart(
-  data: Array<{ day: string; done: number; pending: number }>,
-): Content {
-  const width = 520;
-  const height = 140;
-  const padL = 34;
-  const padR = 8;
-  const padT = 20;
-  const padB = 28;
-  const innerW = width - padL - padR;
-  const innerH = height - padT - padB;
-  const max = Math.max(1, ...data.map((d) => d.done + d.pending));
-  const step = innerW / Math.max(1, data.length);
-  const barW = Math.max(2, step * 0.72);
-
-  const yTicks = 4;
-  const ticks: string[] = [];
-  for (let i = 0; i <= yTicks; i++) {
-    const v = (max * i) / yTicks;
-    const y = padT + innerH - (innerH * i) / yTicks;
-    ticks.push(
-      `<line x1="${padL}" y1="${y}" x2="${padL + innerW}" y2="${y}" stroke="#e5e7eb" stroke-width="0.5"/>`,
-      `<text x="${padL - 4}" y="${y + 3}" font-size="7" text-anchor="end" fill="#666">${Math.round(v)}</text>`,
-    );
-  }
-  const bars = data
-    .map((d, i) => {
-      const hDone = (d.done / max) * innerH;
-      const hPend = (d.pending / max) * innerH;
-      const x = padL + step * i + (step - barW) / 2;
-      const yDone = padT + innerH - hDone;
-      const yPend = yDone - hPend;
-      return `<rect x="${x}" y="${yDone}" width="${barW}" height="${hDone}" fill="#10b981"/>
-        <rect x="${x}" y="${yPend}" width="${barW}" height="${hPend}" fill="#ef4444"/>
-        <text x="${x + barW / 2}" y="${padT + innerH + 10}" font-size="6" text-anchor="middle" fill="#333">${escapeXml(d.day)}</text>`;
-    })
-    .join("");
-
-  const legend = `
-    <rect x="${padL}" y="4" width="9" height="9" fill="#10b981"/>
-    <text x="${padL + 13}" y="12" font-size="8" fill="#111">Wykonane</text>
-    <rect x="${padL + 80}" y="4" width="9" height="9" fill="#ef4444"/>
-    <text x="${padL + 93}" y="12" font-size="8" fill="#111">Niewykonane</text>`;
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-    <text x="${width / 2}" y="12" font-size="9" text-anchor="middle" font-weight="bold" fill="#111">Wykonanie zadań</text>
-    ${legend}
-    ${ticks.join("")}
-    <line x1="${padL}" y1="${padT + innerH}" x2="${padL + innerW}" y2="${padT + innerH}" stroke="#333" stroke-width="0.6"/>
-    ${bars}
-  </svg>`;
-  return { svg, width, alignment: "center" };
-}
 
 function escapeXml(s: string) {
   return String(s).replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c] as string));
