@@ -715,13 +715,15 @@ function YearlyView() {
 /* ---------------- HELPERS ---------------- */
 
 function Metric({ label, value, unit }: { label: string; value: number | null; unit: string }) {
+  const decimals = unit === "kWh" ? 0 : unit === "%" ? 2 : 1;
   return (
     <div className="bg-muted/40 rounded px-2 py-1">
       <div className="text-[10px] text-muted-foreground uppercase">{label}</div>
-      <div className="font-medium">{value != null ? `${value} ${unit}` : "—"}</div>
+      <div className="font-medium">{value != null ? `${fmt(value, decimals)} ${unit}` : "—"}</div>
     </div>
   );
 }
+
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
