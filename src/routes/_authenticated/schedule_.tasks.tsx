@@ -973,7 +973,7 @@ function DaysCalendar({
           ))}
         </div>
       )}
-      <div className={cn("grid gap-1", showWeekHeader ? "grid-cols-7" : "grid-cols-7 sm:grid-cols-8")}>
+      <div className={cn("grid gap-0.5", showWeekHeader ? "grid-cols-7" : "grid-cols-7 sm:grid-cols-8")}>
         {showWeekHeader &&
           Array.from({ length: offset }, (_, i) => <div key={`pad-${i}`} />)}
         {days.map((d) => {
@@ -993,7 +993,7 @@ function DaysCalendar({
               onMouseEnter={() => onEnter(d)}
               onTouchStart={() => onDown(d)}
               className={cn(
-                "aspect-square rounded border text-left px-1.5 py-1 transition-colors",
+                "h-8 rounded border text-left px-1 py-0.5 transition-colors",
                 "hover:border-primary/60",
                 isWeekend && !marked && "bg-muted/50",
                 marked
@@ -1003,15 +1003,15 @@ function DaysCalendar({
                   : "border-border",
               )}
             >
-              <div className="text-xs font-mono leading-none">{d}</div>
-              <div className="mt-1 flex gap-0.5">
+              <div className="text-[10px] font-mono leading-none">{d}</div>
+              <div className="mt-0.5 flex gap-0.5">
                 {has1 && (
-                  <span className="text-[10px] leading-none rounded bg-primary text-primary-foreground px-1 py-0.5">
+                  <span className="text-[9px] leading-none rounded bg-primary text-primary-foreground px-1 py-0.5">
                     R
                   </span>
                 )}
                 {has2 && (
-                  <span className="text-[10px] leading-none rounded bg-secondary text-secondary-foreground border px-1 py-0.5">
+                  <span className="text-[9px] leading-none rounded bg-secondary text-secondary-foreground border px-1 py-0.5">
                     P
                   </span>
                 )}
