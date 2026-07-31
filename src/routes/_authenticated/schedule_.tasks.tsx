@@ -709,7 +709,7 @@ function MonthOverrideEditor({
   setDrafts: React.Dispatch<React.SetStateAction<Record<string, MonthDraft>>>;
 }) {
   const key = monthKey(year, month);
-  const { data: overrides, isLoading: loadingOv } = useQuery({
+  const { data: overrides, isLoading: loadingOv, isFetching: fetchingOv } = useQuery({
     queryKey: ["schedule-overrides-task", taskId, year, month],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -722,6 +722,7 @@ function MonthOverrideEditor({
       return data as OverrideEntry[];
     },
   });
+
 
   const [brush, setBrush] = useState<BrushMode>("rano");
   const daysInMonth = new Date(year, month, 0).getDate();
