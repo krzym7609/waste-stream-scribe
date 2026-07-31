@@ -312,6 +312,21 @@ function TemplateButton({ taskId, taskName }: { taskId: string; taskName: string
   );
 }
 
+type MonthDraft = { state: Map<number, Set<ShiftType>>; baseline: string };
+
+function monthKey(year: number, month: number) {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function templateMapFor(template: TplEntry[] | undefined, year: number, month: number) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const m = new Map<number, Set<ShiftType>>();
+  (template ?? []).forEach((t) => {
+    if (t.day_of_month <= daysInMonth) m.set(t.day_of_month, new Set(t.shifts as ShiftType[]));
+  });
+  return m;
+}
+
 function TemplateDialog({
   taskId,
   taskName,
@@ -323,25 +338,102 @@ function TemplateDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
+  const qc = useQueryClient();
   const [mode, setMode] = useState<"template" | "month">("template");
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [dirty, setDirty] = useState(false);
+  const [tplDirty, setTplDirty] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, MonthDraft>>({});
 
-  function confirmLeave(currentLabel: string) {
-    if (!dirty) return true;
-    return window.confirm(
-      `Masz niezapisane zmiany (${currentLabel}). Porzucić je i przejść dalej?`,
-    );
-  }
+  const { data: template } = useQuery({
+    queryKey: ["schedule-template-task", taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("schedule_template_entries")
+        .select("id, day_of_month, shifts")
+        .eq("task_id", taskId);
+      if (error) throw error;
+      return data as TplEntry[];
+    },
+  });
+
+  const dirtyMonths = useMemo(
+    () =>
+      Object.entries(drafts)
+        .filter(([, d]) => serializeState(d.state) !== d.baseline)
+        .map(([k]) => k)
+        .sort(),
+    [drafts],
+  );
 
   const monthLabel = `${MONTHS_PL[month - 1]} ${year}`;
 
+  function labelOfKey(k: string) {
+    const [y, m] = k.split("-");
+    return `${MONTHS_PL[parseInt(m, 10) - 1]} ${y}`;
+  }
+
+  const saveAll = useMutation({
+    mutationFn: async () => {
+      for (const k of dirtyMonths) {
+        const [ys, ms] = k.split("-");
+        const y = parseInt(ys, 10);
+        const m = parseInt(ms, 10);
+        const draft = drafts[k];
+        const tpl = templateMapFor(template, y, m);
+        const daysInMonth = new Date(y, m, 0).getDate();
+
+        const { error: delErr } = await supabase
+          .from("schedule_month_overrides")
+          .delete()
+          .eq("task_id", taskId)
+          .eq("year", y)
+          .eq("month", m);
+        if (delErr) throw delErr;
+
+        const rows: Array<{
+          task_id: string;
+          year: number;
+          month: number;
+          day_of_month: number;
+          shifts: ShiftType[];
+        }> = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const cur = draft.state.get(d) ?? new Set<ShiftType>();
+          const base = tpl.get(d) ?? new Set<ShiftType>();
+          if (!sameSet(cur, base)) {
+            rows.push({ task_id: taskId, year: y, month: m, day_of_month: d, shifts: Array.from(cur) });
+          }
+        }
+        if (rows.length > 0) {
+          const { error: insErr } = await supabase.from("schedule_month_overrides").insert(rows);
+          if (insErr) throw insErr;
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["schedule-overrides"] });
+      qc.invalidateQueries({ queryKey: ["schedule-overrides-task"] });
+      toast.success(
+        dirtyMonths.length === 1
+          ? `Zapisano ${labelOfKey(dirtyMonths[0])}`
+          : `Zapisano ${dirtyMonths.length} miesiące/miesięcy`,
+      );
+      setDrafts({});
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function confirmLeave() {
+    if (mode === "template" ? tplDirty : dirtyMonths.length > 0) {
+      return window.confirm("Masz niezapisane zmiany. Porzucić je?");
+    }
+    return true;
+  }
+
   function changeMonth(nextYear: number, nextMonth: number) {
-    if (nextYear === year && nextMonth === month) return;
-    if (!confirmLeave(monthLabel)) return;
-    setDirty(false);
     setYear(nextYear);
     setMonth(nextMonth);
   }
@@ -353,8 +445,9 @@ function TemplateDialog({
 
   function switchMode(next: "template" | "month") {
     if (next === mode) return;
-    if (!confirmLeave(mode === "template" ? "szablon" : monthLabel)) return;
-    setDirty(false);
+    if (!confirmLeave()) return;
+    if (mode === "template") setTplDirty(false);
+    else setDrafts({});
     setMode(next);
   }
 
@@ -362,7 +455,7 @@ function TemplateDialog({
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o && !confirmLeave(mode === "template" ? "szablon" : monthLabel)) return;
+        if (!o && !confirmLeave()) return;
         onOpenChange(o);
       }}
     >
@@ -394,9 +487,9 @@ function TemplateDialog({
           <TemplateEditor
             key={`tpl-${taskId}`}
             taskId={taskId}
-            onDirtyChange={setDirty}
+            onDirtyChange={setTplDirty}
             onDone={() => {
-              setDirty(false);
+              setTplDirty(false);
               onOpenChange(false);
             }}
           />
@@ -435,23 +528,72 @@ function TemplateDialog({
                 />
               </div>
             </div>
+
             <MonthOverrideEditor
-              key={`ov-${taskId}-${year}-${month}`}
               taskId={taskId}
               year={year}
               month={month}
-              onDirtyChange={setDirty}
-              onDone={() => {
-                setDirty(false);
-                onOpenChange(false);
-              }}
+              template={template}
+              drafts={drafts}
+              setDrafts={setDrafts}
             />
+
+            <div className="rounded border bg-muted/30 p-2 space-y-2">
+              <div className="text-xs text-muted-foreground">
+                {dirtyMonths.length === 0
+                  ? "Brak niezapisanych miesięcy — możesz przeglądać i zaznaczać dowolne miesiące, zmiany zostaną zapamiętane."
+                  : "Niezapisane miesiące (klikaj, aby wrócić do edycji):"}
+              </div>
+              {dirtyMonths.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {dirtyMonths.map((k) => {
+                    const [y, m] = k.split("-").map((v) => parseInt(v, 10));
+                    const activeKey = monthKey(year, month) === k;
+                    return (
+                      <Button
+                        key={k}
+                        size="sm"
+                        variant={activeKey ? "default" : "outline"}
+                        className="h-7 px-2 text-xs capitalize"
+                        onClick={() => changeMonth(y, m)}
+                      >
+                        {labelOfKey(k)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (confirmLeave()) {
+                      setDrafts({});
+                      onOpenChange(false);
+                    }
+                  }}
+                >
+                  Anuluj
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => saveAll.mutate()}
+                  disabled={saveAll.isPending || dirtyMonths.length === 0}
+                >
+                  {saveAll.isPending
+                    ? "Zapisywanie…"
+                    : `Zapisz wszystko${dirtyMonths.length ? ` (${dirtyMonths.length})` : ""}`}
+                </Button>
+              </div>
+            </div>
           </>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function TemplateEditor({
   taskId,
