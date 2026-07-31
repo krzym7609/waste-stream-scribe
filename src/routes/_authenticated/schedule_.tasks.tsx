@@ -709,7 +709,7 @@ function MonthOverrideEditor({
   setDrafts: React.Dispatch<React.SetStateAction<Record<string, MonthDraft>>>;
 }) {
   const key = monthKey(year, month);
-  const { data: overrides, isLoading: loadingOv } = useQuery({
+  const { data: overrides, isLoading: loadingOv, isFetching: fetchingOv } = useQuery({
     queryKey: ["schedule-overrides-task", taskId, year, month],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -722,6 +722,7 @@ function MonthOverrideEditor({
       return data as OverrideEntry[];
     },
   });
+
 
   const [brush, setBrush] = useState<BrushMode>("rano");
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -736,21 +737,31 @@ function MonthOverrideEditor({
   const draft = drafts[key];
   const isLoading = loadingOv || !template;
 
-  // Inicjalizacja szkicu miesiąca po wczytaniu danych (tylko raz na miesiąc).
+  // Inicjalizacja / odświeżenie szkicu miesiąca po wczytaniu danych z bazy.
+  // Nie nadpisujemy szkicu, w którym są niezapisane zmiany.
   useEffect(() => {
-    if (!overrides || !template) return;
-    setDrafts((prev) => {
-      if (prev[key]) return prev;
-      const merged = new Map<number, Set<ShiftType>>(
-        Array.from(templateMapFor(template, year, month).entries()).map(([d, s]) => [d, new Set(s)]),
-      );
-      overrides.forEach((o) => {
-        if (o.shifts.length > 0) merged.set(o.day_of_month, new Set(o.shifts as ShiftType[]));
-        else merged.delete(o.day_of_month);
-      });
-      return { ...prev, [key]: { state: merged, baseline: serializeState(merged) } };
+    if (!overrides || !template || fetchingOv) return;
+    const merged = new Map<number, Set<ShiftType>>(
+      Array.from(templateMapFor(template, year, month).entries()).map(([d, s]) => [d, new Set(s)]),
+    );
+    overrides.forEach((o) => {
+      if (o.shifts.length > 0) merged.set(o.day_of_month, new Set(o.shifts as ShiftType[]));
+      else merged.delete(o.day_of_month);
     });
-  }, [overrides, template, key, year, month, setDrafts]);
+    const fresh = serializeState(merged);
+    setDrafts((prev) => {
+      const cur = prev[key];
+      if (cur) {
+        const curSer = serializeState(cur.state);
+        // szkic ma niezapisane zmiany — zostawiamy
+        if (curSer !== cur.baseline) return prev;
+        // czysty szkic zgodny z bazą — nic nie rób
+        if (curSer === fresh && cur.baseline === fresh) return prev;
+      }
+      return { ...prev, [key]: { state: merged, baseline: fresh } };
+    });
+  }, [overrides, template, key, year, month, setDrafts, fetchingOv]);
+
 
   const state = draft?.state ?? new Map<number, Set<ShiftType>>();
   const dirty = !!draft && serializeState(draft.state) !== draft.baseline;
