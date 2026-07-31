@@ -697,16 +697,18 @@ function MonthOverrideEditor({
   taskId,
   year,
   month,
-  onDone,
-  onDirtyChange,
+  template,
+  drafts,
+  setDrafts,
 }: {
   taskId: string;
   year: number;
   month: number;
-  onDone: () => void;
-  onDirtyChange: (d: boolean) => void;
+  template: TplEntry[] | undefined;
+  drafts: Record<string, MonthDraft>;
+  setDrafts: React.Dispatch<React.SetStateAction<Record<string, MonthDraft>>>;
 }) {
-  const qc = useQueryClient();
+  const key = monthKey(year, month);
   const { data: overrides, isLoading: loadingOv } = useQuery({
     queryKey: ["schedule-overrides-task", taskId, year, month],
     queryFn: async () => {
@@ -721,102 +723,46 @@ function MonthOverrideEditor({
     },
   });
 
-  const { data: template, isLoading: loadingTpl } = useQuery({
-    queryKey: ["schedule-template-task", taskId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("schedule_template_entries")
-        .select("id, day_of_month, shifts")
-        .eq("task_id", taskId);
-      if (error) throw error;
-      return data as TplEntry[];
-    },
-  });
-
-  const [state, setState] = useState<Map<number, Set<ShiftType>>>(new Map());
   const [brush, setBrush] = useState<BrushMode>("rano");
   const daysInMonth = new Date(year, month, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const offset = (new Date(year, month - 1, 1).getDay() + 6) % 7; // pn = 0
 
-  const templateMap = useMemo(() => {
-    const m = new Map<number, Set<ShiftType>>();
-    (template ?? []).forEach((t) => {
-      if (t.day_of_month <= daysInMonth) m.set(t.day_of_month, new Set(t.shifts as ShiftType[]));
-    });
-    return m;
-  }, [template, daysInMonth]);
-
-  const savedKey = useSyncedState(
-    `ov-${taskId}-${year}-${month}`,
-    overrides && template
-      ? (() => {
-          const merged = new Map<number, Set<ShiftType>>(
-            Array.from(templateMap.entries()).map(([d, s]) => [d, new Set(s)]),
-          );
-          overrides.forEach((o) => {
-            if (o.shifts.length > 0) merged.set(o.day_of_month, new Set(o.shifts));
-            else merged.delete(o.day_of_month);
-          });
-          return Array.from(merged.entries()).map(([day, set]) => ({
-            day,
-            shifts: Array.from(set) as ShiftType[],
-          }));
-        })()
-      : null,
-    setState,
+  const templateMap = useMemo(
+    () => templateMapFor(template, year, month),
+    [template, year, month],
   );
 
-  const isLoading = loadingOv || loadingTpl;
-  const dirty = !isLoading && serializeState(state) !== savedKey.current;
-  useEffect(() => { onDirtyChange(dirty); }, [dirty, onDirtyChange]);
+  const draft = drafts[key];
+  const isLoading = loadingOv || !template;
 
-  const save = useMutation({
-    mutationFn: async () => {
-      const { error: delErr } = await supabase
-        .from("schedule_month_overrides")
-        .delete()
-        .eq("task_id", taskId)
-        .eq("year", year)
-        .eq("month", month);
-      if (delErr) throw delErr;
+  // Inicjalizacja szkicu miesiąca po wczytaniu danych (tylko raz na miesiąc).
+  useEffect(() => {
+    if (!overrides || !template) return;
+    setDrafts((prev) => {
+      if (prev[key]) return prev;
+      const merged = new Map<number, Set<ShiftType>>(
+        Array.from(templateMapFor(template, year, month).entries()).map(([d, s]) => [d, new Set(s)]),
+      );
+      overrides.forEach((o) => {
+        if (o.shifts.length > 0) merged.set(o.day_of_month, new Set(o.shifts as ShiftType[]));
+        else merged.delete(o.day_of_month);
+      });
+      return { ...prev, [key]: { state: merged, baseline: serializeState(merged) } };
+    });
+  }, [overrides, template, key, year, month, setDrafts]);
 
-      const rows: Array<{
-        task_id: string;
-        year: number;
-        month: number;
-        day_of_month: number;
-        shifts: ShiftType[];
-      }> = [];
-      for (const d of days) {
-        const cur = state.get(d) ?? new Set<ShiftType>();
-        const tpl = templateMap.get(d) ?? new Set<ShiftType>();
-        const same = cur.size === tpl.size && Array.from(cur).every((s) => tpl.has(s));
-        if (!same) {
-          rows.push({
-            task_id: taskId,
-            year,
-            month,
-            day_of_month: d,
-            shifts: Array.from(cur),
-          });
-        }
-      }
-      if (rows.length > 0) {
-        const { error: insErr } = await supabase
-          .from("schedule_month_overrides")
-          .insert(rows);
-        if (insErr) throw insErr;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule-overrides"] });
-      qc.invalidateQueries({ queryKey: ["schedule-overrides-task", taskId, year, month] });
-      toast.success(`Zapisano ${MONTHS_PL[month - 1]} ${year}`);
-      onDone();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const state = draft?.state ?? new Map<number, Set<ShiftType>>();
+  const dirty = !!draft && serializeState(draft.state) !== draft.baseline;
+
+  const setState: React.Dispatch<React.SetStateAction<Map<number, Set<ShiftType>>>> = (upd) => {
+    setDrafts((prev) => {
+      const cur = prev[key];
+      if (!cur) return prev;
+      const nextState = typeof upd === "function" ? (upd as (p: Map<number, Set<ShiftType>>) => Map<number, Set<ShiftType>>)(cur.state) : upd;
+      return { ...prev, [key]: { ...cur, state: nextState } };
+    });
+  };
 
   function applyToWeekday(weekday: number) {
     setState((prev) => {
@@ -834,13 +780,13 @@ function MonthOverrideEditor({
     <>
       <p className="text-xs text-muted-foreground">
         Ustaw konkretnie dla: <strong className="capitalize">{MONTHS_PL[month - 1]} {year}</strong>.
-        Zapisuje wyjątki dla tego miesiąca — nadpisują szablon. Dni z przerywaną ramką pochodzą
-        z szablonu.
+        Możesz przełączać miesiące bez zapisywania — zaznaczenia każdego miesiąca są zapamiętywane
+        osobno, a na końcu zapisujesz je wszystkie naraz. Dni z przerywaną ramką pochodzą z szablonu.
       </p>
 
       <BrushBar brush={brush} setBrush={setBrush} />
 
-      {isLoading ? (
+      {isLoading || !draft ? (
         <div className="text-sm text-muted-foreground py-6">Ładowanie…</div>
       ) : (
         <>
@@ -890,16 +836,10 @@ function MonthOverrideEditor({
       )}
 
       <StatusBar state={state} dirty={dirty} />
-
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="ghost" onClick={onDone}>Anuluj</Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending || isLoading}>
-          {save.isPending ? "Zapisywanie…" : "Zapisz miesiąc"}
-        </Button>
-      </div>
     </>
   );
 }
+
 
 /* ---------- Wspólne elementy kalendarza ---------- */
 
